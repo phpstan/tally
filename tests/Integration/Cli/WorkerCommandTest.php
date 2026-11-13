@@ -134,7 +134,7 @@ final class WorkerCommandTest extends TestCase
 		$this->assertSame('', $output);
 		$result = $this->writtenResult();
 		$this->assertSame(self::BENCH . '::benchThrows', $result->id->toString());
-		$this->assertSame("RuntimeException: It broke.\nat tests/Fixtures/Worker/WorkerBench.php:29", $result->failure);
+		$this->assertSame("RuntimeException: It broke.\nat tests/Fixtures/Worker/WorkerBench.php:33", $result->failure);
 	}
 
 	/**

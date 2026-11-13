@@ -209,4 +209,9 @@ final class InvalidBench
 	{
 	}
 
+	#[DataProvider('plain')]
+	public function benchTakesAnArgumentTooMany(int $size): void
+	{
+	}
+
 }

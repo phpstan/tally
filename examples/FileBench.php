@@ -14,30 +14,34 @@ use function range;
 use const JSON_THROW_ON_ERROR;
 
 /**
- * A #[Before] method prepares what the benchmark needs, outside of counting. A ScratchDirectory
- * parameter gets an empty directory of the case's own.
+ * A #[Before] method prepares what the benchmark needs, outside of counting. A class that takes
+ * a ScratchDirectory in its constructor gets an empty directory of the case's own.
  */
 final class FileBench
 {
 
 	private const FILE = '/numbers.json';
 
+	public function __construct(private ScratchDirectory $scratch)
+	{
+	}
+
 	/**
 	 * @throws JsonException
 	 */
 	#[Before]
-	public function writeFile(ScratchDirectory $scratch): void
+	public function writeFile(): void
 	{
-		file_put_contents($scratch->path() . self::FILE, json_encode(range(1, 1_000), JSON_THROW_ON_ERROR));
+		file_put_contents($this->scratch->path() . self::FILE, json_encode(range(1, 1_000), JSON_THROW_ON_ERROR));
 	}
 
 	/**
 	 * @throws JsonException
 	 */
 	#[Expected(instructions: '601.4K', cycles: '715.3K', memory: '23.84KiB')]
-	public function benchDecode(ScratchDirectory $scratch): void
+	public function benchDecode(): void
 	{
-		json_decode((string) file_get_contents($scratch->path() . self::FILE), true, 2, JSON_THROW_ON_ERROR);
+		json_decode((string) file_get_contents($this->scratch->path() . self::FILE), true, 2, JSON_THROW_ON_ERROR);
 	}
 
 }

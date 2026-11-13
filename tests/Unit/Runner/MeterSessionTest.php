@@ -18,9 +18,9 @@ final class MeterSessionTest extends TestCase
 	public function testCountsTheSpanAndNamesItsPart(): void
 	{
 		$counter = new RecordingCounter();
-		$session = new MeterSession($counter, new FakeMemory(0));
+		$session = new MeterSession(new FakeMemory(0));
 
-		$session->start();
+		$session->start($counter);
 		$session->pause();
 		$session->resume();
 		$session->exclude(static fn (): null => null);
@@ -31,8 +31,8 @@ final class MeterSessionTest extends TestCase
 
 	public function testExcludeReturnsWhatTheCallbackReturns(): void
 	{
-		$session = new MeterSession(new RecordingCounter(), new FakeMemory(0));
-		$session->start();
+		$session = new MeterSession(new FakeMemory(0));
+		$session->start(new RecordingCounter());
 
 		$result = new MeterStateException('the result');
 
@@ -42,8 +42,8 @@ final class MeterSessionTest extends TestCase
 	public function testExcludeResumesWhenTheCallbackThrows(): void
 	{
 		$counter = new RecordingCounter();
-		$session = new MeterSession($counter, new FakeMemory(0));
-		$session->start();
+		$session = new MeterSession(new FakeMemory(0));
+		$session->start($counter);
 
 		$this->expectException(MeterStateException::class);
 		$this->expectExceptionMessage('thrown by the callback');
@@ -54,6 +54,51 @@ final class MeterSessionTest extends TestCase
 		} finally {
 			$this->assertSame(['start', 'pause', 'resume'], $counter->calls);
 		}
+	}
+
+	/**
+	 * A benchmark object keeps its meter for the whole case: its hooks, warm-up calls, baseline, and the counted call are spans of one session.
+	 */
+	public function testEachSpanHasItsOwnCounterAndMemory(): void
+	{
+		$memory = new FakeMemory(0);
+		$session = new MeterSession($memory);
+		$hook = new RecordingCounter();
+		$counted = new RecordingCounter();
+
+		$session->start($hook);
+		$memory->allocate(5 * self::MIB);
+		$session->exclude(static fn (): null => null);
+		$this->assertSame(['memory' => 5 * self::MIB], $session->stop('hook')->toArray());
+
+		$session->start($counted);
+		$memory->allocate(self::MIB);
+		$this->assertSame(['memory' => self::MIB], $session->stop('counted')->toArray());
+
+		$this->assertSame(['start', 'pause', 'resume', 'stop hook'], $hook->calls);
+		$this->assertSame(['start', 'stop counted'], $counted->calls);
+	}
+
+	/**
+	 * A call that throws leaves its span unfinished, and the after methods still run.
+	 */
+	public function testANewSpanReplacesAnUnfinishedOne(): void
+	{
+		$memory = new FakeMemory(0);
+		$session = new MeterSession($memory);
+		$thrown = new RecordingCounter();
+		$after = new RecordingCounter();
+
+		$session->start($thrown);
+		$session->pause();
+		$memory->allocate(5 * self::MIB);
+		$session->start($after);
+		$memory->allocate(self::MIB);
+		$session->exclude(static fn (): null => null);
+
+		$this->assertSame(['memory' => self::MIB], $session->stop('after')->toArray());
+		$this->assertSame(['start', 'pause'], $thrown->calls);
+		$this->assertSame(['start', 'pause', 'resume', 'stop after'], $after->calls);
 	}
 
 	/**
@@ -149,9 +194,9 @@ final class MeterSessionTest extends TestCase
 		$memory = new FakeMemory(40 * self::MIB);
 		$memory->allocate(20 * self::MIB);
 		$memory->free(20 * self::MIB);
-		$session = new MeterSession(new RecordingCounter(), $memory);
+		$session = new MeterSession($memory);
 
-		$session->start();
+		$session->start(new RecordingCounter());
 		$benchmark($session, $memory);
 
 		$this->assertSame(['memory' => $expected], $session->stop('part')->toArray());
@@ -176,7 +221,7 @@ final class MeterSessionTest extends TestCase
 		];
 		yield 'pause twice' => [
 			static function (MeterSession $session): void {
-				$session->start();
+				$session->start(new RecordingCounter());
 				$session->pause();
 				$session->pause();
 			},
@@ -184,14 +229,14 @@ final class MeterSessionTest extends TestCase
 		];
 		yield 'resume without pause' => [
 			static function (MeterSession $session): void {
-				$session->start();
+				$session->start(new RecordingCounter());
 				$session->resume();
 			},
 			'Meter::resume() was called while the meter is not paused.',
 		];
 		yield 'stop while paused' => [
 			static function (MeterSession $session): void {
-				$session->start();
+				$session->start(new RecordingCounter());
 				$session->pause();
 				$session->stop('part');
 			},
@@ -201,28 +246,13 @@ final class MeterSessionTest extends TestCase
 			static fn (MeterSession $session) => $session->stop('part'),
 			'The meter was stopped before it started.',
 		];
-		yield 'start twice' => [
-			static function (MeterSession $session): void {
-				$session->start();
-				$session->start();
-			},
-			'The meter has already started.',
-		];
 		yield 'pause after stop' => [
 			static function (MeterSession $session): void {
-				$session->start();
+				$session->start(new RecordingCounter());
 				$session->stop('part');
 				$session->pause();
 			},
 			'Meter::pause() was called while the benchmark is not counted.',
-		];
-		yield 'start after stop' => [
-			static function (MeterSession $session): void {
-				$session->start();
-				$session->stop('part');
-				$session->start();
-			},
-			'The meter has already started.',
 		];
 	}
 
@@ -235,7 +265,7 @@ final class MeterSessionTest extends TestCase
 		$this->expectException(MeterStateException::class);
 		$this->expectExceptionMessage($message);
 
-		$misuse(new MeterSession(new RecordingCounter(), new FakeMemory(0)));
+		$misuse(new MeterSession(new FakeMemory(0)));
 	}
 
 }

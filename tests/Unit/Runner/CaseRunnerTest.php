@@ -8,8 +8,9 @@ use RuntimeException;
 use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
+use Tally\Discovery\ArgumentResolver;
+use Tally\Discovery\ConstructorArguments;
 use Tally\Discovery\InvalidBenchmarkException;
-use Tally\Runner\ArgumentResolver;
 use Tally\Runner\CaseRunner;
 use Tally\Runner\IdleCounter;
 use Tally\Runner\MeterStateException;
@@ -21,6 +22,7 @@ use Tally\Tests\Fixtures\Runner\RunnerBench;
 use Tally\Tests\InMemoryExpectations;
 use Tally\Tests\JournalCounter;
 use Throwable;
+use function array_last;
 
 final class CaseRunnerTest extends TestCase
 {
@@ -48,6 +50,7 @@ final class CaseRunnerTest extends TestCase
 		$this->assertSame([
 			'construct',
 			'boot x in /scratch/x',
+			'excluded in a hook',
 			'also',
 			'bench x, booted x',
 			'excluded',
@@ -92,7 +95,7 @@ final class CaseRunnerTest extends TestCase
 		Journal::$memory = $memory;
 		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 3, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1));
 
-		$metrics = (new CaseRunner(new ArgumentResolver(), $memory, new IdleCounter()))->run($case, new ScratchDirectory('/scratch'), new JournalCounter());
+		$metrics = (new CaseRunner(new ConstructorArguments(), new ArgumentResolver(), $memory, new IdleCounter()))->run($case, new ScratchDirectory('/scratch'), new JournalCounter());
 
 		$this->assertSame(['memory' => 1000], $metrics->toArray());
 		$this->assertSame(1_004_000, $memory->usage());
@@ -107,7 +110,7 @@ final class CaseRunnerTest extends TestCase
 		Journal::$memory = $memory;
 		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 0, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1));
 
-		$metrics = (new CaseRunner(new ArgumentResolver(), $memory, new IdleCounter()))->run($case, new ScratchDirectory('/scratch'), new AllocatingCounter($memory, 56));
+		$metrics = (new CaseRunner(new ConstructorArguments(), new ArgumentResolver(), $memory, new IdleCounter()))->run($case, new ScratchDirectory('/scratch'), new AllocatingCounter($memory, 56));
 
 		$this->assertSame(['memory' => 1000], $metrics->toArray());
 	}
@@ -134,6 +137,21 @@ final class CaseRunnerTest extends TestCase
 			'bench throws',
 			'tear down z',
 		], Journal::$entries);
+	}
+
+	/**
+	 * @throws Throwable
+	 */
+	public function testTheAfterMethodsRunWhenTheBenchmarkThrowsWhilePaused(): void
+	{
+		try {
+			self::runner()->run(self::case('benchThrowsPaused', 't', 0, [], ['tearDown']), new ScratchDirectory('/scratch/t'), new JournalCounter());
+			self::fail('The exception of the benchmark should have been rethrown.');
+		} catch (RuntimeException $e) {
+			$this->assertSame('Thrown while paused.', $e->getMessage());
+		}
+
+		$this->assertSame('tear down t', array_last(Journal::$entries));
 	}
 
 	public function testABenchmarkThatReturnsPausedFails(): void
@@ -185,7 +203,7 @@ final class CaseRunnerTest extends TestCase
 
 	private static function runner(): CaseRunner
 	{
-		return new CaseRunner(new ArgumentResolver(), new FakeMemory(0), new IdleCounter());
+		return new CaseRunner(new ConstructorArguments(), new ArgumentResolver(), new FakeMemory(0), new IdleCounter());
 	}
 
 	/**

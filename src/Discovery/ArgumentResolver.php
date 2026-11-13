@@ -1,39 +1,42 @@
 <?php declare(strict_types = 1);
 
-namespace Tally\Runner;
+namespace Tally\Discovery;
 
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
-use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Meter;
 use Tally\ScratchDirectory;
 use function array_shift;
 use function count;
+use function in_array;
 use function sprintf;
 
 /**
- * Fills the parameters of a benchmark, before, or after method: a parameter declared as Meter or
- * ScratchDirectory gets that service, the others get the arguments of the data set in order.
- * Default values of parameters are not used, the data set passes every argument.
+ * Fills the parameters of a benchmark, before, or after method with the arguments of the data
+ * set, in order. Default values of parameters are not used, the data set passes every argument.
+ * Meter and ScratchDirectory come through the constructor of the class, not as arguments.
  */
 final class ArgumentResolver
 {
+
+	/** The types the constructor of a benchmark class takes */
+	private const SERVICES = [Meter::class, ScratchDirectory::class];
 
 	/**
 	 * @param list<mixed> $arguments the data set's
 	 * @return list<mixed>
 	 * @throws InvalidBenchmarkException
 	 */
-	public function resolve(ReflectionFunctionAbstract $function, array $arguments, Meter $meter, ScratchDirectory $scratch): array
+	public function resolve(ReflectionFunctionAbstract $function, array $arguments): array
 	{
-		[$resolved, $remaining, $dataParameters] = $this->fill($function, $arguments, $meter, $scratch);
+		[$resolved, $remaining] = $this->fill($function, $arguments);
 		if ($remaining !== []) {
 			throw new InvalidBenchmarkException($this->name($function), sprintf(
 				'the data set has %s, but the method takes %d.',
 				$this->arguments(count($arguments)),
-				$dataParameters,
+				$function->getNumberOfParameters(),
 			));
 		}
 
@@ -48,29 +51,22 @@ final class ArgumentResolver
 	 * @return list<mixed>
 	 * @throws InvalidBenchmarkException
 	 */
-	public function resolveHook(ReflectionFunctionAbstract $function, array $arguments, Meter $meter, ScratchDirectory $scratch): array
+	public function resolveHook(ReflectionFunctionAbstract $function, array $arguments): array
 	{
-		return $this->fill($function, $arguments, $meter, $scratch)[0];
+		return $this->fill($function, $arguments)[0];
 	}
 
 	/**
 	 * @param list<mixed> $arguments
-	 * @return array{list<mixed>, list<mixed>, int} the resolved arguments, the data arguments left over, and the number of data parameters
+	 * @return array{list<mixed>, list<mixed>} the resolved arguments, and the data arguments left over
 	 * @throws InvalidBenchmarkException
 	 */
-	private function fill(ReflectionFunctionAbstract $function, array $arguments, Meter $meter, ScratchDirectory $scratch): array
+	private function fill(ReflectionFunctionAbstract $function, array $arguments): array
 	{
 		$remaining = $arguments;
 		$resolved = [];
-		$dataParameters = 0;
 		foreach ($function->getParameters() as $parameter) {
-			$service = $this->service($parameter, $meter, $scratch);
-			if ($service !== null) {
-				$resolved[] = $service;
-				continue;
-			}
-
-			$dataParameters++;
+			$this->checkNotAService($function, $parameter);
 			// a variadic parameter is the last one
 			if ($parameter->isVariadic()) {
 				$resolved = [...$resolved, ...$remaining];
@@ -86,21 +82,29 @@ final class ArgumentResolver
 			}
 		}
 
-		return [$resolved, $remaining, $dataParameters];
+		return [$resolved, $remaining];
 	}
 
-	private function service(ReflectionParameter $parameter, Meter $meter, ScratchDirectory $scratch): Meter|ScratchDirectory|null
+	/**
+	 * @throws InvalidBenchmarkException
+	 */
+	private function checkNotAService(ReflectionFunctionAbstract $function, ReflectionParameter $parameter): void
 	{
 		$type = $parameter->getType();
-		if (!$type instanceof ReflectionNamedType) {
-			return null;
+		if (!$type instanceof ReflectionNamedType || !in_array($type->getName(), self::SERVICES, true)) {
+			return;
 		}
 
-		return match ($type->getName()) {
-			Meter::class => $meter,
-			ScratchDirectory::class => $scratch,
-			default => null,
-		};
+		throw new InvalidBenchmarkException($this->name($function), sprintf(
+			'parameter $%s is a %s. Take it in the constructor of the class, a method gets only the arguments of its data set.',
+			$parameter->getName(),
+			$this->shortName($type->getName()),
+		));
+	}
+
+	private function shortName(string $className): string
+	{
+		return $className === Meter::class ? 'Meter' : 'ScratchDirectory';
 	}
 
 	private function name(ReflectionFunctionAbstract $function): string

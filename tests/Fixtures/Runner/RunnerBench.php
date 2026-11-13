@@ -11,18 +11,22 @@ use Tally\ScratchDirectory;
 final class RunnerBench
 {
 
-	private string $booted = 'not booted';
+	private string $booted;
 
-	public function __construct()
+	public function __construct(private ScratchDirectory $scratch, private Meter $meter)
 	{
+		$this->booted = 'not booted';
 		Journal::$entries[] = 'construct';
 	}
 
 	#[Before]
-	public function boot(ScratchDirectory $scratch, string $name): void
+	public function boot(string $name): void
 	{
 		$this->booted = 'booted ' . $name;
-		Journal::$entries[] = 'boot ' . $name . ' in ' . $scratch->path();
+		Journal::$entries[] = 'boot ' . $name . ' in ' . $this->scratch->path();
+		$this->meter->exclude(static function (): void {
+			Journal::$entries[] = 'excluded in a hook';
+		});
 	}
 
 	/** Private, the runner calls hooks of any visibility */
@@ -32,10 +36,10 @@ final class RunnerBench
 		Journal::$entries[] = 'also';
 	}
 
-	public function benchName(string $name, Meter $meter): void
+	public function benchName(string $name): void
 	{
 		Journal::$entries[] = 'bench ' . $name . ', ' . $this->booted;
-		$meter->exclude(static function (): void {
+		$this->meter->exclude(static function (): void {
 			Journal::$entries[] = 'excluded';
 		});
 	}
@@ -51,14 +55,20 @@ final class RunnerBench
 		throw new RuntimeException('The benchmark is broken.');
 	}
 
-	public function benchLeavesPaused(Meter $meter, string $name): void
+	public function benchLeavesPaused(string $name): void
 	{
-		$meter->pause();
+		$this->meter->pause();
 	}
 
-	public function leavePaused(Meter $meter): void
+	public function leavePaused(): void
 	{
-		$meter->pause();
+		$this->meter->pause();
+	}
+
+	public function benchThrowsPaused(string $name): void
+	{
+		$this->meter->pause();
+		throw new RuntimeException('Thrown while paused.');
 	}
 
 	#[After]

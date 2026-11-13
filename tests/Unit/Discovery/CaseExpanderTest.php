@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Tally\BenchmarkCase;
+use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
 use Tally\Discovery\InvalidBenchmarkException;
@@ -13,6 +14,7 @@ use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
+use Tally\Tests\Fixtures\HookArguments\HookArgumentsBench;
 use Tally\Tests\Fixtures\Invalid\InvalidBench;
 use Tally\Tests\Fixtures\Suite\FilesBench;
 use Tally\Tests\Fixtures\Suite\Nested\IndexedBench;
@@ -147,6 +149,7 @@ final class CaseExpanderTest extends TestCase
 		yield ['benchProviderWithParameter', '::benchProviderWithParameter(): data provider withParameter() cannot take arguments, Tally calls it without any.'];
 		yield ['benchProviderThrows', '::benchProviderThrows(): data provider throws() threw RuntimeException: Cannot read the fixtures.'];
 		yield ['benchProviderThrowsWhileYielding', '::benchProviderThrowsWhileYielding(): data provider throwsWhileYielding() threw Error: Call to undefined function Tally\\Tests\\Fixtures\\Invalid\\missing()'];
+		yield ['benchTakesAnArgumentTooMany', '::benchTakesAnArgumentTooMany(): the data set has 0 arguments, but parameter $size needs one too.'];
 		yield ['benchProviderYieldsInvalid', '::benchProviderYieldsInvalid(): data set b of yieldsInvalid() is neither an array of arguments nor a DataSet.'];
 	}
 
@@ -159,6 +162,16 @@ final class CaseExpanderTest extends TestCase
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage(InvalidBench::class . $message);
 		self::expand(InvalidBench::class, $method);
+	}
+
+	/**
+	 * @throws InvalidBenchmarkException
+	 */
+	public function testAHookThatNeedsMoreThanTheDataSet(): void
+	{
+		$this->expectException(InvalidBenchmarkException::class);
+		$this->expectExceptionMessage(HookArgumentsBench::class . '::prepare(): the data set has 1 argument, but parameter $name needs one too.');
+		self::expand(HookArgumentsBench::class, 'benchSize');
 	}
 
 	/**
@@ -181,7 +194,7 @@ final class CaseExpanderTest extends TestCase
 	private static function expand(string $class, string $method): array
 	{
 		$reflection = new ReflectionClass($class);
-		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()));
+		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver());
 
 		return $expander->expand($reflection, $reflection->getMethod($method), $expander->hooks($reflection));
 	}

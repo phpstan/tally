@@ -6,8 +6,9 @@ use Closure;
 use ReflectionClass;
 use ReflectionMethod;
 use Tally\BenchmarkCase;
+use Tally\Discovery\ArgumentResolver;
+use Tally\Discovery\ConstructorArguments;
 use Tally\Discovery\InvalidBenchmarkException;
-use Tally\Meter;
 use Tally\Metrics;
 use Tally\ScratchDirectory;
 use Throwable;
@@ -27,7 +28,10 @@ use function sprintf;
  * The baseline is a separate part of the profile. It goes
  * through the same steps as the counted call: the return from starting the counter, a closure
  * call with the resolved arguments, and stopping the counter, so subtracting it leaves the cost
- * of the benchmark method alone. Its memory is subtracted here, its instructions and cycles
+ * of the benchmark method alone.
+ *
+ * The object gets one MeterSession for the whole case: every call is a span of it, the hooks and
+ * warm-up calls with a counter that counts nothing. Its memory is subtracted here, its instructions and cycles
  * from CodSpeed's profile.
  */
 final class CaseRunner
@@ -39,6 +43,7 @@ final class CaseRunner
 	public const WARMUP_SUFFIX = '#warmup';
 
 	public function __construct(
+		private ConstructorArguments $constructor,
 		private ArgumentResolver $resolver,
 		private Memory $memory,
 		private IdleCounter $uncounted
@@ -58,47 +63,30 @@ final class CaseRunner
 			throw new InvalidBenchmarkException($id, sprintf('class %s does not exist.', $case->id->class));
 		}
 		$class = new ReflectionClass($case->id->class);
-		$object = $class->newInstance();
+		$meter = new MeterSession($this->memory);
+		$object = $class->newInstanceArgs($this->constructor->resolve($class, $meter, $scratch));
 		$benchmark = $class->getMethod($case->id->method);
+		$arguments = $this->resolver->resolve($benchmark, $case->arguments);
+		$call = $benchmark->getClosure($object);
 
 		try {
 			foreach ($case->beforeMethods as $name) {
-				$this->callHook($object, $class->getMethod($name), $case, $scratch);
+				$this->callHook($meter, $object, $class->getMethod($name), $case);
 			}
 			for ($i = 0; $i < $case->warmup; $i++) {
-				$this->callUncounted($object, $benchmark, fn (Meter $meter): array => $this->resolver->resolve($benchmark, $case->arguments, $meter, $scratch));
+				$this->span($meter, $this->uncounted, $call, $arguments, $benchmark->getName());
 			}
 
-			$this->countBaseline($case, $benchmark, $scratch, $counter, $id . self::WARMUP_SUFFIX);
-			$baselineMemory = $this->countBaseline($case, $benchmark, $scratch, $counter, $id . self::BASELINE_SUFFIX);
+			$baseline = $this->baseline(...);
+			$this->span($meter, $counter, $baseline, $arguments, $id . self::WARMUP_SUFFIX);
+			$baselineMemory = $this->span($meter, $counter, $baseline, $arguments, $id . self::BASELINE_SUFFIX);
 
-			$call = $benchmark->getClosure($object);
-			$session = new MeterSession($counter, $this->memory);
-			$arguments = $this->resolver->resolve($benchmark, $case->arguments, $session, $scratch);
-			$session->start();
-			$call(...$arguments);
-
-			return $session->stop($id)->minus($baselineMemory);
+			return $this->span($meter, $counter, $call, $arguments, $id)->minus($baselineMemory);
 		} finally {
 			foreach ($case->afterMethods as $name) {
-				$this->callHook($object, $class->getMethod($name), $case, $scratch);
+				$this->callHook($meter, $object, $class->getMethod($name), $case);
 			}
 		}
-	}
-
-	/**
-	 * @return Metrics the memory
-	 * @throws InvalidBenchmarkException
-	 */
-	private function countBaseline(BenchmarkCase $case, ReflectionMethod $benchmark, ScratchDirectory $scratch, Counter $counter, string $part): Metrics
-	{
-		$baseline = $this->baseline(...);
-		$session = new MeterSession($counter, $this->memory);
-		$arguments = $this->resolver->resolve($benchmark, $case->arguments, $session, $scratch);
-		$session->start();
-		$baseline(...$arguments);
-
-		return $session->stop($part);
 	}
 
 	/** What the baseline counts instead of the benchmark method */
@@ -109,22 +97,24 @@ final class CaseRunner
 	/**
 	 * @throws InvalidBenchmarkException
 	 */
-	private function callHook(object $object, ReflectionMethod $method, BenchmarkCase $case, ScratchDirectory $scratch): void
+	private function callHook(MeterSession $meter, object $object, ReflectionMethod $method, BenchmarkCase $case): void
 	{
-		$this->callUncounted($object, $method, fn (Meter $meter): array => $this->resolver->resolveHook($method, $case->arguments, $meter, $scratch));
+		$this->span($meter, $this->uncounted, $method->getClosure($object), $this->resolver->resolveHook($method, $case->arguments), $method->getName());
 	}
 
 	/**
-	 * @param Closure(Meter): list<mixed> $resolve
-	 * @throws InvalidBenchmarkException
+	 * Calls the closure as one span of the meter.
+	 *
+	 * @param Closure(mixed...): mixed $call
+	 * @param list<mixed> $arguments
+	 * @return Metrics the memory
 	 */
-	private function callUncounted(object $object, ReflectionMethod $method, Closure $resolve): void
+	private function span(MeterSession $meter, Counter $counter, Closure $call, array $arguments, string $part): Metrics
 	{
-		$session = new MeterSession($this->uncounted, $this->memory);
-		$arguments = $resolve($session);
-		$session->start();
-		$method->invokeArgs($object, $arguments);
-		$session->stop($method->getName());
+		$meter->start($counter);
+		$call(...$arguments);
+
+		return $meter->stop($part);
 	}
 
 }

@@ -17,6 +17,7 @@ use Tally\CaseId;
 use Tally\Comparison\TolerancePolicy;
 use Tally\DataSet;
 use Tally\Expectation\AttributeExpectations;
+use Tally\Expectation\ExpectationSource;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Metrics;
 use Tally\Quantity\InvalidQuantityException;
@@ -41,7 +42,7 @@ final class CaseExpander
 	/** The share each metric may differ by in a benchmark without a tolerance policy */
 	public const DEFAULT_TOLERANCE = 0.1;
 
-	public function __construct(private ExpectedAttributeRewriter $rewriter, private AttributeFactory $attributes)
+	public function __construct(private ExpectedAttributeRewriter $rewriter, private AttributeFactory $attributes, private ArgumentResolver $resolver)
 	{
 	}
 
@@ -83,8 +84,6 @@ final class CaseExpander
 				throw new InvalidBenchmarkException($where, sprintf('a benchmark method cannot be a #[%s] method, give the hook a name that does not start with bench.', $name));
 			}
 		}
-		$beforeMethods = $hooks['before'];
-		$afterMethods = $hooks['after'];
 		$warmup = $this->warmup($class, $method, $where);
 		$tolerance = $this->tolerance($class, $method, $where);
 		$expected = $this->expected($method, $where);
@@ -92,12 +91,13 @@ final class CaseExpander
 		$file = (string) $method->getDeclaringClass()->getFileName();
 		$declaringClass = $method->getDeclaringClass()->getName();
 
-		$caseFor = fn (?string $dataSet, array $arguments, ?Metrics $metrics) => new BenchmarkCase(
-			new CaseId($class->getName(), $method->getName(), $dataSet),
+		$caseFor = fn (?string $dataSet, array $arguments, ?Metrics $metrics) => $this->case(
+			$class,
+			$method,
+			$dataSet,
 			$arguments,
 			$warmup,
-			$beforeMethods,
-			$afterMethods,
+			$hooks,
 			new AttributeExpectations($this->rewriter, $file, $declaringClass, $method->getName(), $dataSet, $metrics),
 			$tolerance,
 		);
@@ -135,18 +135,37 @@ final class CaseExpander
 				throw new InvalidBenchmarkException($where, sprintf('data set %s has expectations from the data provider and from #[ExpectedFor], keep one of them.', $dataSet->name));
 			}
 
-			$cases[] = new BenchmarkCase(
-				new CaseId($class->getName(), $method->getName(), $dataSet->name),
-				$dataSet->arguments,
-				$warmup,
-				$beforeMethods,
-				$afterMethods,
-				$dataSet->expectations,
-				$tolerance,
-			);
+			$cases[] = $this->case($class, $method, $dataSet->name, $dataSet->arguments, $warmup, $hooks, $dataSet->expectations, $tolerance);
 		}
 
 		return $cases;
+	}
+
+	/**
+	 * A case, after checking that the benchmark method and its hooks take the arguments of its data set.
+	 *
+	 * @param ReflectionClass<object> $class
+	 * @param list<mixed> $arguments
+	 * @param array{before: list<string>, after: list<string>} $hooks
+	 * @throws InvalidBenchmarkException
+	 */
+	private function case(
+		ReflectionClass $class,
+		ReflectionMethod $method,
+		?string $dataSet,
+		array $arguments,
+		int $warmup,
+		array $hooks,
+		ExpectationSource $expectations,
+		TolerancePolicy $tolerance
+	): BenchmarkCase
+	{
+		$this->resolver->resolve($method, $arguments);
+		foreach ([...$hooks['before'], ...$hooks['after']] as $hook) {
+			$this->resolver->resolveHook($class->getMethod($hook), $arguments);
+		}
+
+		return new BenchmarkCase(new CaseId($class->getName(), $method->getName(), $dataSet), $arguments, $warmup, $hooks['before'], $hooks['after'], $expectations, $tolerance);
 	}
 
 	/**

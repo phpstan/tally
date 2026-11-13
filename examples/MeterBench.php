@@ -10,29 +10,33 @@ use function range;
 use function str_repeat;
 
 /**
- * A benchmark that declares a Meter parameter can turn counting off for work that is not
- * what it measures.
+ * A benchmark class that takes a Meter in its constructor can turn counting off for work that
+ * is not what it measures.
  */
 final class MeterBench
 {
+
+	public function __construct(private Meter $meter)
+	{
+	}
 
 	/**
 	 * Tally ignores what a benchmark returns.
 	 */
 	#[Expected(instructions: '324.6K', cycles: '405.2K', memory: '384B')]
-	public function benchExclude(Meter $meter): int
+	public function benchExclude(): int
 	{
-		$numbers = $meter->exclude(static fn (): array => range(1, 10_000));
+		$numbers = $this->meter->exclude(static fn (): array => range(1, 10_000));
 
 		return array_sum($numbers);
 	}
 
 	#[Expected(instructions: '2.588M', cycles: '2.721M', memory: '60.00KiB')]
-	public function benchPauseAndResume(Meter $meter): string
+	public function benchPauseAndResume(): string
 	{
-		$meter->pause();
+		$this->meter->pause();
 		$text = str_repeat('tally ', 10_000);
-		$meter->resume();
+		$this->meter->resume();
 
 		return mb_strtoupper($text);
 	}

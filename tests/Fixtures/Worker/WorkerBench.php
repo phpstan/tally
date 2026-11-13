@@ -10,9 +10,13 @@ use function str_repeat;
 final class WorkerBench
 {
 
-	public function benchScratch(ScratchDirectory $scratch): void
+	public function __construct(private ScratchDirectory $scratch)
 	{
-		file_put_contents($scratch->path() . '/written', 'by the benchmark');
+	}
+
+	public function benchScratch(): void
+	{
+		file_put_contents($this->scratch->path() . '/written', 'by the benchmark');
 	}
 
 	public function benchEmpty(): void

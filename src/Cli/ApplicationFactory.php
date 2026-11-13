@@ -3,8 +3,10 @@
 namespace Tally\Cli;
 
 use Tally\Comparison\Comparator;
+use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
+use Tally\Discovery\ConstructorArguments;
 use Tally\Discovery\DirectorySuiteLoader;
 use Tally\Discovery\ValueTypeCheck;
 use Tally\Execution\CaseJobs;
@@ -30,7 +32,6 @@ use Tally\Report\UnifiedDiff;
 use Tally\Result\CallgrindProfile;
 use Tally\Result\MeasurementJson;
 use Tally\Result\ResultsDirectory;
-use Tally\Runner\ArgumentResolver;
 use Tally\Runner\CaseRunner;
 use Tally\Runner\FailureDescription;
 use Tally\Runner\IdleCounter;
@@ -58,8 +59,10 @@ final class ApplicationFactory
 	{
 		$relativePath = new RelativePath();
 		$closestName = new ClosestName();
+		$argumentResolver = new ArgumentResolver();
+		$constructorArguments = new ConstructorArguments();
 		$selectedCases = new SelectedCases(
-			new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck())), $relativePath),
+			new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), $argumentResolver), $constructorArguments, $relativePath),
 			$workingDirectory,
 		);
 		$idle = new IdleCounter();
@@ -103,7 +106,7 @@ final class ApplicationFactory
 			],
 			[new WorkerCommand(
 				$selectedCases,
-				new CaseRunner(new ArgumentResolver(), new PhpMemory(), $idle),
+				new CaseRunner($constructorArguments, $argumentResolver, new PhpMemory(), $idle),
 				$idle,
 				$json,
 				new FailureDescription($relativePath),

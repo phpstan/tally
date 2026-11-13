@@ -5,14 +5,19 @@ namespace Tally\Tests\Integration\Discovery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tally\BenchmarkCase;
+use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
+use Tally\Discovery\ConstructorArguments;
 use Tally\Discovery\DirectorySuiteLoader;
 use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Report\RelativePath;
+use Tally\Tests\Fixtures\Loading\TwoInvalid\ABench;
+use Tally\Tests\Fixtures\Loading\TwoInvalid\ZBench;
 use function array_map;
+use function class_exists;
 use function dirname;
 
 final class DirectorySuiteLoaderTest extends TestCase
@@ -86,6 +91,7 @@ final class DirectorySuiteLoaderTest extends TestCase
 		yield 'a syntax error' => ['Syntax', 'tests/Fixtures/Loading/Syntax/BrokenBench.php: syntax error, unexpected token ";", expecting ")" on line 10.'];
 		yield 'an error while loading' => ['Throwing', 'tests/Fixtures/Loading/Throwing/ThrowingBench.php: loading it threw Error: Class "Tally\\Tests\\Fixtures\\Loading\\Throwing\\MissingParent" not found'];
 		yield 'a private bench* method' => ['Private', 'Tally\\Tests\\Fixtures\\Loading\\Private\\PrivateBench::benchHelper(): a bench* method must be public and not static. Rename it if it is not a benchmark.'];
+		yield 'a constructor that takes data' => ['Constructor', 'Tally\\Tests\\Fixtures\\Loading\\Constructor\\SizedBench::__construct(): parameter $size is neither a Meter nor a ScratchDirectory.'];
 		yield 'a static bench* method' => ['Static', 'Tally\\Tests\\Fixtures\\Loading\\Static\\StaticBench::benchmarks(): a bench* method must be public and not static. Rename it if it is not a benchmark.'];
 	}
 
@@ -98,6 +104,20 @@ final class DirectorySuiteLoaderTest extends TestCase
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage($message);
 		self::ids([__DIR__ . '/../../Fixtures/Loading/' . $directory]);
+	}
+
+	/**
+	 * The class autoloaded first does not decide which error is reported.
+	 *
+	 * @throws InvalidBenchmarkException
+	 */
+	public function testReportsTheFirstInvalidClassByName(): void
+	{
+		self::assertTrue(class_exists(ZBench::class));
+
+		$this->expectException(InvalidBenchmarkException::class);
+		$this->expectExceptionMessage(ABench::class . '::__construct()');
+		self::ids([__DIR__ . '/../../Fixtures/Loading/TwoInvalid']);
 	}
 
 	/**
@@ -117,7 +137,7 @@ final class DirectorySuiteLoaderTest extends TestCase
 	 */
 	private static function ids(array $paths): array
 	{
-		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck())), new RelativePath());
+		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver()), new ConstructorArguments(), new RelativePath());
 
 		return array_map(static fn (BenchmarkCase $case): string => $case->id->toString(), $loader->load($paths, dirname(__DIR__, 3)));
 	}

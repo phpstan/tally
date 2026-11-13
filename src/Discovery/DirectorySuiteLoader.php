@@ -19,6 +19,7 @@ use function in_array;
 use function is_file;
 use function iterator_to_array;
 use function realpath;
+use function sort;
 use function sprintf;
 use function str_ends_with;
 use function str_starts_with;
@@ -31,7 +32,7 @@ use function usort;
 final class DirectorySuiteLoader
 {
 
-	public function __construct(private CaseExpander $expander, private RelativePath $relativePath)
+	public function __construct(private CaseExpander $expander, private ConstructorArguments $constructor, private RelativePath $relativePath)
 	{
 	}
 
@@ -49,11 +50,15 @@ final class DirectorySuiteLoader
 		}
 
 		$cases = [];
-		foreach (get_declared_classes() as $className) {
+		$classNames = get_declared_classes();
+		// the order PHP declared them in depends on what was autoloaded before, so the first invalid benchmark would too
+		sort($classNames);
+		foreach ($classNames as $className) {
 			$class = new ReflectionClass($className);
 			if (!in_array($class->getFileName(), $files, true) || !$class->isInstantiable()) {
 				continue;
 			}
+			$this->constructor->check($class);
 			$hooks = $this->expander->hooks($class);
 			foreach ($class->getMethods() as $method) {
 				if (!str_starts_with($method->getName(), 'bench')) {

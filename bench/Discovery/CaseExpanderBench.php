@@ -10,6 +10,7 @@ use Tally\Attribute\DataProvider;
 use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
+use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
 use Tally\Discovery\InvalidBenchmarkException;
@@ -38,15 +39,19 @@ final class CaseExpanderBench
 		}
 	}
 
+	public function __construct(private ScratchDirectory $scratch)
+	{
+	}
+
 	#[Before]
-	public function declareClass(int $methods, int $dataSets, ScratchDirectory $scratch): void
+	public function declareClass(int $methods, int $dataSets): void
 	{
 		$source = new SuiteSource();
 		if (class_exists($source->className($methods, $dataSets), false)) {
 			return;
 		}
 
-		$file = sprintf('%s/Suite%dx%dBench.php', $scratch->path(), $methods, $dataSets);
+		$file = sprintf('%s/Suite%dx%dBench.php', $this->scratch->path(), $methods, $dataSets);
 		file_put_contents($file, $source->code($methods, $dataSets, true));
 		require $file;
 	}
@@ -65,7 +70,7 @@ final class CaseExpanderBench
 		}
 
 		$class = new ReflectionClass($name);
-		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()));
+		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver());
 		$hooks = $expander->hooks($class);
 		foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
 			if ($method->isStatic()) {

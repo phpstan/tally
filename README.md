@@ -68,7 +68,7 @@ The counts depend on the PHP build and the system libraries. Numbers measured on
 
 ## Writing benchmarks
 
-A benchmark is a public, non-static method whose name starts with `bench`, in a class in a file whose name ends with `Bench.php`. Tally creates the class without constructor arguments. A `bench*` method that is static or not public is an error, so is a path without any benchmarks.
+A benchmark is a public, non-static method whose name starts with `bench`, in a class in a file whose name ends with `Bench.php`. Tally creates the class with the constructor arguments described [below](#meter-and-scratch-directory). A `bench*` method that is static or not public is an error, so is a path without any benchmarks.
 
 ```php
 use Tally\Attribute\DataProvider;
@@ -108,52 +108,64 @@ Each data set of a data provider is a case with the ID `Class::method@name`. A c
 
 Numbers are written with units: `K`, `M`, `B`, and `T` for counts, `B`, `KiB`, `MiB`, and `GiB` for memory, with four significant digits.
 
-A benchmark method takes the arguments of its data set, and also these, by type, at any position:
+### Meter and scratch directory
 
-- `Tally\Meter` turns counting off and on inside the method:
+A benchmark method takes the arguments of its data set. Tally creates one object of the class for each case, and its constructor may take these, by type, in any order:
+
+- `Tally\Meter` turns counting off and on:
 
   ```php
-  public function benchExclude(Meter $meter): int
+  public function __construct(private Meter $meter)
   {
-  	$numbers = $meter->exclude(static fn (): array => range(1, 10_000));
+  }
+
+  public function benchExclude(): int
+  {
+  	$numbers = $this->meter->exclude(static fn (): array => range(1, 10_000));
 
   	return array_sum($numbers);
   }
 
-  public function benchPauseAndResume(Meter $meter): string
+  public function benchPauseAndResume(): string
   {
-  	$meter->pause();
+  	$this->meter->pause();
   	$text = str_repeat('tally ', 10_000);
-  	$meter->resume();
+  	$this->meter->resume();
 
   	return mb_strtoupper($text);
   }
   ```
 
-  Paused code still runs under the simulation, only its cost is not collected. Memory allocated while paused does not count either.
+  Paused code still runs under the simulation, only its cost is not collected. Memory allocated while paused does not count either. The meter works in every call Tally makes on the object, so hooks can use it too; in them, it counts nothing anyway. Using it in the constructor is an error.
 
-- `Tally\ScratchDirectory` is an empty directory of the case's own, for files the benchmark reads or writes. `path()` returns it. Hooks of the case get the same directory, so a `#[Before]` method can write a file the benchmark reads:
+- `Tally\ScratchDirectory` is an empty directory of the case's own, for files the benchmark reads or writes. `path()` returns it. Hooks see the same directory, so a `#[Before]` method can write a file the benchmark reads:
 
   ```php
-  #[Before]
-  public function writeFile(ScratchDirectory $scratch): void
+  public function __construct(private ScratchDirectory $scratch)
   {
-  	file_put_contents($scratch->path() . '/numbers.json', json_encode(range(1, 1_000)));
   }
 
-  public function benchDecode(ScratchDirectory $scratch): void
+  #[Before]
+  public function writeFile(): void
   {
-  	json_decode(file_get_contents($scratch->path() . '/numbers.json'), true);
+  	file_put_contents($this->scratch->path() . '/numbers.json', json_encode(range(1, 1_000)));
+  }
+
+  public function benchDecode(): void
+  {
+  	json_decode(file_get_contents($this->scratch->path() . '/numbers.json'), true);
   }
   ```
 
   The directory is the same in both processes that run the case, see [lifecycle](#lifecycle-of-a-case), and Tally removes it when `tally run` finishes.
 
+A constructor parameter of any other type, and a method parameter of one of these types, is an error.
+
 ### Hooks
 
 A method with `#[Before]` runs before every case of every benchmark in the class, and a method with `#[After]` after it, also when the benchmark throws. Neither is counted. Hooks run on the same object as the benchmark, so a `#[Before]` method can prepare properties the benchmark uses. Several hooks run in the order they are declared. They may be private.
 
-A hook takes the case's data set arguments, from the first one, as many as it declares, and `Meter` and `ScratchDirectory` by type:
+A hook takes the case's data set arguments, from the first one, as many as it declares:
 
 ```php
 /** @var array<int, int> */
@@ -498,7 +510,7 @@ Every process loads the whole suite, so **data providers run in every process**:
 In each of the two processes of a case, Tally:
 
 1. loads the benchmarks and calls every data provider, not counted,
-2. creates the benchmark class, once,
+2. creates the benchmark class, once, with its `Meter` and `ScratchDirectory`,
 3. calls the `#[Before]` methods, not counted,
 4. calls the benchmark as many times as `#[Warmup]` says, not counted,
 5. counts a warm-up span, because the first counted span costs about twice as much as later ones, and throws it away,
