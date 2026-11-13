@@ -143,7 +143,7 @@ final class ApplicationTest extends TestCase
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('', $output);
 		$this->assertSame(
-			"No benchmarks in tests/Fixtures/Loading/NoBenchmarks, tests/Fixtures/Loading/Static/../NoBenchmarks.\nBenchmarks are the public, non-static bench* methods of classes in *Bench.php files.\n",
+			"No benchmarks in 'tests/Fixtures/Loading/NoBenchmarks', 'tests/Fixtures/Loading/Static/../NoBenchmarks'.\nBenchmarks are the public, non-static bench* methods of classes in *Bench.php files.\n",
 			$errorOutput,
 		);
 	}

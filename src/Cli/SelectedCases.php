@@ -11,6 +11,8 @@ use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Selection\CaseSelector;
 use Tally\Selection\FilterSelector;
 use Tally\Selection\ShardSelector;
+use function array_map;
+use function escapeshellarg;
 use function implode;
 use function is_file;
 use function sprintf;
@@ -67,7 +69,7 @@ final class SelectedCases
 
 		$cases = $this->loader->load($paths, $this->workingDirectory);
 		if ($cases === []) {
-			throw new NoBenchmarksException(sprintf("No benchmarks in %s.\n%s", implode(', ', $paths), self::NO_BENCHMARKS));
+			throw new NoBenchmarksException(sprintf("No benchmarks in %s.\n%s", implode(', ', array_map(escapeshellarg(...), $paths)), self::NO_BENCHMARKS));
 		}
 
 		$filter = $input->option('filter');
