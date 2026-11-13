@@ -1,0 +1,168 @@
+# https://help.github.com/en/categories/automating-your-workflow-with-github-actions
+
+name: "CI"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "main"
+
+concurrency:
+  group: ci-${{ github.head_ref || github.run_id }} # will be canceled on subsequent pushes in pull requests but not branches
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: "Lint"
+    runs-on: "ubuntu-latest"
+
+    strategy:
+      matrix:
+        php-version:
+          - "8.5"
+          - "8.6"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: "none"
+          php-version: "${{ matrix.php-version }}"
+
+      - name: "Validate Composer"
+        run: "composer validate"
+
+      - name: "Install dependencies"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "Lint"
+        run: "make lint"
+
+  coding-standard:
+    name: "Coding Standard"
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Checkout build-cs"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          repository: "phpstan/build-cs"
+          path: "build-cs"
+          ref: "2.x"
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: "none"
+          php-version: "8.5"
+
+      - name: "Validate Composer"
+        run: "composer validate"
+
+      - name: "Install dependencies"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "Install build-cs dependencies"
+        working-directory: "build-cs"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "Lint"
+        run: "make lint"
+
+      - name: "Coding Standard"
+        run: "make cs"
+
+  tests:
+    name: "Tests"
+    runs-on: "ubuntu-latest"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version:
+          - "8.5"
+          - "8.6"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: "none"
+          php-version: "${{ matrix.php-version }}"
+          extensions: ffi
+
+      - name: "Install dependencies"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "Tests"
+        run: "make tests"
+
+  static-analysis:
+    name: "PHPStan"
+    runs-on: "ubuntu-latest"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version:
+          - "8.5"
+          - "8.6"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: "none"
+          php-version: "${{ matrix.php-version }}"
+          extensions: ffi
+
+      - name: "Install dependencies"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "PHPStan"
+        run: "make phpstan"

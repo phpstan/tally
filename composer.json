@@ -1,0 +1,42 @@
+{
+	"name": "phpstan/tally",
+	"description": "PHP benchmarking framework that doesn't care about wall-clock time or how fast your CPU is.",
+	"license": [
+		"MIT"
+	],
+	"keywords": ["benchmark", "performance", "codspeed"],
+	"require": {
+		"php": "^8.5"
+	},
+	"require-dev": {
+		"php-parallel-lint/php-parallel-lint": "^1.4",
+		"phpstan/phpstan": "^2.1",
+		"phpstan/phpstan-deprecation-rules": "^2.0",
+		"phpstan/phpstan-phpunit": "^2.0",
+		"phpstan/phpstan-strict-rules": "^2.0",
+		"phpunit/phpunit": "^12.5"
+	},
+	"suggest": {
+		"ext-ffi": "To count instructions under CodSpeed's CPU simulation"
+	},
+	"config": {
+		"platform": {
+			"php": "8.5.0"
+		},
+		"sort-packages": true
+	},
+	"autoload": {
+		"psr-4": {
+			"PHPStan\\Tally\\": "src/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"PHPStan\\Tally\\": "tests/",
+			"PHPStan\\Tally\\Examples\\": "examples/"
+		}
+	},
+	"bin": [
+		"bin/tally"
+	]
+}
