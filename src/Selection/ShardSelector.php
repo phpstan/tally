@@ -1,11 +1,11 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Selection;
+namespace Tally\Selection;
 
 use InvalidArgumentException;
-use PHPStan\Tally\BenchmarkCase;
-use PHPStan\Tally\CaseId;
-use PHPStan\Tally\Metric;
+use Tally\BenchmarkCase;
+use Tally\CaseId;
+use Tally\Metric;
 use function array_keys;
 use function max;
 use function min;

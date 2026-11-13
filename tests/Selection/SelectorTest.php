@@ -1,14 +1,14 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Selection;
+namespace Tally\Selection;
 
 use InvalidArgumentException;
-use PHPStan\Tally\BenchmarkCase;
-use PHPStan\Tally\CaseId;
-use PHPStan\Tally\Expectation\InMemoryExpectations;
-use PHPStan\Tally\Metrics;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tally\BenchmarkCase;
+use Tally\CaseId;
+use Tally\Expectation\InMemoryExpectations;
+use Tally\Metrics;
 use function array_map;
 use function array_merge;
 use function sort;

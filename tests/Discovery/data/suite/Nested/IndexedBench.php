@@ -1,8 +1,8 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery\data\suite\Nested;
+namespace Tally\Discovery\data\suite\Nested;
 
-use PHPStan\Tally\Attribute\DataProvider;
+use Tally\Attribute\DataProvider;
 
 final class IndexedBench
 {

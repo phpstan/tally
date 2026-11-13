@@ -1,11 +1,11 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery\data\suite\Nested;
+namespace Tally\Discovery\data\suite\Nested;
 
-use PHPStan\Tally\Attribute\AfterMethods;
-use PHPStan\Tally\Attribute\BeforeMethods;
-use PHPStan\Tally\Attribute\DataProvider;
-use PHPStan\Tally\Attribute\Expected;
+use Tally\Attribute\AfterMethods;
+use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\DataProvider;
+use Tally\Attribute\Expected;
 
 #[BeforeMethods('setUp')]
 final class LoopBench

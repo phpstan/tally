@@ -1,20 +1,20 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery;
+namespace Tally\Discovery;
 
-use PHPStan\Tally\Attribute\AfterMethods;
-use PHPStan\Tally\Attribute\BeforeMethods;
-use PHPStan\Tally\Attribute\DataProvider;
-use PHPStan\Tally\Attribute\Expected;
-use PHPStan\Tally\Attribute\Warmup;
-use PHPStan\Tally\BenchmarkCase;
-use PHPStan\Tally\CaseId;
-use PHPStan\Tally\DataSet;
-use PHPStan\Tally\Expectation\AttributeExpectations;
-use PHPStan\Tally\Metrics;
-use PHPStan\Tally\Quantity\InvalidQuantityException;
 use ReflectionClass;
 use ReflectionMethod;
+use Tally\Attribute\AfterMethods;
+use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\DataProvider;
+use Tally\Attribute\Expected;
+use Tally\Attribute\Warmup;
+use Tally\BenchmarkCase;
+use Tally\CaseId;
+use Tally\DataSet;
+use Tally\Expectation\AttributeExpectations;
+use Tally\Metrics;
+use Tally\Quantity\InvalidQuantityException;
 use function array_key_exists;
 use function array_keys;
 use function count;

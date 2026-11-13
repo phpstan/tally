@@ -1,10 +1,10 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Expectation\data;
+namespace Tally\Expectation\data;
 
-use PHPStan\Tally\Attribute\DataProvider;
-use PHPStan\Tally\Attribute\Expected;
-use PHPStan\Tally\Attribute\Warmup;
+use Tally\Attribute\DataProvider;
+use Tally\Attribute\Expected;
+use Tally\Attribute\Warmup;
 
 final class SortBench
 {

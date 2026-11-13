@@ -1,6 +1,6 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally;
+namespace Tally;
 
 /**
  * What a tally.php configuration file returns:

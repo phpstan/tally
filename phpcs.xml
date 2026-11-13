@@ -12,9 +12,9 @@
 	<rule ref="SlevomatCodingStandard.Files.TypeNameMatchesFileName">
 		<properties>
 			<property name="rootNamespaces" type="array">
-				<element key="src" value="PHPStan\Tally"/>
-				<element key="tests" value="PHPStan\Tally"/>
-				<element key="examples" value="PHPStan\Tally\Examples"/>
+				<element key="src" value="Tally"/>
+				<element key="tests" value="Tally"/>
+				<element key="examples" value="Tally\Examples"/>
 			</property>
 		</properties>
 	</rule>

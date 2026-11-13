@@ -1,8 +1,8 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery;
+namespace Tally\Discovery;
 
-use PHPStan\Tally\BenchmarkCase;
+use Tally\BenchmarkCase;
 
 interface SuiteLoader
 {

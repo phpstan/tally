@@ -1,11 +1,11 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Expectation;
+namespace Tally\Expectation;
 
-use PHPStan\Tally\Expectation\data\OtherBench;
-use PHPStan\Tally\Expectation\data\SortBench;
-use PHPStan\Tally\Metrics;
 use PHPUnit\Framework\TestCase;
+use Tally\Expectation\data\OtherBench;
+use Tally\Expectation\data\SortBench;
+use Tally\Metrics;
 use function file_get_contents;
 use function str_replace;
 use function substr_count;
@@ -82,12 +82,12 @@ class ExpectedAttributeRewriterTest extends TestCase
 	{
 		$code = self::read(__DIR__ . '/data/NoImportBench.php');
 
-		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, 'PHPStan\\Tally\\Expectation\\data\\NoImportBench', 'benchSprintf', null, Metrics::fromArray(['instructions' => 1]));
+		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, 'Tally\\Expectation\\data\\NoImportBench', 'benchSprintf', null, Metrics::fromArray(['instructions' => 1]));
 
 		$this->assertSame(
 			str_replace(
 				["use function sprintf;\n", "\tpublic function benchSprintf"],
-				["use PHPStan\\Tally\\Attribute\\Expected;\nuse function sprintf;\n", "\t#[Expected(instructions: '1')]\n\tpublic function benchSprintf"],
+				["use Tally\\Attribute\\Expected;\nuse function sprintf;\n", "\t#[Expected(instructions: '1')]\n\tpublic function benchSprintf"],
 				$code,
 			),
 			$rewritten,
@@ -97,11 +97,11 @@ class ExpectedAttributeRewriterTest extends TestCase
 	public function testRewriteTwiceAddsTheImportOnce(): void
 	{
 		$rewriter = new ExpectedAttributeRewriter();
-		$class = 'PHPStan\\Tally\\Expectation\\data\\NoImportBench';
+		$class = 'Tally\\Expectation\\data\\NoImportBench';
 		$code = $rewriter->rewrite(self::read(__DIR__ . '/data/NoImportBench.php'), $class, 'benchSprintf', null, Metrics::fromArray(['instructions' => 1]));
 		$code = $rewriter->rewrite($code, $class, 'benchSprintf', null, Metrics::fromArray(['instructions' => 2]));
 
-		$this->assertSame(1, substr_count($code, 'use PHPStan\\Tally\\Attribute\\Expected;'));
+		$this->assertSame(1, substr_count($code, 'use Tally\\Attribute\\Expected;'));
 		$this->assertSame(1, substr_count($code, "#[Expected(instructions: '2')]"));
 	}
 
@@ -120,7 +120,7 @@ class ExpectedAttributeRewriterTest extends TestCase
 	public function testLocateFailsForAMissingMethod(): void
 	{
 		$this->expectException(MethodNotFoundException::class);
-		$this->expectExceptionMessage('PHPStan\Tally\Expectation\data\SortBench::benchMissing');
+		$this->expectExceptionMessage('Tally\Expectation\data\SortBench::benchMissing');
 		(new ExpectedAttributeRewriter())->locate(self::read(self::SORT_BENCH), SortBench::class, 'benchMissing', null);
 	}
 

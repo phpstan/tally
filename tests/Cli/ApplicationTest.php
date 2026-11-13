@@ -1,6 +1,6 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Cli;
+namespace Tally\Cli;
 
 use PHPUnit\Framework\TestCase;
 use function fopen;
@@ -15,7 +15,7 @@ class ApplicationTest extends TestCase
 {
 
 	private const SUITE = __DIR__ . '/../Discovery/data/suite';
-	private const NAMESPACE = 'PHPStan\\Tally\\Discovery\\data\\suite\\';
+	private const SUITE_NAMESPACE = 'Tally\\Discovery\\data\\suite\\';
 
 	public function testList(): void
 	{
@@ -23,9 +23,9 @@ class ApplicationTest extends TestCase
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(
-			self::NAMESPACE . "Nested\\LoopBench::benchSum@size-10\n"
-			. self::NAMESPACE . "Nested\\LoopBench::benchSum@size-100\n"
-			. self::NAMESPACE . "Nested\\LoopBench::benchSum@size-1000\n",
+			self::SUITE_NAMESPACE . "Nested\\LoopBench::benchSum@size-10\n"
+			. self::SUITE_NAMESPACE . "Nested\\LoopBench::benchSum@size-100\n"
+			. self::SUITE_NAMESPACE . "Nested\\LoopBench::benchSum@size-1000\n",
 			$output,
 		);
 	}
@@ -36,7 +36,7 @@ class ApplicationTest extends TestCase
 		[$exitCode, $output] = self::runTally(['list', self::SUITE, '--shard', '1/8']);
 
 		$this->assertSame(0, $exitCode);
-		$this->assertSame(self::NAMESPACE . "FilesBench::benchFile@a.php\n", $output);
+		$this->assertSame(self::SUITE_NAMESPACE . "FilesBench::benchFile@a.php\n", $output);
 	}
 
 	public function testListReadsPathsFromTheConfiguration(): void
@@ -44,7 +44,7 @@ class ApplicationTest extends TestCase
 		[$exitCode, $output] = self::runTally(['list', '--config=' . __DIR__ . '/data/tally.php', '--filter=String']);
 
 		$this->assertSame(0, $exitCode);
-		$this->assertSame(self::NAMESPACE . "StringBench::benchConcat\n" . self::NAMESPACE . "StringBench::benchSprintf\n", $output);
+		$this->assertSame(self::SUITE_NAMESPACE . "StringBench::benchConcat\n" . self::SUITE_NAMESPACE . "StringBench::benchSprintf\n", $output);
 	}
 
 	public function testInvalidBenchmark(): void
@@ -111,7 +111,7 @@ class ApplicationTest extends TestCase
 		$errorOutput = stream_get_contents($pipes[2]);
 
 		$this->assertSame(0, proc_close($process), (string) $errorOutput);
-		$this->assertSame(implode("\n", [self::NAMESPACE . 'Nested\\IndexedBench::benchIndexed@#0', self::NAMESPACE . 'Nested\\IndexedBench::benchIndexed@#1']) . "\n", $output);
+		$this->assertSame(implode("\n", [self::SUITE_NAMESPACE . 'Nested\\IndexedBench::benchIndexed@#0', self::SUITE_NAMESPACE . 'Nested\\IndexedBench::benchIndexed@#1']) . "\n", $output);
 	}
 
 	/**

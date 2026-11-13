@@ -1,8 +1,8 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Cli;
+namespace Tally\Cli;
 
-use PHPStan\Tally\Discovery\InvalidBenchmarkException;
+use Tally\Discovery\InvalidBenchmarkException;
 
 interface Command
 {

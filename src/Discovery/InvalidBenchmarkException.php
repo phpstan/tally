@@ -1,6 +1,6 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery;
+namespace Tally\Discovery;
 
 use RuntimeException;
 use function sprintf;

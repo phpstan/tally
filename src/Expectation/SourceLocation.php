@@ -1,6 +1,6 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Expectation;
+namespace Tally\Expectation;
 
 final class SourceLocation
 {

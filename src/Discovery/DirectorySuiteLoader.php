@@ -1,16 +1,16 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery;
+namespace Tally\Discovery;
 
 use FilesystemIterator;
-use PHPStan\Tally\BenchmarkCase;
-use PHPStan\Tally\CaseId;
 use PhpToken;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionMethod;
 use SplFileInfo;
+use Tally\BenchmarkCase;
+use Tally\CaseId;
 use function array_values;
 use function class_exists;
 use function count;

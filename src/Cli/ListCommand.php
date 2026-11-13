@@ -1,6 +1,6 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Cli;
+namespace Tally\Cli;
 
 /**
  * Prints the case IDs, one per line. Lists all cases in natural order, and the cases of a shard

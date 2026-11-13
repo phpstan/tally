@@ -1,9 +1,9 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery;
+namespace Tally\Discovery;
 
-use PHPStan\Tally\BenchmarkCase;
 use PHPUnit\Framework\TestCase;
+use Tally\BenchmarkCase;
 use function array_map;
 
 class DirectorySuiteLoaderTest extends TestCase
@@ -11,7 +11,7 @@ class DirectorySuiteLoaderTest extends TestCase
 
 	public function testLoadsBenchMethodsOfBenchFilesInNaturalOrder(): void
 	{
-		$namespace = 'PHPStan\\Tally\\Discovery\\data\\suite\\';
+		$namespace = 'Tally\\Discovery\\data\\suite\\';
 
 		$this->assertSame([
 			$namespace . 'FilesBench::benchFile@a.php',
@@ -29,7 +29,7 @@ class DirectorySuiteLoaderTest extends TestCase
 	public function testLoadsAFile(): void
 	{
 		$this->assertSame(
-			['PHPStan\\Tally\\Discovery\\data\\suite\\Nested\\IndexedBench::benchIndexed@#0', 'PHPStan\\Tally\\Discovery\\data\\suite\\Nested\\IndexedBench::benchIndexed@#1'],
+			['Tally\\Discovery\\data\\suite\\Nested\\IndexedBench::benchIndexed@#0', 'Tally\\Discovery\\data\\suite\\Nested\\IndexedBench::benchIndexed@#1'],
 			self::ids(new DirectorySuiteLoader([__DIR__ . '/data/suite/Nested/IndexedBench.php'], new CaseExpander())),
 		);
 	}

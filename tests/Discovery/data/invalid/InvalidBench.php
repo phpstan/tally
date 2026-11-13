@@ -1,13 +1,13 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery\data\invalid;
+namespace Tally\Discovery\data\invalid;
 
-use PHPStan\Tally\Attribute\BeforeMethods;
-use PHPStan\Tally\Attribute\DataProvider;
-use PHPStan\Tally\Attribute\Expected;
-use PHPStan\Tally\DataSet;
-use PHPStan\Tally\Expectation\InMemoryExpectations;
-use PHPStan\Tally\Metrics;
+use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\DataProvider;
+use Tally\Attribute\Expected;
+use Tally\DataSet;
+use Tally\Expectation\InMemoryExpectations;
+use Tally\Metrics;
 
 final class InvalidBench
 {

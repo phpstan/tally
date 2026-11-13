@@ -1,15 +1,15 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Cli;
+namespace Tally\Cli;
 
 use InvalidArgumentException;
-use PHPStan\Tally\BenchmarkCase;
-use PHPStan\Tally\Configuration;
-use PHPStan\Tally\Discovery\CaseExpander;
-use PHPStan\Tally\Discovery\DirectorySuiteLoader;
-use PHPStan\Tally\Discovery\InvalidBenchmarkException;
-use PHPStan\Tally\Selection\FilterSelector;
-use PHPStan\Tally\Selection\ShardSelector;
+use Tally\BenchmarkCase;
+use Tally\Configuration;
+use Tally\Discovery\CaseExpander;
+use Tally\Discovery\DirectorySuiteLoader;
+use Tally\Discovery\InvalidBenchmarkException;
+use Tally\Selection\FilterSelector;
+use Tally\Selection\ShardSelector;
 use function getcwd;
 use function is_file;
 use function sprintf;

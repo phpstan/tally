@@ -27,13 +27,13 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"PHPStan\\Tally\\": "src/"
+			"Tally\\": "src/"
 		}
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"PHPStan\\Tally\\": "tests/",
-			"PHPStan\\Tally\\Examples\\": "examples/"
+			"Tally\\": "tests/",
+			"Tally\\Examples\\": "examples/"
 		}
 	},
 	"bin": [

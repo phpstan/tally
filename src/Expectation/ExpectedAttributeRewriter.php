@@ -1,11 +1,11 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Expectation;
+namespace Tally\Expectation;
 
-use PHPStan\Tally\Attribute\Expected;
-use PHPStan\Tally\Metric;
-use PHPStan\Tally\Metrics;
 use PhpToken;
+use Tally\Attribute\Expected;
+use Tally\Metric;
+use Tally\Metrics;
 use function array_values;
 use function count;
 use function explode;

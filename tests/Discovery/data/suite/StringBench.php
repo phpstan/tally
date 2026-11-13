@@ -1,9 +1,9 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery\data\suite;
+namespace Tally\Discovery\data\suite;
 
-use PHPStan\Tally\Attribute\Expected;
-use PHPStan\Tally\Attribute\Warmup;
+use Tally\Attribute\Expected;
+use Tally\Attribute\Warmup;
 use function sprintf;
 
 final class StringBench

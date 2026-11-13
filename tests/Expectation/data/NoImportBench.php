@@ -1,6 +1,6 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Expectation\data;
+namespace Tally\Expectation\data;
 
 use function sprintf;
 

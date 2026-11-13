@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php declare(strict_types = 1);
 
-use PHPStan\Tally\Cli\Application;
+use Tally\Cli\Application;
 
 (static function (): void {
 	// set by Composer's binary proxy since Composer 2.2

@@ -1,18 +1,18 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery;
+namespace Tally\Discovery;
 
-use PHPStan\Tally\BenchmarkCase;
-use PHPStan\Tally\Discovery\data\invalid\InvalidBench;
-use PHPStan\Tally\Discovery\data\suite\FilesBench;
-use PHPStan\Tally\Discovery\data\suite\Nested\IndexedBench;
-use PHPStan\Tally\Discovery\data\suite\Nested\LoopBench;
-use PHPStan\Tally\Discovery\data\suite\StringBench;
-use PHPStan\Tally\Expectation\AttributeExpectations;
-use PHPStan\Tally\Expectation\InMemoryExpectations;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use Tally\BenchmarkCase;
+use Tally\Discovery\data\invalid\InvalidBench;
+use Tally\Discovery\data\suite\FilesBench;
+use Tally\Discovery\data\suite\Nested\IndexedBench;
+use Tally\Discovery\data\suite\Nested\LoopBench;
+use Tally\Discovery\data\suite\StringBench;
+use Tally\Expectation\AttributeExpectations;
+use Tally\Expectation\InMemoryExpectations;
 use function array_map;
 
 class CaseExpanderTest extends TestCase

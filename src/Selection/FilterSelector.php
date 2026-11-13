@@ -1,9 +1,9 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Selection;
+namespace Tally\Selection;
 
 use InvalidArgumentException;
-use PHPStan\Tally\BenchmarkCase;
+use Tally\BenchmarkCase;
 use function array_filter;
 use function array_values;
 use function preg_match;

@@ -1,11 +1,11 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Discovery\data\suite;
+namespace Tally\Discovery\data\suite;
 
-use PHPStan\Tally\Attribute\DataProvider;
-use PHPStan\Tally\DataSet;
-use PHPStan\Tally\Expectation\InMemoryExpectations;
-use PHPStan\Tally\Metrics;
+use Tally\Attribute\DataProvider;
+use Tally\DataSet;
+use Tally\Expectation\InMemoryExpectations;
+use Tally\Metrics;
 
 final class FilesBench
 {

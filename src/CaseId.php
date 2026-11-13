@@ -1,6 +1,6 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally;
+namespace Tally;
 
 use InvalidArgumentException;
 use function sprintf;

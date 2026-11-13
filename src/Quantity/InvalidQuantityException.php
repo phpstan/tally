@@ -1,6 +1,6 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Quantity;
+namespace Tally\Quantity;
 
 use InvalidArgumentException;
 use function implode;

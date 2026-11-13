@@ -1,8 +1,8 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Expectation;
+namespace Tally\Expectation;
 
-use PHPStan\Tally\Metrics;
+use Tally\Metrics;
 
 /**
  * Where the expected metrics of one benchmark case are stored. Tally ships #[Expected]; a data

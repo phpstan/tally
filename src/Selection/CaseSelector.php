@@ -1,8 +1,8 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Selection;
+namespace Tally\Selection;
 
-use PHPStan\Tally\BenchmarkCase;
+use Tally\BenchmarkCase;
 
 interface CaseSelector
 {

@@ -1,10 +1,10 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Expectation;
+namespace Tally\Expectation;
 
-use PHPStan\Tally\Expectation\data\SortBench;
-use PHPStan\Tally\Metrics;
 use PHPUnit\Framework\TestCase;
+use Tally\Expectation\data\SortBench;
+use Tally\Metrics;
 use function copy;
 use function file_get_contents;
 use function str_contains;

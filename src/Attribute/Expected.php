@@ -1,11 +1,11 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Attribute;
+namespace Tally\Attribute;
 
 use Attribute;
-use PHPStan\Tally\Metric;
-use PHPStan\Tally\Metrics;
-use PHPStan\Tally\Quantity\InvalidQuantityException;
+use Tally\Metric;
+use Tally\Metrics;
+use Tally\Quantity\InvalidQuantityException;
 
 /**
  * The metrics a benchmark is expected to measure, such as #[Expected(instructions: '1.204K', cycles: '1.387K', memory: '0B')].

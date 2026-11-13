@@ -1,8 +1,8 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally\Expectation;
+namespace Tally\Expectation;
 
-use PHPStan\Tally\Metrics;
+use Tally\Metrics;
 
 /** Keeps the expectations of a data set in memory, for tests. */
 final class InMemoryExpectations implements ExpectationSource

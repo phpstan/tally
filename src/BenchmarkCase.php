@@ -1,8 +1,8 @@
 <?php declare(strict_types = 1);
 
-namespace PHPStan\Tally;
+namespace Tally;
 
-use PHPStan\Tally\Expectation\ExpectationSource;
+use Tally\Expectation\ExpectationSource;
 
 /**
  * One call of a benchmark method with one data set, the unit Tally counts, lists, and shards.
