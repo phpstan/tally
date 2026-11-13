@@ -36,9 +36,10 @@ final class ExpectedTest extends TestCase
 	 */
 	public static function dataInvalid(): iterable
 	{
-		yield 'memory as a count' => [new Expected('1', '1', '1.2K'), '"1.2K" is not a quantity, such as 3.119B or 44.49MiB. Units: B, KiB, MiB, GiB, TiB.'];
-		yield 'instructions in bytes' => [new Expected('1KiB', '1', '0B'), '"1KiB" is not a quantity'];
-		yield 'cycles of a data set' => [new ExpectedFor('a', '1', '1X', '0B'), '"1X" is not a quantity'];
+		yield 'memory as a count' => [new Expected('1', '1', '1.2K'), 'memory "1.2K" is not a quantity like 44.49MiB, with the units B, KiB, MiB, GiB, TiB.'];
+		yield 'instructions in bytes' => [new Expected('1KiB', '1', '0B'), 'instructions "1KiB" is not a quantity like 3.119B, with the units K, M, B, T.'];
+		yield 'negative instructions' => [new Expected('-5K', '1', '0B'), 'instructions "-5K" is not a quantity like 3.119B, with the units K, M, B, T.'];
+		yield 'cycles of a data set' => [new ExpectedFor('a', '1', '1X', '0B'), 'cycles "1X" is not a quantity like 3.119B, with the units K, M, B, T.'];
 	}
 
 	/**

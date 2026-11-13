@@ -52,7 +52,6 @@ final class QuantityFormatCountTest extends TestCase
 		yield 'plain' => ['312', 312];
 		yield 'underscores' => ['3_118_976_850', 3_118_976_850];
 		yield 'space before the unit' => ['260.9 M', 260_900_000];
-		yield 'negative' => ['-1.234K', -1234];
 		yield 'no decimals' => ['12345T', 12_345_000_000_000_000];
 	}
 
@@ -71,6 +70,7 @@ final class QuantityFormatCountTest extends TestCase
 	public static function dataParseRejects(): iterable
 	{
 		yield 'unknown unit' => ['1.2X'];
+		yield 'negative' => ['-1.234K'];
 		yield 'byte unit' => ['1.2MiB'];
 		yield 'lowercase unit' => ['1.2k'];
 		yield 'empty' => [''];
@@ -96,7 +96,7 @@ final class QuantityFormatCountTest extends TestCase
 	public function testParseNamesTheUnits(): void
 	{
 		$this->expectException(InvalidQuantityException::class);
-		$this->expectExceptionMessage('"1.2X" is not a quantity, such as 3.119B or 44.49MiB. Units: K, M, B, T.');
+		$this->expectExceptionMessage('"1.2X" is not a quantity like 3.119B, with the units K, M, B, T.');
 		QuantityFormat::count()->parse('1.2X');
 	}
 

@@ -3,11 +3,14 @@
 namespace Tally\Quantity;
 
 use function abs;
+use function array_filter;
 use function array_reverse;
 use function array_search;
+use function implode;
 use function intdiv;
 use function max;
 use function preg_match;
+use function sprintf;
 use function str_replace;
 use function strlen;
 use function substr_replace;
@@ -30,7 +33,7 @@ final class QuantityFormat
 	/**
 	 * @param list<string> $largerUnits the units of $base, $base², and so on
 	 */
-	private function __construct(private int $base, private string $smallestUnit, array $largerUnits)
+	private function __construct(private int $base, private string $smallestUnit, array $largerUnits, private string $example)
 	{
 		$bySize = [];
 		$size = 1;
@@ -44,13 +47,13 @@ final class QuantityFormat
 	/** Counts in powers of 1000: 312, 1.204K, 260.9M, 3.119B, 1.500T */
 	public static function count(): self
 	{
-		return new self(1000, '', ['K', 'M', 'B', 'T']);
+		return new self(1000, '', ['K', 'M', 'B', 'T'], '3.119B');
 	}
 
 	/** Bytes in powers of 1024, with binary units so the unit says which base it is: 1023B, 44.49MiB */
 	public static function bytes(): self
 	{
-		return new self(1024, 'B', ['KiB', 'MiB', 'GiB', 'TiB']);
+		return new self(1024, 'B', ['KiB', 'MiB', 'GiB', 'TiB'], '44.49MiB');
 	}
 
 	public function format(int $value): string
@@ -79,33 +82,33 @@ final class QuantityFormat
 	}
 
 	/**
+	 * Parses zero or more, as measured numbers are.
+	 *
 	 * @throws InvalidQuantityException
 	 */
 	public function parse(string $text): int
 	{
-		if (preg_match('~^(-)?(\d+)(?:\.(\d+))?\s*([A-Za-z]*)$~', str_replace('_', '', $text), $matches) !== 1) {
-			throw new InvalidQuantityException($text, $this->units());
+		if (preg_match('~^(\d+)(?:\.(\d+))?\s*([A-Za-z]*)$~', str_replace('_', '', $text), $matches) !== 1) {
+			throw $this->invalid($text);
 		}
 
-		[, $minus, $integer, $fraction, $unit] = $matches;
+		[, $integer, $fraction, $unit] = $matches;
 		// a number without a unit is in the smallest unit, plain bytes for bytes
 		$multiplier = $unit === '' || $unit === $this->smallestUnit ? 1 : array_search($unit, $this->largerUnits, true);
 		if ($multiplier === false || $fraction !== '' && $multiplier === 1) {
-			throw new InvalidQuantityException($text, $this->units());
+			throw $this->invalid($text);
 		}
 
 		$divisor = self::powerOfTen(strlen($fraction));
-		$value = intdiv(2 * (int) ($integer . $fraction) * $multiplier + $divisor, 2 * $divisor);
 
-		return $minus === '-' ? -$value : $value;
+		return intdiv(2 * (int) ($integer . $fraction) * $multiplier + $divisor, 2 * $divisor);
 	}
 
-	/**
-	 * @return list<string> from the smallest
-	 */
-	private function units(): array
+	private function invalid(string $text): InvalidQuantityException
 	{
-		return [$this->smallestUnit, ...array_reverse($this->largerUnits)];
+		$units = array_filter([$this->smallestUnit, ...array_reverse($this->largerUnits)], static fn (string $unit): bool => $unit !== '');
+
+		return new InvalidQuantityException(sprintf('"%s" is not a quantity like %s, with the units %s.', $text, $this->example, implode(', ', $units)));
 	}
 
 	/**

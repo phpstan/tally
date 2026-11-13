@@ -53,11 +53,16 @@ final class Metrics
 	 */
 	public static function parse(string $instructions, string $cycles, string $memory): self
 	{
-		return new self([
-			Metric::Instructions->value => Metric::Instructions->format()->parse($instructions),
-			Metric::Cycles->value => Metric::Cycles->format()->parse($cycles),
-			Metric::Memory->value => Metric::Memory->format()->parse($memory),
-		]);
+		$values = [];
+		foreach ([[Metric::Instructions, $instructions], [Metric::Cycles, $cycles], [Metric::Memory, $memory]] as [$metric, $text]) {
+			try {
+				$values[$metric->value] = $metric->format()->parse($text);
+			} catch (InvalidQuantityException $e) {
+				throw new InvalidQuantityException($metric->value . ' ' . $e->getMessage());
+			}
+		}
+
+		return new self($values);
 	}
 
 	public function with(Metric $metric, int $value): self

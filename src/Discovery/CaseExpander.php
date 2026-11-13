@@ -132,7 +132,7 @@ final class CaseExpander
 				continue;
 			}
 			if ($metrics !== null) {
-				throw new InvalidBenchmarkException($where, sprintf('data set %s has its own expectations and an #[ExpectedFor] attribute.', $dataSet->name));
+				throw new InvalidBenchmarkException($where, sprintf('data set %s has expectations from the data provider and from #[ExpectedFor], keep one of them.', $dataSet->name));
 			}
 
 			$cases[] = new BenchmarkCase(
@@ -201,7 +201,7 @@ final class CaseExpander
 		try {
 			return $this->attributes->create($attributes[0], $where)->metrics();
 		} catch (InvalidQuantityException $e) {
-			throw new InvalidBenchmarkException($where, $e->getMessage());
+			throw new InvalidBenchmarkException($where, '#[Expected] argument ' . $e->getMessage());
 		}
 	}
 
@@ -222,7 +222,7 @@ final class CaseExpander
 			try {
 				$expected[] = [$instance->dataSet, $instance->metrics()];
 			} catch (InvalidQuantityException $e) {
-				throw new InvalidBenchmarkException($where, $e->getMessage());
+				throw new InvalidBenchmarkException($where, '#[ExpectedFor] argument ' . $e->getMessage());
 			}
 		}
 

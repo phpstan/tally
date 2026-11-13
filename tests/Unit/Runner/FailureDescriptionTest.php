@@ -27,7 +27,7 @@ final class FailureDescriptionTest extends TestCase
 
 		yield 'an exception of the benchmark, with where it was thrown' => [static fn (): Throwable => new RuntimeException('It broke.'), $root, "RuntimeException: It broke.\nat tests/Unit/Runner/FailureDescriptionTest.php:" . __LINE__];
 		yield "Tally's own exception, without its class" => [static fn (): Throwable => new MeterStateException('The meter is paused.'), $root, "The meter is paused.\nat tests/Unit/Runner/FailureDescriptionTest.php:" . __LINE__];
-		yield "at the first frame outside of Tally's code, which threw it" => [static fn (): Throwable => self::caught(static fn () => QuantityFormat::count()->parse('many')), $root, "\"many\" is not a quantity, such as 3.119B or 44.49MiB. Units: K, M, B, T.\nat tests/Unit/Runner/FailureDescriptionTest.php:" . __LINE__];
+		yield "at the first frame outside of Tally's code, which threw it" => [static fn (): Throwable => self::caught(static fn () => QuantityFormat::count()->parse('many')), $root, "\"many\" is not a quantity like 3.119B, with the units K, M, B, T.\nat tests/Unit/Runner/FailureDescriptionTest.php:" . __LINE__];
 		yield "in Tally's code only, without where" => [
 			static fn (): Throwable => self::thrownAt(new RuntimeException('It broke.'), $root . '/src/Runner/CaseRunner.php', [['file' => $root . '/bin/tally', 'line' => 44], ['function' => 'main']]),
 			$root,
