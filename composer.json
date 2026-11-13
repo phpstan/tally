@@ -39,6 +39,7 @@
 		"psr-4": {
 			"Tally\\Bench\\": "bench/",
 			"Tally\\Build\\": "build/",
+			"Tally\\Examples\\": "examples/",
 			"Tally\\Tests\\": "tests/"
 		}
 	},

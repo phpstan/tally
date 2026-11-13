@@ -42,6 +42,7 @@ parameters:
 		- bench
 		- tally.php
 		- build
+		- examples
 		- src
 		- tests
 

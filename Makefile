@@ -24,7 +24,7 @@ bench:
 .PHONY: lint
 lint:
 	php vendor/bin/parallel-lint --colors bin/tally \
-		bench build src tests tally.php
+		bench build examples src tests tally.php
 
 .PHONY: cs-install
 cs-install:
@@ -34,11 +34,11 @@ cs-install:
 
 .PHONY: cs
 cs:
-	php build-cs/vendor/bin/phpcs bin/tally bench build src tests tally.php
+	php build-cs/vendor/bin/phpcs bin/tally bench build examples src tests tally.php
 
 .PHONY: cs-fix
 cs-fix:
-	php build-cs/vendor/bin/phpcbf bin/tally bench build src tests tally.php
+	php build-cs/vendor/bin/phpcbf bin/tally bench build examples src tests tally.php
 
 .PHONY: phpstan
 phpstan:

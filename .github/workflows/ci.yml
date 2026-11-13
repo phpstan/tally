@@ -287,10 +287,24 @@ jobs:
           INSTRUMENT_HOOKS_LIBRARY: ${{ runner.temp }}/instrument-hooks/libinstrument_hooks.so
         run: "php bin/tally run --output=tmp/tally-results"
 
+      - name: "Examples"
+        if: always()
+        env:
+          INSTRUMENT_HOOKS_LIBRARY: ${{ runner.temp }}/instrument-hooks/libinstrument_hooks.so
+        run: "php bin/tally run --output=tmp/tally-examples examples"
+
       - name: "Upload results"
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tally-results
           path: tmp/tally-results
+          if-no-files-found: ignore
+
+      - name: "Upload results of the examples"
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tally-examples
+          path: tmp/tally-examples
           if-no-files-found: ignore

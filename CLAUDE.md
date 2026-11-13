@@ -19,6 +19,7 @@ Tally benchmarks PHP code by counting instructions, cycles, and memory under Cod
 - `src/` root – value objects shared by everything: `Metric`, `Metrics`, `CaseId`, `BenchmarkCase`, `DataSet`, `Measurement`, `ScratchDirectory`, `Configuration`, and the `Meter` interface.
 - `bin/tally` – finds the autoloader and runs `ApplicationFactory`.
 - `bench/` – Tally's benchmarks of itself, listed in `tally.php`. They cover the code whose cost grows with the suite, a benchmark file, or a profile, and that runs once per case or once per worker: locating and rewriting expectations, planning and diffing new expectations, expanding cases, sharding, reading profiles, and rendering reports. `SuiteSource` generates the code and cases of large benchmark classes as their input. Build inputs in data providers and before methods, which are not counted, and keep the counted call to the one method being measured. `#[Warmup(1)]` keeps autoloading out of the count.
+- `examples/` – short, artificial benchmarks for README.md, one feature each. `examples/Scripts` shows a data provider with its own `ExpectationSource`, which keeps the numbers in a comment at the top of each script. Keep them readable over realistic; real measurements of Tally belong in `bench/`. CI runs them under CodSpeed next to `bench/`, so they stay valid.
 - `build/` – scripts for the build, such as the coverage check. `build/PHPStan` holds Tally's own PHPStan rules and `BenchmarkUsageProvider`, which tells the dead code detector about the methods Tally calls through reflection. `build/stubs` holds the stubs for what PHPStan cannot see, such as the C functions FFI calls.
 - `tests/Unit` – pure logic, no file system, processes, or network. `tests/Integration` – adapters and the CLI. `tests/Fixtures` – benchmark classes and configuration files the tests load; excluded from PHPStan and the coding standard because some are invalid on purpose.
 
@@ -63,4 +64,5 @@ make bench      # bench/ under CodSpeed, needs codspeed and INSTRUMENT_HOOKS_LIB
 - Every file starts with `<?php declare(strict_types = 1);`, tabs for indentation.
 - Concise technical English in code comments, docs, and commit messages. Comments say why, not what.
 - Commits are small and explain why. One logical change per commit, its tests included.
+- README.md documents every command, option, and attribute. Change it together with them, with output copied from a real run.
 - Keep this file up to date when the layout or a rule changes.
