@@ -15,3 +15,9 @@ parameters:
 
 	excludePaths:
 		- tests/*/data/*
+
+	ignoreErrors:
+		-
+			# The rule is for PHPStan extensions, which the PHPStan\ namespace looks like.
+			# Tally loads and runs the benchmarks, so it reflects them at runtime.
+			identifier: phpstanApi.runtimeReflection
