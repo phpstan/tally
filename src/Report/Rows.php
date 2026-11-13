@@ -6,15 +6,12 @@ use Tally\Comparison\CaseComparison;
 use Tally\Comparison\MetricComparison;
 use Tally\Comparison\Percent;
 use Tally\Metric;
-use function strtok;
 
 /** The cells of the report's tables, shared by the terminal and the markdown report */
 final class Rows
 {
 
 	public const HEADER = ['Benchmark', 'Metric', 'Expected', 'Measured', 'Change', 'Allowed'];
-
-	public const FAILURE_HEADER = ['Benchmark', 'Error'];
 
 	/** The columns with numbers */
 	public const NUMBER_COLUMNS = [2, 3, 4, 5];
@@ -32,14 +29,6 @@ final class Rows
 		}
 
 		return $rows === [] ? [[$case->id->toString(), '-', '-', '-', '-', '-']] : $rows;
-	}
-
-	/**
-	 * @return list<string> the first line of the error, the rest is in the log
-	 */
-	public function failure(CaseComparison $case): array
-	{
-		return [$case->id->toString(), (string) strtok($case->failure ?? '', "\n")];
 	}
 
 	/**

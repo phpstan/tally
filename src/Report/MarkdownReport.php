@@ -11,6 +11,7 @@ use function implode;
 use function in_array;
 use function max;
 use function preg_match_all;
+use function rtrim;
 use function sprintf;
 use function str_repeat;
 use function str_replace;
@@ -35,7 +36,9 @@ final class MarkdownReport
 		foreach ($sections as $section) {
 			$output .= sprintf("> [!%s]\n> **%s**\n> %s\n\n", $this->alert($section->status), $section->title(), $section->text());
 			if ($section->status === Status::NotMeasured) {
-				$output .= $this->table([Rows::FAILURE_HEADER, ...array_map($this->rows->failure(...), $section->cases)], []) . "\n";
+				foreach ($section->cases as $case) {
+					$output .= sprintf("`%s`\n\n%s\n", $case->id->toString(), $this->codeBlock('text', $case->failure ?? ''));
+				}
 				continue;
 			}
 
@@ -80,10 +83,15 @@ final class MarkdownReport
 			return $output;
 		}
 
-		// a fence longer than any run of backticks in the patch
-		$fence = str_repeat('`', max(3, 1 + max([0, ...array_map(strlen(...), $this->backtickRuns($newExpectations->patch))])));
+		return $output . NewExpectations::TEXT . "\n\n" . $this->codeBlock('diff', $newExpectations->patch) . "\n";
+	}
 
-		return $output . NewExpectations::TEXT . "\n\n" . $fence . "diff\n" . $newExpectations->patch . $fence . "\n\n";
+	/** A fence longer than any run of backticks in the code */
+	private function codeBlock(string $language, string $code): string
+	{
+		$fence = str_repeat('`', max(3, 1 + max([0, ...array_map(strlen(...), $this->backtickRuns($code))])));
+
+		return $fence . $language . "\n" . rtrim($code, "\n") . "\n" . $fence . "\n";
 	}
 
 	/**

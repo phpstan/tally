@@ -56,10 +56,6 @@ final class ReportOutput
 		$accept = $this->commands->accept($environment, $resultsDirectory);
 		$newExpectations = $this->newExpectations($cases, $measurements, $workingDirectory);
 
-		$failures = $this->console->failures($report, $output->colors);
-		if ($failures !== '') {
-			$output->write($failures . "\n");
-		}
 		$output->write($this->console->summary($report, $reproduce, $accept, $newExpectations, $output->colors));
 
 		if (($environment['GITHUB_ACTIONS'] ?? null) !== 'true') {

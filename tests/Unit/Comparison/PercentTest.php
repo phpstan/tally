@@ -14,7 +14,10 @@ final class PercentTest extends TestCase
 	 */
 	public static function percentProvider(): iterable
 	{
-		yield 'zero' => [0.0, '0 %', '+0.0 %'];
+		yield 'zero' => [0.0, '0 %', '0.0 %'];
+		yield 'a small decrease rounded to zero' => [-0.0004, '0 %', '0.0 %'];
+		yield 'a small increase rounded to zero' => [0.0004, '0 %', '0.0 %'];
+		yield 'the smallest shown decrease' => [-0.0005, '-0.1 %', '-0.1 %'];
 		yield 'a whole percent' => [0.05, '5 %', '+5.0 %'];
 		yield 'a fraction below 10' => [0.025, '2.5 %', '+2.5 %'];
 		yield 'a fraction from 10' => [0.1049, '10.5 %', '+10.5 %'];

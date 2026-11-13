@@ -6,10 +6,9 @@ use Closure;
 use Tally\Comparison\CaseComparison;
 use Tally\Comparison\Status;
 use function array_filter;
-use function array_map;
-use function array_values;
 use function count;
 use function explode;
+use function implode;
 use function rtrim;
 use function sprintf;
 use function str_replace;
@@ -21,6 +20,8 @@ use function str_starts_with;
  */
 final class ConsoleReport
 {
+
+	private const CHANGE_COLUMN = 4;
 
 	private const STATUS_COLUMN = 6;
 
@@ -44,16 +45,23 @@ final class ConsoleReport
 			$output .= "\n" . $this->style($colors, '1;' . $this->color($section->status), $section->title()) . "\n";
 			$output .= $section->text() . "\n\n";
 			if ($section->status === Status::NotMeasured) {
-				$rows = [Rows::FAILURE_HEADER, ...array_map($this->rows->failure(...), $section->cases)];
-				$output .= $this->table->render($rows, [], '  ', $this->header($colors));
+				$output .= $this->failures($section->cases, $colors);
 				continue;
 			}
 
 			$rows = [Rows::HEADER];
+			// the colors of the changes outside the allowed difference, by row
+			$colorsByRow = [];
 			foreach ($section->cases as $case) {
-				$rows = [...$rows, ...$this->rows->metrics($case)];
+				foreach ($this->rows->metrics($case) as $i => $row) {
+					$status = $case->metrics[$i]->status ?? $case->status;
+					if ($status === Status::Slower || $status === Status::Faster) {
+						$colorsByRow[count($rows)] = '1;' . $this->color($status);
+					}
+					$rows[] = $row;
+				}
 			}
-			$output .= $this->table->render($rows, Rows::NUMBER_COLUMNS, '  ', $this->header($colors));
+			$output .= $this->table->render($rows, Rows::NUMBER_COLUMNS, '  ', $this->cells($colors, self::CHANGE_COLUMN, $colorsByRow));
 		}
 		if ($sections === []) {
 			return $output;
@@ -112,25 +120,6 @@ final class ConsoleReport
 	}
 
 	/**
-	 * The whole errors of the cases that were not measured, which the summary shortens to their
-	 * first lines. Nothing when every case was measured.
-	 */
-	public function failures(Report $report, bool $colors): string
-	{
-		$failed = array_values(array_filter($report->cases, static fn (CaseComparison $case): bool => $case->failure !== null));
-		if ($failed === []) {
-			return '';
-		}
-
-		$output = count($failed) === 1 ? "1 benchmark was not measured:\n" : sprintf("%d benchmarks were not measured:\n", count($failed));
-		foreach ($failed as $i => $case) {
-			$output .= sprintf("\n%s\n%s\n", $this->style($colors, '1', sprintf('%d) %s', $i + 1, $case->id->toString())), $case->failure);
-		}
-
-		return $output;
-	}
-
-	/**
 	 * Every case with its metrics and status.
 	 */
 	public function table(Report $report, bool $colors): string
@@ -148,16 +137,42 @@ final class ConsoleReport
 			}
 		}
 
-		return $this->table->render($rows, Rows::NUMBER_COLUMNS, '', function (int $row, int $column, string $cell) use ($colors, $colorsByRow): string {
+		return $this->table->render($rows, Rows::NUMBER_COLUMNS, '', $this->cells($colors, self::STATUS_COLUMN, $colorsByRow));
+	}
+
+	/**
+	 * Each failed case with its whole error, which can span lines, such as a PHP fatal error with its stack trace.
+	 *
+	 * @param list<CaseComparison> $cases
+	 */
+	private function failures(array $cases, bool $colors): string
+	{
+		$blocks = [];
+		foreach ($cases as $case) {
+			$blocks[] = '  ' . $this->style($colors, '1', $case->id->toString()) . "\n    " . str_replace("\n", "\n    ", $case->failure ?? '') . "\n";
+		}
+
+		return implode("\n", $blocks);
+	}
+
+	/**
+	 * Styles the header bold, and the cells of one column in the colors of their rows.
+	 *
+	 * @param array<int, string> $colorsByRow
+	 * @return Closure(int, int, string): string
+	 */
+	private function cells(bool $colors, int $coloredColumn, array $colorsByRow): Closure
+	{
+		return function (int $row, int $column, string $cell) use ($colors, $coloredColumn, $colorsByRow): string {
 			if ($row === 0) {
 				return $this->style($colors, '1', $cell);
 			}
-			if ($column !== self::STATUS_COLUMN || !isset($colorsByRow[$row])) {
+			if ($column !== $coloredColumn || !isset($colorsByRow[$row])) {
 				return $cell;
 			}
 
 			return $this->style($colors, $colorsByRow[$row], $cell);
-		});
+		};
 	}
 
 	private function color(Status $status): string
@@ -168,14 +183,6 @@ final class ConsoleReport
 			Status::New => '34',
 			Status::Faster, Status::Ok => '32',
 		};
-	}
-
-	/**
-	 * @return Closure(int, int, string): string
-	 */
-	private function header(bool $colors): Closure
-	{
-		return fn (int $row, int $column, string $cell): string => $row === 0 ? $this->style($colors, '1', $cell) : $cell;
 	}
 
 	private function style(bool $colors, string $code, string $text): string

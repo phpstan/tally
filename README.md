@@ -254,7 +254,7 @@ These benchmarks do more work than expected. Find out why before merging. If it 
   Benchmark                         Metric         Expected   Measured    Change   Allowed
   App\SortBench::benchSort@size-10  instructions     3.490K     4.190K   +20.1 %     ±10 %
                                     cycles           16.74K     16.62K    -0.7 %     ±10 %
-                                    memory             832B       832B    +0.0 %     ±10 %
+                                    memory             832B       832B     0.0 %     ±10 %
 
 Reproduce locally
   vendor/bin/tally run --filter='App\SortBench::benchSort@size-10'

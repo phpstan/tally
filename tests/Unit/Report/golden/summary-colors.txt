@@ -5,18 +5,19 @@ Allowed difference: ±10 % of each metric
 These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, accept the new numbers.
 
   [1mBenchmark                    [0m   [1mMetric      [0m   [1mExpected[0m   [1mMeasured[0m   [1m Change[0m   [1mAllowed[0m
-  App\ABench::benchSlower@big     instructions     1.000M     1.500M   +50.0 %     ±10 %
+  App\ABench::benchSlower@big     instructions     1.000M     1.500M   [1;31m+50.0 %[0m     ±10 %
                                   cycles           1.200M     1.250M    +4.2 %     ±10 %
-                                  memory         1.000MiB   800.0KiB   -21.9 %     ±10 %
-  App\ABench::benchSlower@small   instructions     1.000M     1.200M   +20.0 %     ±10 %
-                                  cycles           1.200M     1.200M    +0.0 %     ±10 %
-                                  memory         1.000MiB   1.000MiB    +0.0 %     ±10 %
+                                  memory         1.000MiB   800.0KiB   [1;32m-21.9 %[0m     ±10 %
+  App\ABench::benchSlower@small   instructions     1.000M     1.200M   [1;31m+20.0 %[0m     ±10 %
+                                  cycles           1.200M     1.200M     0.0 %     ±10 %
+                                  memory         1.000MiB   1.000MiB     0.0 %     ±10 %
 
 [1;33mNot measured[0m
 These benchmarks failed, timed out, or did not run. Their errors are below.
 
-  [1mBenchmark              [0m   [1mError                      [0m
-  App\ABench::benchBroken   RuntimeException: It broke.
+  [1mApp\ABench::benchBroken[0m
+    RuntimeException: It broke.
+    #0 /repo/benchmarks/ABench.php(12)
 
 [1;34mNew benchmarks[0m
 These benchmarks have no expected numbers yet. This does not fail, but accept the new numbers.
@@ -30,9 +31,9 @@ These benchmarks have no expected numbers yet. This does not fail, but accept th
 Nice! This does not fail, but accept the new numbers, so a later slowdown back to the old ones does not go unnoticed.
 
   [1mBenchmark              [0m   [1mMetric      [0m   [1mExpected[0m   [1mMeasured[0m   [1m Change[0m   [1mAllowed[0m
-  App\ABench::benchFaster   instructions     1.000M     500.0K   -50.0 %     ±10 %
+  App\ABench::benchFaster   instructions     1.000M     500.0K   [1;32m-50.0 %[0m     ±10 %
                             cycles           1.200M     1.150M    -4.2 %     ±10 %
-                            memory         1.000MiB   1.000MiB    +0.0 %     ±10 %
+                            memory         1.000MiB   1.000MiB     0.0 %     ±10 %
 
 [1mReproduce locally[0m
   vendor/bin/tally run --filter='App\ABench::benchSlower@big'

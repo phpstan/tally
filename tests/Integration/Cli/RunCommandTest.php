@@ -50,9 +50,9 @@ final class RunCommandTest extends TestCase
 
 		$this->assertSame(1, $exitCode, $errorOutput);
 		$this->assertStringStartsWith("Tally counts 4 cases under CodSpeed's CPU simulation, 2 at once.\n\n", $output);
-		$this->assertMatchesRegularExpression('~\n\n[.SEN]{4} +4 / 4 \(100%\)\n\n1 benchmark was not measured:~', $output);
-		$this->assertStringContainsString("1 benchmark was not measured:\n\n1) " . self::BENCH . "::benchThrows\nRuntimeException: It broke.\nat ", $output);
+		$this->assertMatchesRegularExpression('~\n\n[.SEN]{4} +4 / 4 \(100%\)\n\nBenchmarks failed: ~', $output);
 		$this->assertStringContainsString('Benchmarks failed: 1 slower, 1 not measured, 1 new, 1 unchanged', $output);
+		$this->assertStringContainsString("\n  " . self::BENCH . "::benchThrows\n    RuntimeException: It broke.\n    at " . realpath(self::RUN . '/RunBench.php') . ":27\n", $output);
 		$this->assertStringNotContainsString('RunBench::benchOk ', $output);
 		$this->assertStringContainsString(self::BENCH . '::benchSlower   instructions     1.000K     2.000K   +100.0 %', $output);
 		$this->assertStringContainsString("Reproduce locally\n  vendor/bin/tally run --filter='" . self::BENCH . "::benchSlower'", $output);

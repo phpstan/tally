@@ -31,21 +31,21 @@ final class ComparatorTest extends TestCase
 			$expected,
 			Measurement::measured($id, Metrics::fromArray(['instructions' => 1100, 'cycles' => 1800, 'memory' => 100])),
 			Status::Ok,
-			['instructions ok +10.0 % ±10 %', 'cycles ok -10.0 % ±10 %', 'memory ok +0.0 % ±10 %'],
+			['instructions ok +10.0 % ±10 %', 'cycles ok -10.0 % ±10 %', 'memory ok 0.0 % ±10 %'],
 			null,
 		];
 		yield 'slower wins over faster' => [
 			$expected,
 			Measurement::measured($id, Metrics::fromArray(['instructions' => 1101, 'cycles' => 1799, 'memory' => 100])),
 			Status::Slower,
-			['instructions slower +10.1 % ±10 %', 'cycles faster -10.1 % ±10 %', 'memory ok +0.0 % ±10 %'],
+			['instructions slower +10.1 % ±10 %', 'cycles faster -10.1 % ±10 %', 'memory ok 0.0 % ±10 %'],
 			null,
 		];
 		yield 'faster' => [
 			$expected,
 			Measurement::measured($id, Metrics::fromArray(['instructions' => 500, 'cycles' => 2000, 'memory' => 100])),
 			Status::Faster,
-			['instructions faster -50.0 % ±10 %', 'cycles ok +0.0 % ±10 %', 'memory ok +0.0 % ±10 %'],
+			['instructions faster -50.0 % ±10 %', 'cycles ok 0.0 % ±10 %', 'memory ok 0.0 % ±10 %'],
 			null,
 		];
 		yield 'a metric that was not counted is left out' => [
@@ -87,14 +87,14 @@ final class ComparatorTest extends TestCase
 			['instructions' => 10, 'cycles' => 10, 'memory' => 0],
 			Measurement::measured($id, Metrics::fromArray(['instructions' => 10, 'cycles' => 10, 'memory' => 8])),
 			Status::Slower,
-			['instructions ok +0.0 % ±10 %', 'cycles ok +0.0 % ±10 %', 'memory slower - ±10 %'],
+			['instructions ok 0.0 % ±10 %', 'cycles ok 0.0 % ±10 %', 'memory slower - ±10 %'],
 			null,
 		];
 		yield 'nothing expected stays nothing' => [
 			['instructions' => 10, 'cycles' => 10, 'memory' => 0],
 			Measurement::measured($id, Metrics::fromArray(['instructions' => 10, 'cycles' => 10, 'memory' => 0])),
 			Status::Ok,
-			['instructions ok +0.0 % ±10 %', 'cycles ok +0.0 % ±10 %', 'memory ok - ±10 %'],
+			['instructions ok 0.0 % ±10 %', 'cycles ok 0.0 % ±10 %', 'memory ok - ±10 %'],
 			null,
 		];
 	}

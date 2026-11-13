@@ -45,11 +45,8 @@ final class CompareAndAcceptCommandTest extends TestCase
 		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['compare', self::RESULTS, self::COMPARE]);
 
 		$this->assertSame(1, $exitCode, $errorOutput);
-		$this->assertStringStartsWith(
-			"1 benchmark was not measured:\n\n1) " . self::BENCH . "::benchMissing\nIt did not run.\n\n"
-			. "Benchmarks failed: 1 slower, 1 not measured, 1 unchanged\n",
-			$output,
-		);
+		$this->assertStringStartsWith("Benchmarks failed: 1 slower, 1 not measured, 1 unchanged\n", $output);
+		$this->assertStringContainsString("Not measured\nThese benchmarks failed, timed out, or did not run. Their errors are below.\n\n  " . self::BENCH . "::benchMissing\n    It did not run.\n\n", $output);
 		$this->assertStringContainsString("Accept the new numbers\n  vendor/bin/tally accept '" . self::RESULTS . "'\n", $output);
 	}
 
@@ -67,7 +64,7 @@ final class CompareAndAcceptCommandTest extends TestCase
 
 		$this->assertStringStartsWith(
 			"Benchmark                                            Metric         Expected   Measured   Change   Allowed   Status\n"
-			. self::BENCH . "::benchOk   instructions     1.000K     1.000K   +0.0 %     ±10 %   ok\n",
+			. self::BENCH . "::benchOk   instructions     1.000K     1.000K    0.0 %     ±10 %   ok\n",
 			$output,
 		);
 		$this->assertStringContainsString("\n\nBenchmarks passed: all 1 match their expectations\n", $output);

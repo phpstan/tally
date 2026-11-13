@@ -12,16 +12,19 @@ Allowed difference: ±10 % of each metric
 |  | cycles | 1.200M | 1.250M | +4.2 % | ±10 % |
 |  | memory | 1.000MiB | 800.0KiB | -21.9 % | ±10 % |
 | `App\ABench::benchSlower@small` | instructions | 1.000M | 1.200M | +20.0 % | ±10 % |
-|  | cycles | 1.200M | 1.200M | +0.0 % | ±10 % |
-|  | memory | 1.000MiB | 1.000MiB | +0.0 % | ±10 % |
+|  | cycles | 1.200M | 1.200M | 0.0 % | ±10 % |
+|  | memory | 1.000MiB | 1.000MiB | 0.0 % | ±10 % |
 
 > [!WARNING]
 > **Not measured**
 > These benchmarks failed, timed out, or did not run. Their errors are below.
 
-| Benchmark | Error |
-|---|---|
-| `App\ABench::benchBroken` | RuntimeException: It broke. |
+`App\ABench::benchBroken`
+
+```text
+RuntimeException: It broke.
+#0 /repo/benchmarks/ABench.php(12)
+```
 
 > [!NOTE]
 > **New benchmarks**
@@ -41,7 +44,7 @@ Allowed difference: ±10 % of each metric
 |---|---|--:|--:|--:|--:|
 | `App\ABench::benchFaster` | instructions | 1.000M | 500.0K | -50.0 % | ±10 % |
 |  | cycles | 1.200M | 1.150M | -4.2 % | ±10 % |
-|  | memory | 1.000MiB | 1.000MiB | +0.0 % | ±10 % |
+|  | memory | 1.000MiB | 1.000MiB | 0.0 % | ±10 % |
 
 ### Reproduce locally
 
@@ -89,18 +92,18 @@ Apply this patch with git apply, or accept the new numbers as above.
 |  | memory | 1.000MiB | - | - | - | not measured |
 | `App\ABench::benchFaster` | instructions | 1.000M | 500.0K | -50.0 % | ±10 % | faster |
 |  | cycles | 1.200M | 1.150M | -4.2 % | ±10 % | ok |
-|  | memory | 1.000MiB | 1.000MiB | +0.0 % | ±10 % | ok |
+|  | memory | 1.000MiB | 1.000MiB | 0.0 % | ±10 % | ok |
 | `App\ABench::benchNew` | instructions | - | 1.204K | - | - | new |
 |  | cycles | - | 1.387K | - | - | new |
 |  | memory | - | 0B | - | - | new |
 | `App\ABench::benchOk` | instructions | 1.000M | 1.050M | +5.0 % | ±10 % | ok |
-|  | cycles | 1.200M | 1.200M | +0.0 % | ±10 % | ok |
-|  | memory | 1.000MiB | 1.000MiB | +0.0 % | ±10 % | ok |
+|  | cycles | 1.200M | 1.200M | 0.0 % | ±10 % | ok |
+|  | memory | 1.000MiB | 1.000MiB | 0.0 % | ±10 % | ok |
 | `App\ABench::benchSlower@big` | instructions | 1.000M | 1.500M | +50.0 % | ±10 % | slower |
 |  | cycles | 1.200M | 1.250M | +4.2 % | ±10 % | ok |
 |  | memory | 1.000MiB | 800.0KiB | -21.9 % | ±10 % | faster |
 | `App\ABench::benchSlower@small` | instructions | 1.000M | 1.200M | +20.0 % | ±10 % | slower |
-|  | cycles | 1.200M | 1.200M | +0.0 % | ±10 % | ok |
-|  | memory | 1.000MiB | 1.000MiB | +0.0 % | ±10 % | ok |
+|  | cycles | 1.200M | 1.200M | 0.0 % | ±10 % | ok |
+|  | memory | 1.000MiB | 1.000MiB | 0.0 % | ±10 % | ok |
 
 </details>

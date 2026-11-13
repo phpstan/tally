@@ -4,16 +4,16 @@ App\ABench::benchBroken         instructions     1.000M          -         -    
                                 memory         1.000MiB          -         -         -   [33mnot measured[0m
 App\ABench::benchFaster         instructions     1.000M     500.0K   -50.0 %     ±10 %   [32mfaster      [0m
                                 cycles           1.200M     1.150M    -4.2 %     ±10 %   ok
-                                memory         1.000MiB   1.000MiB    +0.0 %     ±10 %   ok
+                                memory         1.000MiB   1.000MiB     0.0 %     ±10 %   ok
 App\ABench::benchNew            instructions          -     1.204K         -         -   [34mnew         [0m
                                 cycles                -     1.387K         -         -   [34mnew         [0m
                                 memory                -         0B         -         -   [34mnew         [0m
 App\ABench::benchOk             instructions     1.000M     1.050M    +5.0 %     ±10 %   ok
-                                cycles           1.200M     1.200M    +0.0 %     ±10 %   ok
-                                memory         1.000MiB   1.000MiB    +0.0 %     ±10 %   ok
+                                cycles           1.200M     1.200M     0.0 %     ±10 %   ok
+                                memory         1.000MiB   1.000MiB     0.0 %     ±10 %   ok
 App\ABench::benchSlower@big     instructions     1.000M     1.500M   +50.0 %     ±10 %   [31mslower      [0m
                                 cycles           1.200M     1.250M    +4.2 %     ±10 %   ok
                                 memory         1.000MiB   800.0KiB   -21.9 %     ±10 %   [32mfaster      [0m
 App\ABench::benchSlower@small   instructions     1.000M     1.200M   +20.0 %     ±10 %   [31mslower      [0m
-                                cycles           1.200M     1.200M    +0.0 %     ±10 %   ok
-                                memory         1.000MiB   1.000MiB    +0.0 %     ±10 %   ok
+                                cycles           1.200M     1.200M     0.0 %     ±10 %   ok
+                                memory         1.000MiB   1.000MiB     0.0 %     ±10 %   ok

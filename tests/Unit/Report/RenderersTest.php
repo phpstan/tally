@@ -35,8 +35,6 @@ final class RenderersTest extends TestCase
 
 		yield 'summary' => ['summary.txt', static fn (Report $report): string => $console->summary($report, self::REPRODUCE, self::ACCEPT, self::newExpectations(), false)];
 		yield 'summary with colors' => ['summary-colors.txt', static fn (Report $report): string => $console->summary($report, self::REPRODUCE, self::ACCEPT, self::newExpectations(), true)];
-		yield 'failures' => ['failures.txt', static fn (Report $report): string => $console->failures($report, false)];
-		yield 'failures with colors' => ['failures-colors.txt', static fn (Report $report): string => $console->failures($report, true)];
 		yield 'table' => ['table.txt', static fn (Report $report): string => $console->table($report, false)];
 		yield 'table with colors' => ['table-colors.txt', static fn (Report $report): string => $console->table($report, true)];
 		yield 'markdown' => ['summary.md', static fn (Report $report): string => (new MarkdownReport(new Rows()))->render($report, self::REPRODUCE, self::ACCEPT, self::newExpectations())];
@@ -64,11 +62,10 @@ final class RenderersTest extends TestCase
 			"## Benchmarks passed: all 1 match their expectations\n\nAllowed difference: ±10 % of each metric\n\n"
 			. "<details><summary>All benchmarks</summary>\n\n"
 			. "| Benchmark | Metric | Expected | Measured | Change | Allowed | Status |\n|---|---|--:|--:|--:|--:|---|\n"
-			. "| `A::bench` | instructions | 10 | 10 | +0.0 % | ±10 % | ok |\n\n</details>\n",
+			. "| `A::bench` | instructions | 10 | 10 | 0.0 % | ±10 % | ok |\n\n</details>\n",
 			(new MarkdownReport(new Rows()))->render($report, 'reproduce', 'accept', NewExpectations::none()),
 		);
 		$this->assertSame('', (new GitHubAnnotations(new Rows(), new RelativePath()))->render($report, '/repo'));
-		$this->assertSame('', (new ConsoleReport(new TextTable(), new Rows()))->failures($report, false));
 	}
 
 	public function testNothingToAcceptWhenEveryProblemIsAFailure(): void
@@ -83,27 +80,23 @@ final class RenderersTest extends TestCase
 			"Benchmarks failed: 2 not measured, 1 unchanged\n"
 			. "Allowed difference: ±10 % of each metric\n\n"
 			. "Not measured\nThese benchmarks failed, timed out, or did not run. Their errors are below.\n\n"
-			. "  Benchmark    Error\n"
-			. "  A::broken    It broke.\n"
-			. "  A::timeout   It timed out.\n"
+			. "  A::broken\n    It broke.\n    See the log.\n\n"
+			. "  A::timeout\n    It timed out.\n"
 			. "\nReproduce locally\n  reproduce\n",
 			(new ConsoleReport(new TextTable(), new Rows()))->summary($report, 'reproduce', 'accept', NewExpectations::none(), false),
 		);
 		$this->assertSame(
 			"## Benchmarks failed: 2 not measured, 1 unchanged\n\nAllowed difference: ±10 % of each metric\n\n"
 			. "> [!WARNING]\n> **Not measured**\n> These benchmarks failed, timed out, or did not run. Their errors are below.\n\n"
-			. "| Benchmark | Error |\n|---|---|\n| `A::broken` | It broke. |\n| `A::timeout` | It timed out. |\n\n"
+			. "`A::broken`\n\n```text\nIt broke.\nSee the log.\n```\n\n"
+			. "`A::timeout`\n\n```text\nIt timed out.\n```\n\n"
 			. "### Reproduce locally\n\n```\nreproduce\n```\n\n"
 			. "<details><summary>All benchmarks</summary>\n\n"
 			. "| Benchmark | Metric | Expected | Measured | Change | Allowed | Status |\n|---|---|--:|--:|--:|--:|---|\n"
 			. "| `A::broken` | - | - | - | - | - | not measured |\n"
 			. "| `A::timeout` | - | - | - | - | - | not measured |\n"
-			. "| `A::fine` | instructions | 10 | 10 | +0.0 % | ±10 % | ok |\n\n</details>\n",
+			. "| `A::fine` | instructions | 10 | 10 | 0.0 % | ±10 % | ok |\n\n</details>\n",
 			(new MarkdownReport(new Rows()))->render($report, 'reproduce', 'accept', NewExpectations::none()),
-		);
-		$this->assertSame(
-			"2 benchmarks were not measured:\n\n1) A::broken\nIt broke.\nSee the log.\n\n2) A::timeout\nIt timed out.\n",
-			(new ConsoleReport(new TextTable(), new Rows()))->failures($report, false),
 		);
 	}
 
@@ -144,11 +137,20 @@ final class RenderersTest extends TestCase
 		);
 	}
 
-	public function testMarkdownEscapesPipes(): void
+	public function testMarkdownEscapesPipesInTablesAndFencesErrorsWithBackticks(): void
 	{
-		$report = new Report([Comparisons::compare('A::bench@a|b', 1, null, null, 'x | y')]);
+		$report = new Report([Comparisons::compare('A::bench@a|b', 1, null, null, "x | y\n```php\nfoo();\n```")]);
 
-		$this->assertStringContainsString("| `A::bench@a\\|b` | x \\| y |\n", (new MarkdownReport(new Rows()))->render($report, 'r', 'a', NewExpectations::none()));
+		$this->assertSame(
+			"## Benchmarks failed: 1 not measured, 0 unchanged\n\nAllowed difference: ±10 % of each metric\n\n"
+			. "> [!WARNING]\n> **Not measured**\n> These benchmarks failed, timed out, or did not run. Their errors are below.\n\n"
+			. "`A::bench@a|b`\n\n````text\nx | y\n```php\nfoo();\n```\n````\n\n"
+			. "### Reproduce locally\n\n```\nr\n```\n\n"
+			. "<details><summary>All benchmarks</summary>\n\n"
+			. "| Benchmark | Metric | Expected | Measured | Change | Allowed | Status |\n|---|---|--:|--:|--:|--:|---|\n"
+			. "| `A::bench@a\\|b` | - | - | - | - | - | not measured |\n\n</details>\n",
+			(new MarkdownReport(new Rows()))->render($report, 'r', 'a', NewExpectations::none()),
+		);
 	}
 
 	public function testAnnotationsOfAFileOutsideTheWorkingDirectoryAndOfSomethingFromNothing(): void
