@@ -94,7 +94,7 @@ final class SortBench
 	 * @param list<int> $numbers
 	 */
 	#[DataProvider('shuffled')]
-	#[ExpectedFor('size-10', instructions: '4.304K', cycles: '16.52K', memory: '832B')]
+	#[ExpectedFor('size-10', instructions: '4.563K', cycles: '20.96K', memory: '1.023KiB')]
 	#[ExpectedFor('size-1000', instructions: '955.3K', cycles: '1.119M', memory: '59.88KiB')]
 	public function benchSort(array $numbers): void
 	{

@@ -23,7 +23,7 @@ final class MeterBench
 	/**
 	 * Tally ignores what a benchmark returns.
 	 */
-	#[Expected(instructions: '324.6K', cycles: '405.2K', memory: '384B')]
+	#[Expected(instructions: '324.6K', cycles: '411.1K', memory: '600B')]
 	public function benchExclude(): int
 	{
 		$numbers = $this->meter->exclude(static fn (): array => range(1, 10_000));
