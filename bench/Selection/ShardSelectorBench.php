@@ -36,8 +36,8 @@ final class ShardSelectorBench
 	 * @param list<BenchmarkCase> $cases
 	 */
 	#[DataProvider('suites')]
-	#[ExpectedFor('cases-100-shards-4', instructions: '1.230M', cycles: '1.493M', memory: '36.95KiB')]
-	#[ExpectedFor('cases-2000-shards-8', instructions: '92.72M', cycles: '100.6M', memory: '610.2KiB')]
+	#[ExpectedFor('cases-100-shards-4', instructions: '1.035M', cycles: '1.302M', memory: '37.16KiB')]
+	#[ExpectedFor('cases-2000-shards-8', instructions: '35.63M', cycles: '40.17M', memory: '610.4KiB')]
 	public function benchSelect(ShardSelector $selector, array $cases): void
 	{
 		$selector->select($cases);
