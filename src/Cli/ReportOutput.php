@@ -2,11 +2,18 @@
 
 namespace Tally\Cli;
 
+use Tally\BenchmarkCase;
+use Tally\Expectation\ExpectationChanges;
+use Tally\Expectation\ExpectationFiles;
+use Tally\Measurement;
 use Tally\Report\ConsoleReport;
+use Tally\Report\ExpectationsPatch;
 use Tally\Report\GitHubAnnotations;
 use Tally\Report\MarkdownReport;
+use Tally\Report\NewExpectations;
 use Tally\Report\Report;
 use Tally\Report\ReportCommands;
+use function array_map;
 use function file_put_contents;
 use function sprintf;
 use const FILE_APPEND;
@@ -23,7 +30,10 @@ final class ReportOutput
 		private ConsoleReport $console,
 		private MarkdownReport $markdown,
 		private GitHubAnnotations $annotations,
-		private ReportCommands $commands
+		private ReportCommands $commands,
+		private ExpectationFiles $files,
+		private ExpectationChanges $changes,
+		private ExpectationsPatch $patch
 	)
 	{
 	}
@@ -34,20 +44,23 @@ final class ReportOutput
 	}
 
 	/**
+	 * @param list<BenchmarkCase> $cases the cases of the report
+	 * @param array<string, Measurement> $measurements by case ID
 	 * @param array<string, string> $environment
-	 * @param string $workingDirectory annotations point to files relative to it
+	 * @param string $workingDirectory annotations and patches point to files relative to it
 	 * @param string|null $resultsDirectory where the results are, null when they were not kept
 	 */
-	public function write(Report $report, Output $output, array $environment, string $workingDirectory, ?string $resultsDirectory): void
+	public function write(Report $report, array $cases, array $measurements, Output $output, array $environment, string $workingDirectory, ?string $resultsDirectory): void
 	{
 		$reproduce = $this->commands->reproduce($report->worst());
 		$accept = $this->commands->accept($environment, $resultsDirectory);
+		$newExpectations = $this->newExpectations($cases, $measurements, $workingDirectory);
 
 		$failures = $this->console->failures($report, $output->colors);
 		if ($failures !== '') {
 			$output->write($failures . "\n");
 		}
-		$output->write($this->console->summary($report, $reproduce, $accept, $output->colors));
+		$output->write($this->console->summary($report, $reproduce, $accept, $newExpectations, $output->colors));
 
 		if (($environment['GITHUB_ACTIONS'] ?? null) !== 'true') {
 			return;
@@ -55,11 +68,35 @@ final class ReportOutput
 
 		$output->write($this->annotations->render($report, $workingDirectory));
 		$summary = $environment['GITHUB_STEP_SUMMARY'] ?? null;
-		if ($summary === null || @file_put_contents($summary, $this->markdown->render($report, $reproduce, $accept), FILE_APPEND) !== false) {
+		if ($summary === null || @file_put_contents($summary, $this->markdown->render($report, $reproduce, $accept, $newExpectations), FILE_APPEND) !== false) {
 			return;
 		}
 
 		$output->writeError(sprintf("Cannot write the job summary to %s.\n", $summary));
+	}
+
+	/**
+	 * The expectations of the measured cases that have none yet, so that a contributor who adds a
+	 * benchmark can apply them without running CodSpeed.
+	 *
+	 * @param list<BenchmarkCase> $cases
+	 * @param array<string, Measurement> $measurements
+	 */
+	private function newExpectations(array $cases, array $measurements, string $workingDirectory): NewExpectations
+	{
+		$accepted = [];
+		foreach ($cases as $case) {
+			$measurement = $measurements[$case->id->toString()] ?? null;
+			if ($measurement === null || $measurement->failure !== null || $case->expectations->read() !== null) {
+				continue;
+			}
+
+			$accepted[] = [$case, $measurement->metrics];
+		}
+
+		$plan = $this->changes->plan($accepted, $this->files->read(array_map(static fn (array $accepted): BenchmarkCase => $accepted[0], $accepted)));
+
+		return new NewExpectations($this->patch->render($plan, $workingDirectory), $plan->failures);
 	}
 
 }

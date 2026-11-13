@@ -40,3 +40,24 @@ Reproduce locally
 Accept the new numbers
   gh run download 1 -D tmp/tally
   vendor/bin/tally accept tmp/tally
+
+Expected numbers of the new benchmarks
+Cannot add the expected numbers of App\ABench::benchNewer: #[ExpectedFor] on line 31: write the data set as a string literal, so tally accept can find the attribute.
+
+Apply this patch with git apply, or accept the new numbers as above.
+
+--- a/benchmarks/ABench.php
++++ b/benchmarks/ABench.php
+@@ -28,6 +28,7 @@
+ 	}
+ 
++	#[Expected(instructions: '1.204K', cycles: '1.387K', memory: '0B')]
+ 	public function benchNew(): void
+ 	{
+ 	}
+--- a/benchmarks/data/bug-1234.php
++++ b/benchmarks/data/bug-1234.php
+@@ -1,2 +1,2 @@
+-<?php // instructions: ?, cycles: ?, memory: ?
++<?php // instructions: 1.2K, cycles: 1.4K, memory: 0B
+ 

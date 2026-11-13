@@ -5,9 +5,9 @@ namespace Tally\Tests\Unit\Expectation;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Expectation\MethodNotFoundException;
-use Tally\Expectation\UnsupportedAttributeException;
 use Tally\Metrics;
 use Tally\Tests\Fixtures\Rewriter\SortBench;
 use function file_get_contents;
@@ -20,7 +20,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	private const SORT_BENCH = __DIR__ . '/../../Fixtures/Rewriter/SortBench.php';
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testRewriteReplacesOnlyTheAttributeOfTheMethod(): void
 	{
@@ -46,7 +46,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testRewriteReplacesTheAttributeOfTheDataSet(): void
 	{
@@ -61,7 +61,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testRewriteAddsAMissingAttributeAfterTheOthers(): void
 	{
@@ -76,7 +76,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testRewriteAddsAMissingDataSetAttribute(): void
 	{
@@ -95,7 +95,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testRewriteImportsTheAttribute(): void
 	{
@@ -114,7 +114,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testRewriteTwiceAddsTheImportOnce(): void
 	{
@@ -220,7 +220,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	#[DataProvider('dataRewriteCode')]
 	public function testRewriteCode(string $class, string $code, string $expected): void
@@ -240,7 +240,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	#[DataProvider('dataLocate')]
 	public function testLocateDataSet(string $dataSet, int $expected): void
@@ -268,16 +268,30 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	#[DataProvider('dataNonLiteralDataSet')]
 	public function testRewriteRejectsANonLiteralDataSet(string $attribute): void
 	{
 		$code = "<?php\nnamespace App;\nuse Tally\\Attribute\\ExpectedFor;\nclass FooBench {\n\t" . $attribute . "\n\tpublic function bench() {}\n}\n";
 
-		$this->expectException(UnsupportedAttributeException::class);
+		$this->expectException(ExpectationException::class);
 		$this->expectExceptionMessage('#[ExpectedFor] on line 5: write the data set as a string literal, so tally accept can find the attribute.');
 		(new ExpectedAttributeRewriter())->rewrite($code, 'App\\FooBench', 'bench', 'large', Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0]));
+	}
+
+	/**
+	 * @throws ExpectationException
+	 */
+	public function testANonLiteralDataSetOfAnotherMethodDoesNotMatter(): void
+	{
+		$code = "<?php\nnamespace App;\nuse Tally\\Attribute\\Expected;\nuse Tally\\Attribute\\ExpectedFor;\nclass FooBench {\n\t#[ExpectedFor(self::LARGE, '1', '1', '0B')]\n\tpublic function benchOther() {}\n\tpublic function bench() {}\n}\n";
+
+		$this->assertSame(
+			"<?php\nnamespace App;\nuse Tally\\Attribute\\Expected;\nuse Tally\\Attribute\\ExpectedFor;\nclass FooBench {\n\t#[ExpectedFor(self::LARGE, '1', '1', '0B')]\n\tpublic function benchOther() {}\n\t#[Expected(instructions: '7', cycles: '8', memory: '0B')]\n\tpublic function bench() {}\n}\n",
+			(new ExpectedAttributeRewriter())->rewrite($code, 'App\\FooBench', 'bench', null, Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0])),
+		);
+		$this->assertSame(8, (new ExpectedAttributeRewriter())->locate($code, 'App\\FooBench', 'bench', null));
 	}
 
 	/**
@@ -292,7 +306,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 
 	/**
 	 * @param array<string, int> $metrics
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	#[DataProvider('dataIncompleteMetrics')]
 	public function testRewriteNeedsEveryMetric(array $metrics, string $message): void
@@ -326,7 +340,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	#[DataProvider('dataRewriteDataSetCode')]
 	public function testRewriteDataSetCode(string $code, string $expected): void
@@ -335,7 +349,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testRewriteDataSetInTheGlobalNamespace(): void
 	{
@@ -346,7 +360,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testLocate(): void
 	{
@@ -362,7 +376,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	}
 
 	/**
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testLocateFailsForAMissingMethod(): void
 	{

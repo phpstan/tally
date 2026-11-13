@@ -5,11 +5,13 @@ namespace Tally\Cli;
 use Override;
 use RuntimeException;
 use Tally\BenchmarkCase;
+use Tally\Comparison\CaseComparison;
 use Tally\Comparison\Comparator;
 use Tally\Execution\CaseJobs;
 use Tally\Execution\CodSpeedInstallation;
 use Tally\Execution\DirectoryRemover;
 use Tally\Execution\WorkerSettings;
+use Tally\Expectation\SourceLocation;
 use Tally\Measurement;
 use Tally\Process\Job;
 use Tally\Process\ProcessPool;
@@ -97,6 +99,11 @@ final class RunCommand implements Command
 
 		$configuration = $this->selectedCases->configuration($input);
 		$cases = $this->selectedCases->load($input, $configuration, $input->arguments());
+		// before counting, which takes minutes: an expectation tally cannot find fails now
+		$located = [];
+		foreach ($cases as $case) {
+			$located[] = [$case, $case->expectations->location()];
+		}
 		$workDirectory = sys_get_temp_dir() . '/tally-' . getmypid();
 		$settings = new WorkerSettings(
 			$configuration->iniEntries(),
@@ -115,7 +122,7 @@ final class RunCommand implements Command
 			$jobs,
 		));
 		try {
-			$measurements = $this->measure($cases, $settings, $jobs, $input->option('output'), $output);
+			$measurements = $this->measure($located, $settings, $jobs, $input->option('output'), $output);
 		} catch (RuntimeException $e) {
 			$output->writeError($e->getMessage() . "\n");
 
@@ -124,43 +131,56 @@ final class RunCommand implements Command
 			$this->remover->remove($workDirectory);
 		}
 
-		$report = new Report(array_map(fn (BenchmarkCase $case) => $this->comparator->compareCase($case, $measurements[$case->id->toString()] ?? null), $cases));
+		$report = new Report(array_map(
+			fn (array $case): CaseComparison => $this->compare($case[0], $case[1], $measurements[$case[0]->id->toString()] ?? null),
+			$located,
+		));
 		if ($cases !== []) {
 			$output->write("\n");
 		}
-		$this->reportOutput->write($report, $output, $this->environment, $this->workingDirectory, $input->option('output'));
+		$this->reportOutput->write($report, $cases, $measurements, $output, $this->environment, $this->workingDirectory, $input->option('output'));
 
 		return $report->fails() ? Application::EXIT_FAILURE : Application::EXIT_SUCCESS;
 	}
 
 	/**
-	 * @param list<BenchmarkCase> $cases
+	 * @param list<array{BenchmarkCase, SourceLocation}> $cases
 	 * @param positive-int $jobs
 	 * @return array<string, Measurement> by case ID
 	 * @throws RuntimeException
 	 */
 	private function measure(array $cases, WorkerSettings $settings, int $jobs, ?string $resultsDirectory, Output $output): array
 	{
+		$jobsOfCases = [];
+		foreach ($cases as $case) {
+			$jobsOfCases[] = new Job($case, $this->caseJobs->steps($settings, $case[0]->id));
+		}
+
 		$measurements = [];
 		$this->pool->run(
-			array_map(fn (BenchmarkCase $case): Job => $this->caseJobs->job($settings, $case), $cases),
+			$jobsOfCases,
 			$jobs,
 			$this->workingDirectory,
 			$this->environment,
 			function (Job $job, array $processResults) use ($settings, $resultsDirectory, $output, &$measurements, $cases): void {
-				$case = $job->subject;
+				[$case, $location] = $job->subject;
 				$measurement = $this->caseJobs->measurement($settings, $case->id, $processResults);
 				$measurements[$case->id->toString()] = $measurement;
 				if ($resultsDirectory !== null) {
 					$this->results->write($resultsDirectory, $measurement);
 				}
 
-				$status = $this->comparator->compareCase($case, $measurement)->status;
+				$status = $this->compare($case, $location, $measurement)->status;
 				$output->write($this->progress->after(count($measurements), count($cases), $status, $output->colors));
 			},
 		);
 
 		return $measurements;
+	}
+
+	private function compare(BenchmarkCase $case, SourceLocation $location, ?Measurement $measurement): CaseComparison
+	{
+		return $this->comparator->compare($case->id, $location, $case->expectations->read(), $case->tolerance, $measurement);
 	}
 
 	/**

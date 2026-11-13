@@ -3,9 +3,15 @@
 namespace Tally\Cli;
 
 use Override;
+use RuntimeException;
+use Tally\BenchmarkCase;
 use Tally\Comparison\Comparator;
 use Tally\Comparison\Status;
-use Throwable;
+use Tally\Expectation\ExpectationChanges;
+use Tally\Expectation\ExpectationFiles;
+use function array_map;
+use function implode;
+use function in_array;
 use function sprintf;
 
 /**
@@ -19,7 +25,9 @@ final class AcceptCommand implements Command
 	public function __construct(
 		private SelectedCases $selectedCases,
 		private ResultsArguments $resultsArguments,
-		private Comparator $comparator
+		private Comparator $comparator,
+		private ExpectationFiles $files,
+		private ExpectationChanges $changes
 	)
 	{
 	}
@@ -54,8 +62,7 @@ final class AcceptCommand implements Command
 		$measurements = $this->resultsArguments->read($input);
 		$cases = $this->selectedCases->load($input, $this->selectedCases->configuration($input), $this->resultsArguments->paths($input));
 
-		$accepted = 0;
-		$failed = false;
+		$changed = [];
 		foreach ($cases as $case) {
 			$measurement = $measurements[$case->id->toString()] ?? null;
 			$status = $this->comparator->compareCase($case, $measurement)->status;
@@ -63,18 +70,39 @@ final class AcceptCommand implements Command
 				continue;
 			}
 
+			$changed[] = [$case, $measurement->metrics, $status];
+		}
+
+		$plan = $this->changes->plan(
+			array_map(static fn (array $change): array => [$change[0], $change[1]], $changed),
+			$this->files->read(array_map(static fn (array $change): BenchmarkCase => $change[0], $changed)),
+		);
+		$failed = $plan->failures !== [];
+		foreach ($plan->failures as $id => $failure) {
+			$output->writeError(sprintf("Cannot accept %s: %s\n", $id, $failure));
+		}
+		$written = [];
+		foreach ($plan->files as $change) {
 			try {
-				$case->expectations->write($measurement->metrics);
-			} catch (Throwable $e) {
-				$output->writeError(sprintf("Cannot accept %s: %s\n", $case->id->toString(), $e->getMessage()));
+				$this->files->write($change);
+			} catch (RuntimeException $e) {
+				$output->writeError(sprintf("Cannot accept %s: %s\n", implode(', ', $change->cases), $e->getMessage()));
 				$failed = true;
 				continue;
 			}
-			$output->write(sprintf("%s  %s\n", $status->value, $case->id->toString()));
-			$accepted++;
+			$written = [...$written, ...$change->cases];
 		}
 
-		$output->write(sprintf("\nAccepted the numbers of %d %s.\n", $accepted, $accepted === 1 ? 'case' : 'cases'));
+		$count = 0;
+		foreach ($changed as [$case, , $status]) {
+			if (!in_array($case->id->toString(), $written, true)) {
+				continue;
+			}
+
+			$output->write(sprintf("%s  %s\n", $status->value, $case->id->toString()));
+			$count++;
+		}
+		$output->write(sprintf("\nAccepted the numbers of %d %s.\n", $count, $count === 1 ? 'case' : 'cases'));
 
 		return $failed ? Application::EXIT_ERROR : Application::EXIT_SUCCESS;
 	}

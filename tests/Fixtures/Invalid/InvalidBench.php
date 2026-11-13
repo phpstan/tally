@@ -48,7 +48,7 @@ final class InvalidBench
 
 	public static function withSource(): iterable
 	{
-		yield DataSet::named('a', [])->withExpectations(new InMemoryExpectations(Metrics::none()));
+		yield DataSet::named('a', [])->withExpectations(new InMemoryExpectations(Metrics::none(), '/benchmarks/InMemoryBench.php'));
 	}
 
 	#[DataProvider('missing')]

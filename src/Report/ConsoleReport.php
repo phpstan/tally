@@ -9,8 +9,11 @@ use function array_filter;
 use function array_map;
 use function array_values;
 use function count;
+use function explode;
+use function rtrim;
 use function sprintf;
 use function str_replace;
+use function str_starts_with;
 
 /**
  * The report for a terminal or a CI log: a headline, the allowed differences, a table per section
@@ -29,7 +32,7 @@ final class ConsoleReport
 	 * @param string $reproduceCommand runs the worst case
 	 * @param string $acceptCommand shell commands that accept the measured numbers
 	 */
-	public function summary(Report $report, string $reproduceCommand, string $acceptCommand, bool $colors): string
+	public function summary(Report $report, string $reproduceCommand, string $acceptCommand, NewExpectations $newExpectations, bool $colors): string
 	{
 		$output = $this->style($colors, $report->fails() ? '1;31' : '1;32', $report->headline()) . "\n";
 		foreach ($report->tolerances() as $tolerance) {
@@ -64,7 +67,48 @@ final class ConsoleReport
 			$output .= '  ' . str_replace("\n", "\n  ", $acceptCommand) . "\n";
 		}
 
+		return $output . $this->newExpectations($newExpectations, $colors);
+	}
+
+	/** Not indented, so that the patch can be copied */
+	private function newExpectations(NewExpectations $newExpectations, bool $colors): string
+	{
+		if ($newExpectations->isEmpty()) {
+			return '';
+		}
+
+		$output = "\n" . $this->style($colors, '1', NewExpectations::TITLE) . "\n";
+		foreach ($newExpectations->failures as $id => $failure) {
+			$output .= sprintf("Cannot add the expected numbers of %s: %s\n", $id, $failure);
+		}
+		if ($newExpectations->patch === '') {
+			return $output;
+		}
+
+		$output .= ($newExpectations->failures === [] ? '' : "\n") . NewExpectations::TEXT . "\n\n";
+		foreach (explode("\n", rtrim($newExpectations->patch, "\n")) as $line) {
+			$output .= $this->patchLine($line, $colors) . "\n";
+		}
+
 		return $output;
+	}
+
+	private function patchLine(string $line, bool $colors): string
+	{
+		if (str_starts_with($line, '---') || str_starts_with($line, '+++')) {
+			return $this->style($colors, '1', $line);
+		}
+		if (str_starts_with($line, '@@')) {
+			return $this->style($colors, '36', $line);
+		}
+		if (str_starts_with($line, '+')) {
+			return $this->style($colors, '32', $line);
+		}
+		if (str_starts_with($line, '-')) {
+			return $this->style($colors, '31', $line);
+		}
+
+		return $line;
 	}
 
 	/**

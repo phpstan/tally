@@ -1,0 +1,8 @@
+{
+    "id": "Tally\\Tests\\Fixtures\\Compare\\AcceptBench::benchMissing",
+    "metrics": {
+        "instructions": 5000,
+        "cycles": 6000,
+        "memory": 2048
+    }
+}

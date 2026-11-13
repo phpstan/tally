@@ -12,11 +12,15 @@ use Tally\Result\ResultsDirectory;
 use Tally\Tests\InProcessTally;
 use Tally\Tests\InstrumentHooksFixture;
 use function array_map;
+use function fclose;
 use function file_get_contents;
+use function fwrite;
 use function getenv;
 use function getmypid;
 use function json_encode;
 use function ksort;
+use function proc_close;
+use function proc_open;
 use function realpath;
 use function sprintf;
 use function sys_get_temp_dir;
@@ -85,6 +89,15 @@ final class RunCommandTest extends TestCase
 		$this->assertSame("Tally counts 0 cases under CodSpeed's CPU simulation, 3 at once.\n\nNo benchmarks to compare\n", $output);
 	}
 
+	public function testFailsBeforeCountingWhenAnExpectationCannotBeFound(): void
+	{
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', __DIR__ . '/../../Fixtures/NonLiteral']);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame('', $output);
+		$this->assertSame("#[ExpectedFor] on line 22: write the data set as a string literal, so tally accept can find the attribute.\n", $errorOutput);
+	}
+
 	public function testAPartMissingFromTheProfileIsNotMeasured(): void
 	{
 		$environment = ['TALLY_FAKE_COUNTS' => '{}'] + $this->environment();
@@ -113,12 +126,27 @@ final class RunCommandTest extends TestCase
 			'GITHUB_STEP_SUMMARY' => $summary,
 		] + $this->environment();
 
-		[$exitCode, $output] = InProcessTally::run((string) realpath(__DIR__ . '/../../..'), $environment, ['run', '--filter=benchSlower', self::RUN]);
+		$repository = (string) realpath(__DIR__ . '/../../..');
+		[$exitCode, $output] = InProcessTally::run($repository, $environment, ['run', '--filter=/benchSlower|benchNew/', self::RUN]);
 
 		$this->assertSame(1, $exitCode);
 		$this->assertStringContainsString('::error file=tests/Fixtures/Run/RunBench.php,line=16,title=', $output);
 		$this->assertStringContainsString("gh run download 42 -R phpstan/tally -p 'tally-*' -D tmp/tally", $output);
-		$this->assertStringStartsWith('## Benchmarks failed: 1 slower', (string) file_get_contents($summary));
+		$patch = "--- a/tests/Fixtures/Run/RunBench.php\n+++ b/tests/Fixtures/Run/RunBench.php\n@@ -18,6 +18,7 @@\n \t{\n \t}\n \n"
+			. "+\t#[Expected(instructions: '1.204K', cycles: '1.404K', memory: '0B')]\n \tpublic function benchNew(): void\n \t{\n \t}\n";
+		$this->assertStringContainsString("Apply this patch with git apply, or accept the new numbers as above.\n\n" . $patch, $output);
+
+		$markdown = (string) file_get_contents($summary);
+		$this->assertStringStartsWith('## Benchmarks failed: 1 slower, 1 new', $markdown);
+		$this->assertStringContainsString("```diff\n" . $patch . "```\n", $markdown);
+
+		// the patch applies to the benchmark as it is
+		$check = proc_open(['git', 'apply', '--check', '-'], [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $repository);
+		self::assertNotFalse($check);
+		self::assertArrayHasKey(0, $pipes);
+		fwrite($pipes[0], $patch);
+		fclose($pipes[0]);
+		$this->assertSame(0, proc_close($check));
 	}
 
 	public function testReportsAJobSummaryThatCannotBeWritten(): void

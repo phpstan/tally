@@ -4,6 +4,7 @@ namespace Tally\Comparison;
 
 use Tally\BenchmarkCase;
 use Tally\CaseId;
+use Tally\Expectation\ExpectationException;
 use Tally\Expectation\SourceLocation;
 use Tally\Measurement;
 use Tally\Metric;
@@ -22,6 +23,7 @@ final class Comparator
 
 	/**
 	 * @param Measurement|null $measurement null when the case did not run
+	 * @throws ExpectationException
 	 */
 	public function compareCase(BenchmarkCase $case, ?Measurement $measurement): CaseComparison
 	{

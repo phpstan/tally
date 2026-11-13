@@ -5,8 +5,6 @@ namespace Tally\Tests\Integration\Execution;
 use Override;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use Tally\Attribute\RelativeTolerance;
-use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Execution\CaseJobs;
 use Tally\Execution\CaseOutcome;
@@ -20,7 +18,6 @@ use Tally\Process\ProcessCommand;
 use Tally\Process\ProcessResult;
 use Tally\Result\CallgrindProfile;
 use Tally\Result\MeasurementJson;
-use Tally\Tests\InMemoryExpectations;
 use function array_map;
 use function file_put_contents;
 use function getmypid;
@@ -48,11 +45,10 @@ final class CaseJobsTest extends TestCase
 		(new DirectoryRemover())->remove($this->directory);
 	}
 
-	public function testTheJobRunsTheCaseNativelyAndThenUnderCodSpeed(): void
+	public function testTheCaseRunsNativelyAndThenUnderCodSpeed(): void
 	{
-		$job = self::jobs()->job($this->settings($this->directory), self::case());
+		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
 
-		$this->assertSame(self::ID, $job->subject->id->toString());
 		$this->assertDirectoryExists($this->caseDirectory . '/scratch');
 		$this->assertDirectoryExists($this->caseDirectory . '/profile');
 		$commandLine = new WorkerCommandLine('php', 'bin/tally');
@@ -64,7 +60,7 @@ final class CaseJobsTest extends TestCase
 				new ProcessCommand($commandLine->native($settings, $id, $scratch, $this->caseDirectory . '/native.json'), $this->caseDirectory . '/native.log', 60),
 				new ProcessCommand($commandLine->counted($settings, $id, $scratch, $this->caseDirectory . '/counted.json', $this->caseDirectory . '/profile'), $this->caseDirectory . '/counted.log', 1800),
 			],
-			$job->steps,
+			$steps,
 		);
 	}
 
@@ -73,12 +69,12 @@ final class CaseJobsTest extends TestCase
 		$this->expectException(RuntimeException::class);
 		$this->expectExceptionMessage('Cannot create /nonexistent/tally/' . CaseId::fromString(self::ID)->fileName() . '/scratch.');
 
-		self::jobs()->job($this->settings('/nonexistent/tally'), self::case());
+		self::jobs()->steps($this->settings('/nonexistent/tally'), CaseId::fromString(self::ID));
 	}
 
 	public function testMeasuresTheCaseFromWhatItsRunsLeft(): void
 	{
-		$job = self::jobs()->job($this->settings($this->directory), self::case());
+		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
 		$json = new MeasurementJson();
 		file_put_contents($this->caseDirectory . '/native.json', $json->encode(self::memory(1)));
 		file_put_contents($this->caseDirectory . '/counted.json', $json->encode(self::memory(2048)));
@@ -89,7 +85,7 @@ final class CaseJobsTest extends TestCase
 		$measurement = self::jobs()->measurement(
 			$this->settings($this->directory),
 			CaseId::fromString(self::ID),
-			array_map(static fn (ProcessCommand $step): ProcessResult => ProcessResult::exited($step, 0), $job->steps),
+			array_map(static fn (ProcessCommand $step): ProcessResult => ProcessResult::exited($step, 0), $steps),
 		);
 
 		$this->assertSame(['instructions' => 1000, 'cycles' => 1000, 'memory' => 2048], $measurement->metrics->toArray());
@@ -97,24 +93,24 @@ final class CaseJobsTest extends TestCase
 
 	public function testAFailedNativeRunWithItsOutput(): void
 	{
-		$job = self::jobs()->job($this->settings($this->directory), self::case());
+		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
 		file_put_contents($this->caseDirectory . '/native.log', "PHP Fatal error:  Out of memory\n");
 
-		$measurement = self::jobs()->measurement($this->settings($this->directory), CaseId::fromString(self::ID), [ProcessResult::exited($job->steps[0], 255)]);
+		$measurement = self::jobs()->measurement($this->settings($this->directory), CaseId::fromString(self::ID), [ProcessResult::exited($steps[0], 255)]);
 
 		$this->assertSame("The native run exited with code 255.\nPHP Fatal error:  Out of memory", $measurement->failure);
 	}
 
 	public function testAnInvalidResult(): void
 	{
-		$job = self::jobs()->job($this->settings($this->directory), self::case());
+		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
 		file_put_contents($this->caseDirectory . '/native.json', (new MeasurementJson())->encode(self::memory(1)));
 		file_put_contents($this->caseDirectory . '/counted.json', '{');
 
 		$measurement = self::jobs()->measurement(
 			$this->settings($this->directory),
 			CaseId::fromString(self::ID),
-			array_map(static fn (ProcessCommand $step): ProcessResult => ProcessResult::exited($step, 0), $job->steps),
+			array_map(static fn (ProcessCommand $step): ProcessResult => ProcessResult::exited($step, 0), $steps),
 		);
 
 		$this->assertSame('CodSpeed wrote an invalid result: it is not JSON.', $measurement->failure);
@@ -128,11 +124,6 @@ final class CaseJobsTest extends TestCase
 	private function settings(string $workDirectory): WorkerSettings
 	{
 		return new WorkerSettings([], [], '/opt/codspeed', '/opt/libinstrument_hooks.so', $workDirectory, 60, 1800);
-	}
-
-	private static function case(): BenchmarkCase
-	{
-		return new BenchmarkCase(CaseId::fromString(self::ID), [], 0, [], [], new InMemoryExpectations(null), new RelativeTolerance(0.1));
 	}
 
 	private static function memory(int $bytes): Measurement

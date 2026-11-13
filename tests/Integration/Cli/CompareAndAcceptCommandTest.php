@@ -76,20 +76,76 @@ final class CompareAndAcceptCommandTest extends TestCase
 	public function testAcceptWritesTheChangedCasesOnly(): void
 	{
 		$bench = $this->copyBench('AcceptBench');
+		$other = $this->copyBench('OtherAcceptBench');
 		$original = (string) file_get_contents($bench);
 
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', self::RESULTS_ACCEPT, $bench]);
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', self::RESULTS_ACCEPT, $bench, $other]);
 
 		$this->assertSame(0, $exitCode, $errorOutput);
-		$this->assertSame('slower  ' . self::ACCEPT_BENCH . "::benchSlower\n\nAccepted the numbers of 1 case.\n", $output);
+		$this->assertSame(
+			'new  ' . self::ACCEPT_BENCH . "::benchMissing\n"
+			. 'slower  ' . self::ACCEPT_BENCH . "::benchSlower\n"
+			. "slower  Tally\\Tests\\Fixtures\\Compare\\OtherAcceptBench::benchSlower\n"
+			. "\nAccepted the numbers of 3 cases.\n",
+			$output,
+		);
+		$this->assertStringContainsString("#[Expected(instructions: '2.000K', cycles: '3.000K', memory: '0B')]\n\tpublic function benchSlower()", (string) file_get_contents($other));
 		$this->assertSame(
 			str_replace(
-				"#[Expected(instructions: '1K', cycles: '1.5K', memory: '0B')]\n\tpublic function benchSlower()",
-				"#[Expected(instructions: '2.000K', cycles: '3.000K', memory: '0B')]\n\tpublic function benchSlower()",
+				[
+					"#[Expected(instructions: '1K', cycles: '1.5K', memory: '0B')]\n\tpublic function benchSlower()",
+					"\tpublic function benchMissing()",
+				],
+				[
+					"#[Expected(instructions: '2.000K', cycles: '3.000K', memory: '0B')]\n\tpublic function benchSlower()",
+					"\t#[Expected(instructions: '5.000K', cycles: '6.000K', memory: '2.000KiB')]\n\tpublic function benchMissing()",
+				],
 				$original,
 			),
 			file_get_contents($bench),
 		);
+	}
+
+	public function testAcceptReadsTheBenchmarksFromTheConfiguration(): void
+	{
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', '--config=' . self::COMPARE . '/tally.php', __DIR__ . '/../../Fixtures/Results/ok']);
+
+		$this->assertSame(0, $exitCode, $errorOutput);
+		$this->assertSame("\nAccepted the numbers of 0 cases.\n", $output);
+	}
+
+	/**
+	 * @return iterable<string, array{string}>
+	 */
+	public static function dataCommand(): iterable
+	{
+		yield 'compare' => ['compare'];
+		yield 'accept' => ['accept'];
+	}
+
+	#[DataProvider('dataCommand')]
+	public function testAnExpectationThatCannotBeFound(string $command): void
+	{
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], [$command, __DIR__ . '/../../Fixtures/Results/ok', __DIR__ . '/../../Fixtures/NonLiteral']);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame('', $output);
+		$this->assertSame("#[ExpectedFor] on line 22: write the data set as a string literal, so tally accept can find the attribute.\n", $errorOutput);
+	}
+
+	public function testExpectationsThatCannotBeRewritten(): void
+	{
+		$id = 'Tally\\Tests\\Fixtures\\Refusing\\RefusingBench::benchGenerated@generated';
+		$arguments = [__DIR__ . '/../../Fixtures/Results/refusing', __DIR__ . '/../../Fixtures/Refusing'];
+
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', ...$arguments]);
+		$this->assertSame(2, $exitCode);
+		$this->assertSame('Cannot accept ' . $id . ": The data set is generated.\n", $errorOutput);
+		$this->assertSame("\nAccepted the numbers of 0 cases.\n", $output);
+
+		[$exitCode, $output] = InProcessTally::run(__DIR__, [], ['compare', ...$arguments]);
+		$this->assertSame(0, $exitCode);
+		$this->assertStringEndsWith("\nExpected numbers of the new benchmarks\nCannot add the expected numbers of " . $id . ": The data set is generated.\n", $output);
 	}
 
 	public function testAcceptReportsAFileThatCannotBeWritten(): void

@@ -3,10 +3,8 @@
 namespace Tally\Execution;
 
 use RuntimeException;
-use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Measurement;
-use Tally\Process\Job;
 use Tally\Process\ProcessCommand;
 use Tally\Process\ProcessResult;
 use Tally\Result\CallgrindProfile;
@@ -20,7 +18,7 @@ use function mkdir;
 use function sprintf;
 
 /**
- * The job that measures a case, and its measurement from the files the job left behind. Each case
+ * The steps that measure a case, and its measurement from the files the job left behind. Each case
  * gets a directory in the work directory: its scratch directory, which both runs share, and the
  * results, logs, and profiles of the runs.
  */
@@ -37,12 +35,11 @@ final class CaseJobs
 	}
 
 	/**
-	 * @return Job<BenchmarkCase>
+	 * @return non-empty-list<ProcessCommand>
 	 * @throws RuntimeException when the case's directories cannot be created
 	 */
-	public function job(WorkerSettings $settings, BenchmarkCase $case): Job
+	public function steps(WorkerSettings $settings, CaseId $id): array
 	{
-		$id = $case->id;
 		$directory = $this->directory($settings, $id);
 		foreach (['/scratch', '/profile'] as $subdirectory) {
 			if (!is_dir($directory . $subdirectory) && !@mkdir($directory . $subdirectory, 0777, true)) {
@@ -50,7 +47,7 @@ final class CaseJobs
 			}
 		}
 
-		return new Job($case, [
+		return [
 			new ProcessCommand(
 				$this->commandLine->native($settings, $id, $directory . '/scratch', $directory . '/native.json'),
 				$directory . '/native.log',
@@ -61,7 +58,7 @@ final class CaseJobs
 				$directory . '/counted.log',
 				$settings->countedTimeLimitSeconds,
 			),
-		]);
+		];
 	}
 
 	/**

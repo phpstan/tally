@@ -9,8 +9,12 @@ use function array_map;
 use function array_shift;
 use function implode;
 use function in_array;
+use function max;
+use function preg_match_all;
 use function sprintf;
+use function str_repeat;
 use function str_replace;
+use function strlen;
 
 /** The report for a GitHub Actions job summary, with alerts for the sections and every case collapsed. */
 final class MarkdownReport
@@ -20,7 +24,7 @@ final class MarkdownReport
 	{
 	}
 
-	public function render(Report $report, string $reproduceCommand, string $acceptCommand): string
+	public function render(Report $report, string $reproduceCommand, string $acceptCommand, NewExpectations $newExpectations): string
 	{
 		$output = '## ' . $report->headline() . "\n\n";
 		foreach ($report->tolerances() as $tolerance) {
@@ -47,6 +51,7 @@ final class MarkdownReport
 				$output .= "### Accept the new numbers\n\n```\n" . $acceptCommand . "\n```\n\n";
 			}
 		}
+		$output .= $this->newExpectations($newExpectations);
 
 		$rows = [[...Rows::HEADER, 'Status']];
 		foreach ($report->cases as $case) {
@@ -56,6 +61,39 @@ final class MarkdownReport
 		}
 
 		return $output . "<details><summary>All benchmarks</summary>\n\n" . $this->table($rows, Rows::NUMBER_COLUMNS) . "\n</details>\n";
+	}
+
+	private function newExpectations(NewExpectations $newExpectations): string
+	{
+		if ($newExpectations->isEmpty()) {
+			return '';
+		}
+
+		$output = '### ' . NewExpectations::TITLE . "\n\n";
+		foreach ($newExpectations->failures as $id => $failure) {
+			$output .= sprintf("- Cannot add the expected numbers of `%s`: %s\n", $id, $failure);
+		}
+		if ($newExpectations->failures !== []) {
+			$output .= "\n";
+		}
+		if ($newExpectations->patch === '') {
+			return $output;
+		}
+
+		// a fence longer than any run of backticks in the patch
+		$fence = str_repeat('`', max(3, 1 + max([0, ...array_map(strlen(...), $this->backtickRuns($newExpectations->patch))])));
+
+		return $output . NewExpectations::TEXT . "\n\n" . $fence . "diff\n" . $newExpectations->patch . $fence . "\n\n";
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private function backtickRuns(string $text): array
+	{
+		preg_match_all('~`+~', $text, $matches);
+
+		return $matches[0];
 	}
 
 	private function alert(Status $status): string

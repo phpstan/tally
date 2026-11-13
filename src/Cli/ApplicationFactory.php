@@ -10,16 +10,21 @@ use Tally\Execution\CaseOutcome;
 use Tally\Execution\CodSpeedInstallation;
 use Tally\Execution\DirectoryRemover;
 use Tally\Execution\WorkerCommandLine;
+use Tally\Expectation\ExpectationChanges;
+use Tally\Expectation\ExpectationFiles;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Process\ProcessKiller;
 use Tally\Process\ProcessPool;
 use Tally\Process\ProcessTable;
 use Tally\Report\ConsoleReport;
+use Tally\Report\ExpectationsPatch;
 use Tally\Report\GitHubAnnotations;
 use Tally\Report\MarkdownReport;
+use Tally\Report\RelativePath;
 use Tally\Report\ReportCommands;
 use Tally\Report\Rows;
 use Tally\Report\TextTable;
+use Tally\Report\UnifiedDiff;
 use Tally\Result\CallgrindProfile;
 use Tally\Result\MeasurementJson;
 use Tally\Result\ResultsDirectory;
@@ -51,8 +56,19 @@ final class ApplicationFactory
 		$json = new MeasurementJson();
 		$comparator = new Comparator();
 		$rows = new Rows();
+		$relativePath = new RelativePath();
 		$resultsArguments = new ResultsArguments(new ResultsDirectory($json));
-		$reportOutput = new ReportOutput(new ConsoleReport(new TextTable(), $rows), new MarkdownReport($rows), new GitHubAnnotations($rows), new ReportCommands());
+		$expectationFiles = new ExpectationFiles();
+		$expectationChanges = new ExpectationChanges();
+		$reportOutput = new ReportOutput(
+			new ConsoleReport(new TextTable(), $rows),
+			new MarkdownReport($rows),
+			new GitHubAnnotations($rows, $relativePath),
+			new ReportCommands(),
+			$expectationFiles,
+			$expectationChanges,
+			new ExpectationsPatch(new UnifiedDiff(), $relativePath),
+		);
 
 		return new Application(
 			new Output($stdout, $stderr, $colors),
@@ -73,7 +89,7 @@ final class ApplicationFactory
 					$workingDirectory,
 				),
 				new CompareCommand($selectedCases, $resultsArguments, $comparator, $reportOutput, $environment, $workingDirectory),
-				new AcceptCommand($selectedCases, $resultsArguments, $comparator),
+				new AcceptCommand($selectedCases, $resultsArguments, $comparator, $expectationFiles, $expectationChanges),
 			],
 			[new WorkerCommand($selectedCases, new CaseRunner(new ArgumentResolver(), new PhpMemory(), $idle), $idle, $json)],
 		);

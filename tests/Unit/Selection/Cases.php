@@ -26,7 +26,7 @@ final class Cases
 				0,
 				[],
 				[],
-				new InMemoryExpectations($instructions === null ? null : Metrics::fromArray(['instructions' => $instructions])),
+				new InMemoryExpectations($instructions === null ? null : Metrics::fromArray(['instructions' => $instructions]), '/benchmarks/InMemoryBench.php'),
 				new RelativeTolerance(0.1),
 			);
 		}

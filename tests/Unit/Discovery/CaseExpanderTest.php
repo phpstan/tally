@@ -9,8 +9,8 @@ use Tally\BenchmarkCase;
 use Tally\Discovery\CaseExpander;
 use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Expectation\AttributeExpectations;
+use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
-use Tally\Expectation\UnsupportedAttributeException;
 use Tally\Tests\Fixtures\Invalid\InvalidBench;
 use Tally\Tests\Fixtures\Suite\FilesBench;
 use Tally\Tests\Fixtures\Suite\Nested\IndexedBench;
@@ -27,7 +27,7 @@ final class CaseExpanderTest extends TestCase
 
 	/**
 	 * @throws InvalidBenchmarkException
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function testMethodWithoutDataProvider(): void
 	{

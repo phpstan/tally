@@ -40,3 +40,24 @@ Nice! This does not fail, but accept the new numbers, so a later slowdown back t
 [1mAccept the new numbers[0m
   gh run download 1 -D tmp/tally
   vendor/bin/tally accept tmp/tally
+
+[1mExpected numbers of the new benchmarks[0m
+Cannot add the expected numbers of App\ABench::benchNewer: #[ExpectedFor] on line 31: write the data set as a string literal, so tally accept can find the attribute.
+
+Apply this patch with git apply, or accept the new numbers as above.
+
+[1m--- a/benchmarks/ABench.php[0m
+[1m+++ b/benchmarks/ABench.php[0m
+[36m@@ -28,6 +28,7 @@[0m
+ 	}
+ 
+[32m+	#[Expected(instructions: '1.204K', cycles: '1.387K', memory: '0B')][0m
+ 	public function benchNew(): void
+ 	{
+ 	}
+[1m--- a/benchmarks/data/bug-1234.php[0m
+[1m+++ b/benchmarks/data/bug-1234.php[0m
+[36m@@ -1,2 +1,2 @@[0m
+[31m-<?php // instructions: ?, cycles: ?, memory: ?[0m
+[32m+<?php // instructions: 1.2K, cycles: 1.4K, memory: 0B[0m
+ 

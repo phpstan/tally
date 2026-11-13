@@ -3,6 +3,7 @@
 namespace Tally\Cli;
 
 use Tally\Discovery\InvalidBenchmarkException;
+use Tally\Expectation\ExpectationException;
 
 interface Command
 {
@@ -23,6 +24,7 @@ interface Command
 	 * @return Application::EXIT_*
 	 * @throws UsageException
 	 * @throws InvalidBenchmarkException
+	 * @throws ExpectationException
 	 */
 	public function execute(Input $input, Output $output): int;
 

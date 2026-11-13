@@ -44,7 +44,7 @@ use const T_WHITESPACE;
  * the same. A missing attribute is added after the method's other attributes, and imported when
  * the file does not import it yet.
  *
- * @phpstan-type Attribute array{start: int, end: int, name: string, dataSet: string|null, line: int}
+ * @phpstan-type Attribute array{start: int, end: int, name: string, dataSet: string|null, line: int, literal: bool}
  * @phpstan-type Member array{attributes: list<Attribute>, insertAt: int}
  * @phpstan-type Import array{name: string, alias: string, start: int, end: int}
  * @phpstan-type Scan array{namespace: string|null, namespaceEnd: int|null, imports: list<Import>, otherUse: int|null, member: Member}
@@ -58,7 +58,7 @@ final class ExpectedAttributeRewriter
 	 * The line of the attribute, or of the method's declaration when it has none.
 	 *
 	 * @throws MethodNotFoundException
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	public function locate(string $code, string $class, string $method, ?string $dataSet): int
 	{
@@ -72,7 +72,7 @@ final class ExpectedAttributeRewriter
 	/**
 	 * @param Metrics $metrics every metric
 	 * @throws MethodNotFoundException
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 * @throws InvalidArgumentException when a metric is missing
 	 */
 	public function rewrite(string $code, string $class, string $method, ?string $dataSet, Metrics $metrics): string
@@ -206,7 +206,7 @@ final class ExpectedAttributeRewriter
 	/**
 	 * @return Scan
 	 * @throws MethodNotFoundException
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	private function scan(Tokens $tokens, string $class, string $method): array
 	{
@@ -313,6 +313,12 @@ final class ExpectedAttributeRewriter
 				strcasecmp($currentClass, $class) === 0
 				&& strcasecmp($tokens->at($name)->text, $method) === 0
 			) {
+				foreach ($attributes as $attribute) {
+					if (!$attribute['literal']) {
+						throw new ExpectationException(sprintf('#[ExpectedFor] on line %d: write the data set as a string literal, so tally accept can find the attribute.', $attribute['line']));
+					}
+				}
+
 				return [
 					'namespace' => $namespace,
 					'namespaceEnd' => $namespaceEnd,
@@ -329,7 +335,7 @@ final class ExpectedAttributeRewriter
 	/**
 	 * @param list<Import> $imports
 	 * @return array{list<Attribute>, int} the #[Expected] and #[ExpectedFor] attributes of the group, and the index of its closing bracket
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	private function parseAttributeGroup(Tokens $tokens, int $start, ?string $namespace, array $imports): array
 	{
@@ -372,7 +378,7 @@ final class ExpectedAttributeRewriter
 	/**
 	 * @param array<string, string> $aliases
 	 * @return Attribute|null
-	 * @throws UnsupportedAttributeException
+	 * @throws ExpectationException
 	 */
 	private function parseAttribute(Tokens $tokens, int $start, int $end, ?string $namespace, array $aliases): ?array
 	{
@@ -390,10 +396,7 @@ final class ExpectedAttributeRewriter
 		$dataSet = null;
 		if (!$isExpected) {
 			$value = $hasArguments ? $this->dataSetArgument($tokens, $open, $attributeEnd) : null;
-			if ($value === null) {
-				throw new UnsupportedAttributeException($tokens->at($name)->line);
-			}
-			$dataSet = $this->stringValue($tokens->at($value)->text);
+			$dataSet = $value === null ? null : $this->stringValue($tokens->at($value)->text);
 		}
 
 		return [
@@ -402,6 +405,8 @@ final class ExpectedAttributeRewriter
 			'name' => $tokens->at($name)->text,
 			'dataSet' => $dataSet,
 			'line' => $tokens->at($name)->line,
+			// scan() rejects it only on the method it looks for
+			'literal' => $isExpected || $dataSet !== null,
 		];
 	}
 

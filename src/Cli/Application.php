@@ -3,6 +3,7 @@
 namespace Tally\Cli;
 
 use Tally\Discovery\InvalidBenchmarkException;
+use Tally\Expectation\ExpectationException;
 use function array_map;
 use function array_slice;
 use function max;
@@ -60,7 +61,7 @@ final class Application
 			$this->output->writeError($e->getMessage() . "\n\n" . $this->commandHelp($command, $options));
 
 			return self::EXIT_ERROR;
-		} catch (InvalidBenchmarkException $e) {
+		} catch (InvalidBenchmarkException | ExpectationException $e) {
 			$this->output->writeError($e->getMessage() . "\n");
 
 			return self::EXIT_ERROR;

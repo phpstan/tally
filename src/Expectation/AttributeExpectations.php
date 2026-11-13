@@ -3,14 +3,12 @@
 namespace Tally\Expectation;
 
 use Override;
-use RuntimeException;
 use Tally\Metrics;
 use function file_get_contents;
-use function file_put_contents;
 use function sprintf;
 
 /**
- * The #[Expected] attribute of a benchmark method, or the one of its data set.
+ * The #[Expected] attribute of a benchmark method, or the #[ExpectedFor] of one of its data sets.
  */
 final class AttributeExpectations implements ExpectationSource
 {
@@ -32,37 +30,27 @@ final class AttributeExpectations implements ExpectationSource
 		return $this->metrics;
 	}
 
-	/**
-	 * @throws UnsupportedAttributeException
-	 */
 	#[Override]
-	public function write(Metrics $measured): void
+	public function file(): string
 	{
-		$code = $this->rewriter->rewrite($this->readFile(), $this->class, $this->method, $this->dataSet, $measured);
-		if (@file_put_contents($this->file, $code) === false) {
-			throw new RuntimeException(sprintf('Cannot write %s.', $this->file));
-		}
-
-		$this->metrics = $measured;
+		return $this->file;
 	}
 
-	/**
-	 * @throws UnsupportedAttributeException
-	 */
+	#[Override]
+	public function rewrite(string $code, Metrics $measured): string
+	{
+		return $this->rewriter->rewrite($code, $this->class, $this->method, $this->dataSet, $measured);
+	}
+
 	#[Override]
 	public function location(): SourceLocation
 	{
-		return new SourceLocation($this->file, $this->rewriter->locate($this->readFile(), $this->class, $this->method, $this->dataSet));
-	}
-
-	private function readFile(): string
-	{
 		$code = @file_get_contents($this->file);
 		if ($code === false) {
-			throw new RuntimeException(sprintf('Cannot read %s.', $this->file));
+			throw new ExpectationException(sprintf('Cannot read %s.', $this->file));
 		}
 
-		return $code;
+		return new SourceLocation($this->file, $this->rewriter->locate($code, $this->class, $this->method, $this->dataSet));
 	}
 
 }

@@ -9,9 +9,6 @@ use Tally\Comparison\Status;
 use function implode;
 use function sprintf;
 use function str_replace;
-use function str_starts_with;
-use function strlen;
-use function substr;
 
 /**
  * GitHub Actions workflow commands that annotate where each case's expectations are, one per
@@ -20,7 +17,7 @@ use function substr;
 final class GitHubAnnotations
 {
 
-	public function __construct(private Rows $rows)
+	public function __construct(private Rows $rows, private RelativePath $relativePath)
 	{
 	}
 
@@ -35,7 +32,7 @@ final class GitHubAnnotations
 				$output .= sprintf(
 					"::%s file=%s,line=%d,title=%s::%s\n",
 					$section->status->fails() ? 'error' : 'warning',
-					$this->escapeProperty($this->relative($case->location->file, $workingDirectory)),
+					$this->escapeProperty($this->relativePath->of($case->location->file, $workingDirectory)),
 					$case->location->line,
 					$this->escapeProperty(sprintf($this->title($section->status), $case->id->toString())),
 					$this->escapeData($this->message($case)),
@@ -88,13 +85,6 @@ final class GitHubAnnotations
 			$this->rows->value($metric->metric, $metric->expected),
 			(new Percent($metric->allowedChange))->toString(),
 		);
-	}
-
-	private function relative(string $file, string $workingDirectory): string
-	{
-		$prefix = $workingDirectory . '/';
-
-		return str_starts_with($file, $prefix) ? substr($file, strlen($prefix)) : $file;
 	}
 
 	/** https://github.com/actions/toolkit/blob/main/packages/core/src/command.ts */

@@ -15,7 +15,7 @@ final class FilesBench
 	 */
 	public static function files(): iterable
 	{
-		yield DataSet::named('b.php', ['/b.php'])->withExpectations(new InMemoryExpectations(Metrics::fromArray(['instructions' => 2])));
+		yield DataSet::named('b.php', ['/b.php'])->withExpectations(new InMemoryExpectations(Metrics::fromArray(['instructions' => 2]), '/benchmarks/InMemoryBench.php'));
 		yield DataSet::named('a.php', ['/a.php']);
 	}
 
