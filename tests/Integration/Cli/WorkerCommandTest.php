@@ -71,7 +71,7 @@ final class WorkerCommandTest extends TestCase
 
 		$this->assertSame(0, $exitCode, $errorOutput);
 		$this->assertSame(
-			sprintf("init\nstart\nstop\nexecuted %1\$d %2\$s::benchAllocate#baseline\nstart\nstop\nexecuted %1\$d %2\$s::benchAllocate\n", (int) getmypid(), self::BENCH),
+			sprintf("init\nstart\nstop\nexecuted %1\$d %2\$s::benchAllocate#warmup\nstart\nstop\nexecuted %1\$d %2\$s::benchAllocate#baseline\nstart\nstop\nexecuted %1\$d %2\$s::benchAllocate\n", (int) getmypid(), self::BENCH),
 			$recording->recorded_calls(),
 		);
 		$this->assertSame(['memory'], array_keys($this->writtenResult()->metrics->toArray()));

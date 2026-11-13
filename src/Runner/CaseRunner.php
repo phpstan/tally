@@ -19,7 +19,12 @@ use function sprintf;
  * warm-up calls uncounted, counts an empty call as the baseline and then one call of the benchmark,
  * and calls the after methods, also when the benchmark throws.
  *
- * The baseline is a separate part of the profile, named after the case with #baseline. It goes
+ * The first counted span costs more than later ones: PHP does work once on the first call of the
+ * counting path, and the caches CodSpeed simulates start cold. Under the simulation, the first
+ * baseline counted about twice the instructions and cycles of the second one. So the baseline is
+ * counted twice, and only the second one, named after the case with #baseline, is subtracted.
+ *
+ * The baseline is a separate part of the profile. It goes
  * through the same steps as the counted call: the return from starting the counter, a closure
  * call with the resolved arguments, and stopping the counter, so subtracting it leaves the cost
  * of the benchmark method alone. Its memory is subtracted here, its instructions and cycles
@@ -29,6 +34,9 @@ final class CaseRunner
 {
 
 	public const BASELINE_SUFFIX = '#baseline';
+
+	/** The part counted before the baseline and left out */
+	public const WARMUP_SUFFIX = '#warmup';
 
 	public function __construct(
 		private ArgumentResolver $resolver,
@@ -61,12 +69,8 @@ final class CaseRunner
 				$this->callUncounted($object, $benchmark, fn (Meter $meter): array => $this->resolver->resolve($benchmark, $case->arguments, $meter, $scratch));
 			}
 
-			$baseline = $this->baseline(...);
-			$session = new MeterSession($counter, $this->memory);
-			$arguments = $this->resolver->resolve($benchmark, $case->arguments, $session, $scratch);
-			$session->start();
-			$baseline(...$arguments);
-			$baselineMemory = $session->stop($id . self::BASELINE_SUFFIX);
+			$this->countBaseline($case, $benchmark, $scratch, $counter, $id . self::WARMUP_SUFFIX);
+			$baselineMemory = $this->countBaseline($case, $benchmark, $scratch, $counter, $id . self::BASELINE_SUFFIX);
 
 			$call = $benchmark->getClosure($object);
 			$session = new MeterSession($counter, $this->memory);
@@ -80,6 +84,21 @@ final class CaseRunner
 				$this->callHook($object, $class->getMethod($name), $case, $scratch);
 			}
 		}
+	}
+
+	/**
+	 * @return Metrics the memory
+	 * @throws InvalidBenchmarkException
+	 */
+	private function countBaseline(BenchmarkCase $case, ReflectionMethod $benchmark, ScratchDirectory $scratch, Counter $counter, string $part): Metrics
+	{
+		$baseline = $this->baseline(...);
+		$session = new MeterSession($counter, $this->memory);
+		$arguments = $this->resolver->resolve($benchmark, $case->arguments, $session, $scratch);
+		$session->start();
+		$baseline(...$arguments);
+
+		return $session->stop($part);
 	}
 
 	/** What the baseline counts instead of the benchmark method */

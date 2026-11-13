@@ -54,6 +54,8 @@ final class CaseRunnerTest extends TestCase
 			'bench x, booted x',
 			'excluded',
 			'counter start',
+			'counter stop ' . RunnerBench::class . '::benchName@x#warmup',
+			'counter start',
 			'counter stop ' . RunnerBench::class . '::benchName@x#baseline',
 			'counter start',
 			'bench x, booted x',
@@ -71,6 +73,8 @@ final class CaseRunnerTest extends TestCase
 
 		$this->assertSame([
 			'construct',
+			'counter start',
+			'counter stop ' . RunnerBench::class . '::benchName@y#warmup',
 			'counter start',
 			'counter stop ' . RunnerBench::class . '::benchName@y#baseline',
 			'counter start',
@@ -122,6 +126,8 @@ final class CaseRunnerTest extends TestCase
 
 		$this->assertSame([
 			'construct',
+			'counter start',
+			'counter stop ' . RunnerBench::class . '::benchThrows@z#warmup',
 			'counter start',
 			'counter stop ' . RunnerBench::class . '::benchThrows@z#baseline',
 			'counter start',
