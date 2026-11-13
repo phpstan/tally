@@ -1,0 +1,16 @@
+includes:
+	- ../../../../vendor/shipmonk/dead-code-detector/rules.neon
+
+parameters:
+	level: 0
+	# a directory of its own, so that it does not share the result cache of the dead code detector
+	tmpDir: %env.TALLY_PHPSTAN_TMP%
+	# a directory, the dead code detector does not report anything when only files are analysed
+	paths:
+		- .
+
+services:
+	-
+		class: Tally\Build\PHPStan\BenchmarkUsageProvider
+		tags:
+			- shipmonk.deadCode.memberUsageProvider

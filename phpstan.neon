@@ -46,6 +46,12 @@ parameters:
 	excludePaths:
 		- tests/Fixtures/*
 
+services:
+	-
+		class: Tally\Build\PHPStan\BenchmarkUsageProvider
+		tags:
+			- shipmonk.deadCode.memberUsageProvider
+
 rules:
 	- Tally\Build\PHPStan\NoDefaultParameterValueRule
 	- Tally\Build\PHPStan\NoDefaultPropertyValueRule
