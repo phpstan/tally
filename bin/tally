@@ -1,0 +1,34 @@
+#!/usr/bin/env php
+<?php declare(strict_types = 1);
+
+use PHPStan\Tally\Cli\Application;
+
+(static function (): void {
+	// set by Composer's binary proxy since Composer 2.2
+	$autoloadFiles = isset($GLOBALS['_composer_autoload_path']) && is_string($GLOBALS['_composer_autoload_path'])
+		? [$GLOBALS['_composer_autoload_path']]
+		: [__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'];
+	foreach ($autoloadFiles as $autoloadFile) {
+		if (is_file($autoloadFile)) {
+			require_once $autoloadFile;
+			break;
+		}
+	}
+
+	if (!class_exists(Application::class)) {
+		fwrite(STDERR, "Run composer install to install Tally's autoloader.\n");
+		exit(2);
+	}
+
+	$arguments = [];
+	$argv = $_SERVER['argv'] ?? [];
+	foreach (is_array($argv) ? $argv : [] as $argument) {
+		if (!is_string($argument)) {
+			continue;
+		}
+
+		$arguments[] = $argument;
+	}
+
+	exit((new Application(STDOUT, STDERR))->run($arguments));
+})();

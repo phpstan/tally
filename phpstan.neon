@@ -10,6 +10,7 @@ parameters:
 	tmpDir: tmp
 
 	paths:
+		- bin/tally
 		- src
 		- tests
 
@@ -18,6 +19,10 @@ parameters:
 
 	ignoreErrors:
 		-
-			# The rule is for PHPStan extensions, which the PHPStan\ namespace looks like.
-			# Tally loads and runs the benchmarks, so it reflects them at runtime.
-			identifier: phpstanApi.runtimeReflection
+			# These rules are for PHPStan extensions, which the PHPStan\ namespace makes Tally look like.
+			# Tally reflects the benchmarks it runs at runtime, and its own classes are not PHPStan's API.
+			identifiers:
+				- phpstanApi.classConstant
+				- phpstanApi.constructor
+				- phpstanApi.method
+				- phpstanApi.runtimeReflection

@@ -7,7 +7,7 @@ tests:
 
 .PHONY: lint
 lint:
-	php vendor/bin/parallel-lint --colors \
+	php vendor/bin/parallel-lint --colors bin/tally \
 		src tests
 
 .PHONY: cs-install
@@ -18,11 +18,11 @@ cs-install:
 
 .PHONY: cs
 cs:
-	php build-cs/vendor/bin/phpcs src tests
+	php build-cs/vendor/bin/phpcs bin/tally src tests
 
 .PHONY: cs-fix
 cs-fix:
-	php build-cs/vendor/bin/phpcbf src tests
+	php build-cs/vendor/bin/phpcbf bin/tally src tests
 
 .PHONY: phpstan
 phpstan:
