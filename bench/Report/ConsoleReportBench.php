@@ -40,16 +40,16 @@ final class ConsoleReportBench
 	}
 
 	#[DataProvider('reports')]
-	#[ExpectedFor('cases-100-slower-10', instructions: '2.615M', cycles: '3.430M', memory: '50.48KiB')]
-	#[ExpectedFor('cases-1000-slower-1000', instructions: '196.5M', cycles: '276.3M', memory: '4.676MiB')]
+	#[ExpectedFor('cases-100-slower-10', instructions: '2.757M', cycles: '3.625M', memory: '43.66KiB')]
+	#[ExpectedFor('cases-1000-slower-1000', instructions: '160.2M', cycles: '202.0M', memory: '3.994MiB')]
 	public function benchSummary(Report $report): void
 	{
 		(new ConsoleReport(new TextTable(), new Rows()))->summary($report, 'vendor/bin/tally run', 'vendor/bin/tally accept', new NewExpectations('', []), true);
 	}
 
 	#[DataProvider('reports')]
-	#[ExpectedFor('cases-100-slower-10', instructions: '13.24M', cycles: '17.32M', memory: '267.1KiB')]
-	#[ExpectedFor('cases-1000-slower-1000', instructions: '273.9M', cycles: '377.6M', memory: '2.891MiB')]
+	#[ExpectedFor('cases-100-slower-10', instructions: '13.74M', cycles: '17.88M', memory: '182.9KiB')]
+	#[ExpectedFor('cases-1000-slower-1000', instructions: '283.5M', cycles: '389.3M', memory: '2.067MiB')]
 	public function benchMarkdown(Report $report): void
 	{
 		(new MarkdownReport(new Rows()))->render($report, 'vendor/bin/tally run', 'vendor/bin/tally accept', new NewExpectations('', []));
