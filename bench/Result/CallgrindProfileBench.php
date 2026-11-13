@@ -3,6 +3,7 @@
 namespace Tally\Bench\Result;
 
 use Tally\Attribute\DataProvider;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Result\CallgrindProfile;
 use function sprintf;
@@ -27,6 +28,8 @@ final class CallgrindProfileBench
 	}
 
 	#[DataProvider('profiles')]
+	#[ExpectedFor('functions-100', instructions: '748.1K', cycles: '988.5K', memory: '64.20KiB')]
+	#[ExpectedFor('functions-10000', instructions: '53.47M', cycles: '65.04M', memory: '4.068MiB')]
 	public function benchParts(string $profile): void
 	{
 		(new CallgrindProfile())->parts($profile);

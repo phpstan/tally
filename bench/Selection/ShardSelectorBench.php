@@ -3,6 +3,7 @@
 namespace Tally\Bench\Selection;
 
 use Tally\Attribute\DataProvider;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\RelativeTolerance;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
@@ -35,6 +36,8 @@ final class ShardSelectorBench
 	 * @param list<BenchmarkCase> $cases
 	 */
 	#[DataProvider('suites')]
+	#[ExpectedFor('cases-100-shards-4', instructions: '1.230M', cycles: '1.493M', memory: '36.95KiB')]
+	#[ExpectedFor('cases-2000-shards-8', instructions: '92.72M', cycles: '100.6M', memory: '610.2KiB')]
 	public function benchSelect(ShardSelector $selector, array $cases): void
 	{
 		$selector->select($cases);

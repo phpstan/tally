@@ -3,6 +3,7 @@
 namespace Tally\Bench\Expectation;
 
 use Tally\Attribute\DataProvider;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
 use Tally\BenchmarkCase;
@@ -38,6 +39,8 @@ final class ExpectationChangesBench
 	 * @param array<string, string> $code
 	 */
 	#[DataProvider('newCases')]
+	#[ExpectedFor('cases-2', instructions: '639.5K', cycles: '1.080M', memory: '34.87KiB')]
+	#[ExpectedFor('cases-200', instructions: '1.895B', cycles: '2.071B', memory: '1.043MiB')]
 	public function benchPlan(array $accepted, array $code): void
 	{
 		(new ExpectationChanges())->plan($accepted, $code);

@@ -3,6 +3,7 @@
 namespace Tally\Bench\Report;
 
 use Tally\Attribute\DataProvider;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
 use Tally\Report\UnifiedDiff;
@@ -41,6 +42,9 @@ final class UnifiedDiffBench
 	}
 
 	#[DataProvider('changes')]
+	#[ExpectedFor('first-and-last-line-changed', instructions: '2.186B', cycles: '2.341B', memory: '39.59MiB')]
+	#[ExpectedFor('middle-line-changed', instructions: '5.292M', cycles: '6.237M', memory: '375.4KiB')]
+	#[ExpectedFor('new-expectations-200', instructions: '787.4M', cycles: '848.6M', memory: '20.46MiB')]
 	public function benchRender(string $before, string $after): void
 	{
 		(new UnifiedDiff())->render('bench/SuiteBench.php', $before, $after);

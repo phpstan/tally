@@ -7,6 +7,7 @@ use ReflectionClass;
 use ReflectionMethod;
 use Tally\Attribute\BeforeMethods;
 use Tally\Attribute\DataProvider;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
 use Tally\Discovery\CaseExpander;
@@ -52,6 +53,8 @@ final class CaseExpanderBench
 	 * @throws InvalidBenchmarkException
 	 */
 	#[DataProvider('classes')]
+	#[ExpectedFor('size-10', instructions: '1.164M', cycles: '1.837M', memory: '18.72KiB')]
+	#[ExpectedFor('size-100', instructions: '12.43M', cycles: '16.94M', memory: '170.6KiB')]
 	public function benchExpand(int $methods, int $dataSets): void
 	{
 		$name = (new SuiteSource())->className($methods, $dataSets);
