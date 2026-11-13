@@ -114,10 +114,10 @@ final class MeterSession implements Meter
 
 		$this->counter->stop($part);
 		$this->counter = null;
-		// the peak was reset at the start, so the first span's is never below zero
-		$peaks = [...$this->peaksAboveBase, $this->memory->peak() - $this->baseUsage];
+		// read before the array below is allocated, which would raise the peak; never below zero, the peak was reset at the start
+		$peakAboveBase = $this->memory->peak() - $this->baseUsage;
 
-		return Metrics::none()->with(Metric::Memory, max($peaks));
+		return Metrics::none()->with(Metric::Memory, max([...$this->peaksAboveBase, $peakAboveBase]));
 	}
 
 	private function counter(string $method): Counter

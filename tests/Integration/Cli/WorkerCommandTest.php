@@ -85,6 +85,8 @@ final class WorkerCommandTest extends TestCase
 		yield 'an empty benchmark costs nothing beyond the baseline' => ['benchEmpty', 0, 0];
 		// PHP's allocator rounds a large string up to whole pages
 		yield 'a string of 100 000 bytes' => ['benchAllocate', 100_000, 100_000 + 4096];
+		// the baseline takes the argument the way the benchmark does, without allocating an array for it
+		yield 'a copy of an argument' => ['benchCopy@ten', 376, 376];
 	}
 
 	/**
@@ -134,7 +136,7 @@ final class WorkerCommandTest extends TestCase
 		$this->assertSame('', $output);
 		$result = $this->writtenResult();
 		$this->assertSame(self::BENCH . '::benchThrows', $result->id->toString());
-		$this->assertSame("RuntimeException: It broke.\nat tests/Fixtures/Worker/WorkerBench.php:33", $result->failure);
+		$this->assertSame("RuntimeException: It broke.\nat tests/Fixtures/Worker/WorkerBench.php:48", $result->failure);
 	}
 
 	/**

@@ -89,8 +89,12 @@ final class CaseRunner
 		}
 	}
 
-	/** What the baseline counts instead of the benchmark method */
-	private function baseline(mixed ...$arguments): void
+	/**
+	 * What the baseline counts instead of the benchmark method. It gets the same arguments, which
+	 * PHP keeps in the call frame without declared parameters, as it does for the benchmark's own.
+	 * A variadic parameter would allocate an array for them, and that would be subtracted.
+	 */
+	private function baseline(): void
 	{
 	}
 
