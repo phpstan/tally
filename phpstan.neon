@@ -39,6 +39,8 @@ parameters:
 
 	paths:
 		- bin/tally
+		- bench
+		- tally.php
 		- build
 		- src
 		- tests

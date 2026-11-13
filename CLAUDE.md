@@ -18,7 +18,8 @@ Tally benchmarks PHP code by counting instructions, cycles, and memory under Cod
 - `src/Cli` – `Application`, the commands (`list`, `run`, `compare`, `accept`, and the hidden `worker` that `run` starts), `ArgumentParser`, `Input`, `Output`. `ReportOutput` writes the report, with the patch for cases without expectations, and, in GitHub Actions, the annotations and job summary. `run` checks that every selected case's expectations can be rewritten before it counts anything; `accept` writes each file once. `ApplicationFactory` is the composition root; `bin/tally` passes it the streams, the environment, and the binaries the workers run.
 - `src/` root – value objects shared by everything: `Metric`, `Metrics`, `CaseId`, `BenchmarkCase`, `DataSet`, `Measurement`, `ScratchDirectory`, `Configuration`, and the `Meter` interface.
 - `bin/tally` – finds the autoloader and runs `ApplicationFactory`.
-- `build/` – scripts for the build, such as the coverage check. `build/PHPStan` holds Tally's own PHPStan rules, `build/stubs` the stubs for what PHPStan cannot see, such as the C functions FFI calls.
+- `bench/` – Tally's benchmarks of itself, listed in `tally.php`. They cover the code whose cost grows with the suite, a benchmark file, or a profile, and that runs once per case or once per worker: locating and rewriting expectations, planning and diffing new expectations, expanding cases, sharding, reading profiles, and rendering reports. `SuiteSource` generates the code and cases of large benchmark classes as their input. Build inputs in data providers and before methods, which are not counted, and keep the counted call to the one method being measured. `#[Warmup(1)]` keeps autoloading out of the count.
+- `build/` – scripts for the build, such as the coverage check. `build/PHPStan` holds Tally's own PHPStan rules and `BenchmarkUsageProvider`, which tells the dead code detector about the methods Tally calls through reflection. `build/stubs` holds the stubs for what PHPStan cannot see, such as the C functions FFI calls.
 - `tests/Unit` – pure logic, no file system, processes, or network. `tests/Integration` – adapters and the CLI. `tests/Fixtures` – benchmark classes and configuration files the tests load; excluded from PHPStan and the coding standard because some are invalid on purpose.
 
 ## Design rules
@@ -52,9 +53,10 @@ make tests      # PHPUnit
 make phpstan    # level max, strict rules, bleeding edge, dead code detector, checked exceptions
 make coverage   # pcov, fails below 100 % of lines
 make infection  # mutation testing of the whole codebase, fails below 100 % MSI
+make bench      # bench/ under CodSpeed, needs codspeed and INSTRUMENT_HOOKS_LIBRARY
 ```
 
-`make cs-install` clones build-cs. PHPStan runs with no ignores and no baseline: fix the types. The dead code detector reports unused code; delete it, or mark it `@api` when it is public API. A stale result cache of the dead code detector makes PHPStan fail with "DCD cache file not found"; `make infection` clears the result cache first, run `vendor/bin/phpstan clear-result-cache` before other runs when it happens. CI runs all of these on PHP 8.5 and 8.6; Infection runs on the whole codebase on pushes and on the changed lines in pull requests.
+`make cs-install` clones build-cs. PHPStan runs with no ignores and no baseline: fix the types. The dead code detector reports unused code; delete it, or mark it `@api` when it is public API. A stale result cache of the dead code detector makes PHPStan fail with "DCD cache file not found"; `make infection` clears the result cache first, run `vendor/bin/phpstan clear-result-cache` before other runs when it happens. CI runs all of these on PHP 8.5 and 8.6; Infection runs on the whole codebase on pushes and on the changed lines in pull requests. The Benchmarks job runs `bench/` under CodSpeed on a pinned runner, because the counts depend on the PHP build. Take expected numbers from that job, not from a local run: a benchmark without them gets a patch in the job's output, and changed numbers get `tally accept` with the `tally-results` artifact.
 
 ## Conventions
 

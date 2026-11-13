@@ -230,3 +230,67 @@ jobs:
       - name: "Infection on the whole codebase"
         if: github.event_name != 'pull_request'
         run: "make infection INFECTION_ARGS=--logger-github"
+
+  benchmarks:
+    name: "Benchmarks"
+    # Pinned because the counts depend on the PHP build and the system libraries
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 30
+
+    env:
+      CODSPEED_VERSION: "5.6.3"
+      # of codspeed-runner-x86_64-unknown-linux-musl.tar.gz in that release
+      CODSPEED_SHA256: "f29532a5cbcb3462bc5d6bcf5570ddb8c8cbfffed579cb48c35d3910ed5f7f00"
+      INSTRUMENT_HOOKS_COMMIT: "8fd5b878499f819561b33219cdafaa6f8c28b4e4"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: "none"
+          php-version: "8.5"
+          extensions: ffi, posix
+
+      - name: "Install dependencies"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "Install CodSpeed"
+        run: |
+          mkdir -p "$RUNNER_TEMP/codspeed"
+          cd "$RUNNER_TEMP/codspeed"
+          curl -fsSLO "https://github.com/CodSpeedHQ/codspeed/releases/download/v${CODSPEED_VERSION}/codspeed-runner-x86_64-unknown-linux-musl.tar.gz"
+          echo "${CODSPEED_SHA256}  codspeed-runner-x86_64-unknown-linux-musl.tar.gz" | sha256sum -c -
+          tar xzf codspeed-runner-x86_64-unknown-linux-musl.tar.gz --strip-components=1 codspeed-runner-x86_64-unknown-linux-musl/codspeed
+          echo "$RUNNER_TEMP/codspeed" >> "$GITHUB_PATH"
+          ./codspeed setup --mode=simulation
+
+      - name: "Build CodSpeed's instrument-hooks"
+        run: |
+          git init -q "$RUNNER_TEMP/instrument-hooks"
+          cd "$RUNNER_TEMP/instrument-hooks"
+          git fetch -q --depth=1 https://github.com/CodSpeedHQ/instrument-hooks.git "$INSTRUMENT_HOOKS_COMMIT"
+          git checkout -q FETCH_HEAD
+          gcc -shared -fPIC -O2 -Iincludes -w dist/core.c -o libinstrument_hooks.so
+
+      - name: "Benchmarks"
+        env:
+          INSTRUMENT_HOOKS_LIBRARY: ${{ runner.temp }}/instrument-hooks/libinstrument_hooks.so
+        run: "php bin/tally run --output=tmp/tally-results"
+
+      - name: "Upload results"
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tally-results
+          path: tmp/tally-results
+          if-no-files-found: ignore

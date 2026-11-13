@@ -16,10 +16,15 @@ infection:
 	php vendor/bin/phpstan clear-result-cache -q
 	php -d pcov.enabled=1 vendor/bin/infection --threads=max --show-mutations=max $(INFECTION_ARGS)
 
+.PHONY: bench
+bench:
+	# needs CodSpeed, see README.md
+	php bin/tally run --output=tmp/tally-results
+
 .PHONY: lint
 lint:
 	php vendor/bin/parallel-lint --colors bin/tally \
-		build src tests
+		bench build src tests tally.php
 
 .PHONY: cs-install
 cs-install:
@@ -29,11 +34,11 @@ cs-install:
 
 .PHONY: cs
 cs:
-	php build-cs/vendor/bin/phpcs bin/tally build src tests
+	php build-cs/vendor/bin/phpcs bin/tally bench build src tests tally.php
 
 .PHONY: cs-fix
 cs-fix:
-	php build-cs/vendor/bin/phpcbf bin/tally build src tests
+	php build-cs/vendor/bin/phpcbf bin/tally bench build src tests tally.php
 
 .PHONY: phpstan
 phpstan:

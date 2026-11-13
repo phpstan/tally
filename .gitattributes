@@ -1,6 +1,7 @@
 *.php text eol=lf
 
 .github export-ignore
+bench export-ignore
 tests export-ignore
 tmp export-ignore
 .editorconfig export-ignore
@@ -10,3 +11,4 @@ Makefile export-ignore
 phpcs.xml export-ignore
 phpstan.neon export-ignore
 phpunit.xml export-ignore
+tally.php export-ignore

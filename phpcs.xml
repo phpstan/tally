@@ -13,6 +13,7 @@
 		<properties>
 			<property name="rootNamespaces" type="array">
 				<element key="src" value="Tally"/>
+				<element key="bench" value="Tally\Bench"/>
 				<element key="build" value="Tally\Build"/>
 				<element key="tests" value="Tally\Tests"/>
 			</property>
