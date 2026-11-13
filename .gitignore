@@ -1,3 +1,4 @@
 /build-cs
 /composer.lock
 /vendor
+/.amp/portals/*
