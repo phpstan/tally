@@ -2,6 +2,7 @@
 
 namespace Tally\Discovery;
 
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
 use Tally\Attribute\AfterMethods;
@@ -9,9 +10,11 @@ use Tally\Attribute\BeforeMethods;
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\Expected;
 use Tally\Attribute\ExpectedFor;
+use Tally\Attribute\RelativeTolerance;
 use Tally\Attribute\Warmup;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
+use Tally\Comparison\TolerancePolicy;
 use Tally\DataSet;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectedAttributeRewriter;
@@ -19,6 +22,7 @@ use Tally\Metrics;
 use Tally\Quantity\InvalidQuantityException;
 use function array_map;
 use function count;
+use function implode;
 use function in_array;
 use function is_array;
 use function is_int;
@@ -32,6 +36,9 @@ use function sprintf;
  */
 final class CaseExpander
 {
+
+	/** The share each metric may differ by in a benchmark without a tolerance policy */
+	public const DEFAULT_TOLERANCE = 0.1;
 
 	public function __construct(private ExpectedAttributeRewriter $rewriter)
 	{
@@ -48,6 +55,7 @@ final class CaseExpander
 		$beforeMethods = $this->hookMethods($class, $method, BeforeMethods::class, 'before', $where);
 		$afterMethods = $this->hookMethods($class, $method, AfterMethods::class, 'after', $where);
 		$warmup = $this->warmup($class, $method, $where);
+		$tolerance = $this->tolerance($class, $method, $where);
 		$expected = $this->expected($method, $where);
 		$expectedFor = $this->expectedFor($method, $where);
 		$file = (string) $method->getDeclaringClass()->getFileName();
@@ -60,6 +68,7 @@ final class CaseExpander
 			$beforeMethods,
 			$afterMethods,
 			new AttributeExpectations($this->rewriter, $file, $declaringClass, $method->getName(), $dataSet, $metrics),
+			$tolerance,
 		);
 
 		$provider = $this->dataSets($class, $method, $where);
@@ -102,6 +111,7 @@ final class CaseExpander
 				$beforeMethods,
 				$afterMethods,
 				$dataSet->expectations,
+				$tolerance,
 			);
 		}
 
@@ -148,6 +158,27 @@ final class CaseExpander
 		}
 
 		return $calls;
+	}
+
+	/**
+	 * The policy among the attributes of the method, else of the class, else the default.
+	 *
+	 * @param ReflectionClass<object> $class
+	 * @throws InvalidBenchmarkException
+	 */
+	private function tolerance(ReflectionClass $class, ReflectionMethod $method, string $where): TolerancePolicy
+	{
+		foreach ([$method->getAttributes(TolerancePolicy::class, ReflectionAttribute::IS_INSTANCEOF), $class->getAttributes(TolerancePolicy::class, ReflectionAttribute::IS_INSTANCEOF)] as $attributes) {
+			if (count($attributes) > 1) {
+				$names = array_map(static fn (ReflectionAttribute $attribute): string => $attribute->getName(), $attributes);
+				throw new InvalidBenchmarkException($where, 'it has more than one tolerance policy: ' . implode(', ', $names) . '.');
+			}
+			if ($attributes !== []) {
+				return $attributes[0]->newInstance();
+			}
+		}
+
+		return new RelativeTolerance(self::DEFAULT_TOLERANCE);
 	}
 
 	/**

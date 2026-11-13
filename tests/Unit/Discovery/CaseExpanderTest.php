@@ -16,6 +16,8 @@ use Tally\Tests\Fixtures\Suite\FilesBench;
 use Tally\Tests\Fixtures\Suite\Nested\IndexedBench;
 use Tally\Tests\Fixtures\Suite\Nested\LoopBench;
 use Tally\Tests\Fixtures\Suite\StringBench;
+use Tally\Tests\Fixtures\Tolerance\DefaultBench;
+use Tally\Tests\Fixtures\Tolerance\ToleranceBench;
 use Tally\Tests\InMemoryExpectations;
 use function array_fill;
 use function array_map;
@@ -93,6 +95,27 @@ final class CaseExpanderTest extends TestCase
 	}
 
 	/**
+	 * @return iterable<string, array{class-string, string, string}>
+	 */
+	public static function dataTolerance(): iterable
+	{
+		yield 'on the method' => [ToleranceBench::class, 'benchOwn', '±5 % of each metric'];
+		yield 'on the class' => [ToleranceBench::class, 'benchOfTheClass', '±20 % of each metric'];
+		yield 'a custom one' => [ToleranceBench::class, 'benchCustom', 'no difference'];
+		yield 'the default' => [DefaultBench::class, 'benchDefault', '±10 % of each metric'];
+	}
+
+	/**
+	 * @param class-string $class
+	 * @throws InvalidBenchmarkException
+	 */
+	#[DataProvider('dataTolerance')]
+	public function testTolerance(string $class, string $method, string $description): void
+	{
+		$this->assertSame($description, self::expandOne($class, $method)->tolerance->describe());
+	}
+
+	/**
 	 * @return iterable<array{string, string}>
 	 */
 	public static function dataInvalid(): iterable
@@ -109,6 +132,7 @@ final class CaseExpanderTest extends TestCase
 		yield ['benchMissingBeforeMethod', '::benchMissingBeforeMethod(): before method missing() does not exist.'];
 		yield ['benchPrivateBeforeMethod', '::benchPrivateBeforeMethod(): before method hidden() must be public.'];
 		yield ['benchNotIterable', '::benchNotIterable(): data provider notIterable() must return an iterable.'];
+		yield ['benchTwoTolerances', '::benchTwoTolerances(): it has more than one tolerance policy: Tally\Attribute\RelativeTolerance, Tally\Attribute\DurationTolerance.'];
 		yield ['benchTwoExpected', '::benchTwoExpected(): it has more than one #[Expected] attribute.'];
 		yield ['benchTwoExpectedFor', '::benchTwoExpectedFor(): #[ExpectedFor] names data set a twice.'];
 		yield ['benchInvalidQuantityFor', '::benchInvalidQuantityFor(): "1.2X" is not a quantity'];

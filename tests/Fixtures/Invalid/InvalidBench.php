@@ -4,8 +4,10 @@ namespace Tally\Tests\Fixtures\Invalid;
 
 use Tally\Attribute\BeforeMethods;
 use Tally\Attribute\DataProvider;
+use Tally\Attribute\DurationTolerance;
 use Tally\Attribute\Expected;
 use Tally\Attribute\ExpectedFor;
+use Tally\Attribute\RelativeTolerance;
 use Tally\Attribute\Warmup;
 use Tally\DataSet;
 use Tally\Metrics;
@@ -123,6 +125,12 @@ final class InvalidBench
 	#[Expected(instructions: '1', cycles: '1', memory: '0B')]
 	#[Expected(instructions: '2', cycles: '2', memory: '0B')]
 	public function benchTwoExpected(): void
+	{
+	}
+
+	#[RelativeTolerance(0.1)]
+	#[DurationTolerance([0 => 0.1], 1, 1, 0.1)]
+	public function benchTwoTolerances(): void
 	{
 	}
 

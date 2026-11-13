@@ -5,6 +5,7 @@ namespace Tally\Tests\Unit\Runner;
 use Override;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Discovery\InvalidBenchmarkException;
@@ -84,7 +85,7 @@ final class CaseRunnerTest extends TestCase
 	{
 		$memory = new FakeMemory(1_000_000);
 		Journal::$memory = $memory;
-		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 3, [], [], new InMemoryExpectations(null));
+		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 3, [], [], new InMemoryExpectations(null), new RelativeTolerance(0.1));
 
 		$metrics = (new CaseRunner(new ArgumentResolver(), $memory, new NativeCounter()))->run($case, new ScratchDirectory('/scratch'), new JournalCounter());
 
@@ -140,7 +141,7 @@ final class CaseRunnerTest extends TestCase
 
 	public function testArgumentsThatDoNotFitFail(): void
 	{
-		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchName', 'too-many'), ['x', 'y'], 0, [], [], new InMemoryExpectations(null));
+		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchName', 'too-many'), ['x', 'y'], 0, [], [], new InMemoryExpectations(null), new RelativeTolerance(0.1));
 
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage(RunnerBench::class . '::benchName(): the data set has 2 arguments, but the method takes 1.');
@@ -153,7 +154,7 @@ final class CaseRunnerTest extends TestCase
 	 */
 	public function testAMissingClassFails(): void
 	{
-		$case = new BenchmarkCase(new CaseId('App\MissingBench', 'benchFoo', null), [], 0, [], [], new InMemoryExpectations(null));
+		$case = new BenchmarkCase(new CaseId('App\MissingBench', 'benchFoo', null), [], 0, [], [], new InMemoryExpectations(null), new RelativeTolerance(0.1));
 
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage('App\MissingBench::benchFoo: class App\MissingBench does not exist.');
@@ -172,7 +173,7 @@ final class CaseRunnerTest extends TestCase
 	 */
 	private static function case(string $method, string $name, int $warmup, array $before, array $after): BenchmarkCase
 	{
-		return new BenchmarkCase(new CaseId(RunnerBench::class, $method, $name), [$name], $warmup, $before, $after, new InMemoryExpectations(null));
+		return new BenchmarkCase(new CaseId(RunnerBench::class, $method, $name), [$name], $warmup, $before, $after, new InMemoryExpectations(null), new RelativeTolerance(0.1));
 	}
 
 }

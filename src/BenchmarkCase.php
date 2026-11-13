@@ -2,6 +2,7 @@
 
 namespace Tally;
 
+use Tally\Comparison\TolerancePolicy;
 use Tally\Expectation\ExpectationSource;
 
 /**
@@ -21,7 +22,8 @@ final class BenchmarkCase
 		public readonly int $warmup,
 		public readonly array $beforeMethods,
 		public readonly array $afterMethods,
-		public readonly ExpectationSource $expectations
+		public readonly ExpectationSource $expectations,
+		public readonly TolerancePolicy $tolerance
 	)
 	{
 	}

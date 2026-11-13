@@ -2,6 +2,7 @@
 
 namespace Tally\Tests\Unit\Selection;
 
+use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Metrics;
@@ -26,6 +27,7 @@ final class Cases
 				[],
 				[],
 				new InMemoryExpectations($instructions === null ? null : Metrics::fromArray(['instructions' => $instructions])),
+				new RelativeTolerance(0.1),
 			);
 		}
 
