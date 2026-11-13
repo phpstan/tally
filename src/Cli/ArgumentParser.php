@@ -2,6 +2,7 @@
 
 namespace Tally\Cli;
 
+use Tally\Text\ClosestName;
 use function array_keys;
 use function array_shift;
 use function explode;

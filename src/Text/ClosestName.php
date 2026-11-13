@@ -1,11 +1,11 @@
 <?php declare(strict_types = 1);
 
-namespace Tally\Cli;
+namespace Tally\Text;
 
 use function levenshtein;
 use function strtolower;
 
-/** The name a mistyped command or option most likely meant, for a "did you mean" suggestion */
+/** The name a mistyped command, option, variable, or function most likely meant, for a "did you mean" suggestion */
 final class ClosestName
 {
 

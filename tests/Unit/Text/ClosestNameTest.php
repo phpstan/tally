@@ -1,10 +1,10 @@
 <?php declare(strict_types = 1);
 
-namespace Tally\Tests\Unit\Cli;
+namespace Tally\Tests\Unit\Text;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Tally\Cli\ClosestName;
+use Tally\Text\ClosestName;
 
 final class ClosestNameTest extends TestCase
 {

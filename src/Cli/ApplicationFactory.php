@@ -36,6 +36,7 @@ use Tally\Runner\CaseRunner;
 use Tally\Runner\FailureDescription;
 use Tally\Runner\IdleCounter;
 use Tally\Runner\PhpMemory;
+use Tally\Text\ClosestName;
 use function dirname;
 
 /**

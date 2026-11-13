@@ -5,10 +5,10 @@ namespace Tally\Tests\Unit\Cli;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tally\Cli\ArgumentParser;
-use Tally\Cli\ClosestName;
 use Tally\Cli\Input;
 use Tally\Cli\Option;
 use Tally\Cli\UsageException;
+use Tally\Text\ClosestName;
 
 final class ArgumentParserTest extends TestCase
 {

@@ -4,6 +4,7 @@ namespace Tally\Cli;
 
 use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Expectation\ExpectationException;
+use Tally\Text\ClosestName;
 use function array_map;
 use function array_slice;
 use function max;
