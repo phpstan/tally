@@ -23,6 +23,8 @@ parameters:
 		uncheckedExceptionClasses:
 			- Error
 			- InvalidArgumentException
+			# encoding with JSON_THROW_ON_ERROR fails only on a bug; decoding catches it
+			- JsonException
 			- LogicException
 			- ReflectionException
 			- RuntimeException
@@ -31,6 +33,9 @@ parameters:
 			tooWideThrowType: true
 			throwTypeCovariance: true
 	tmpDir: tmp
+
+	stubFiles:
+		- build/stubs/FFI.stub
 
 	paths:
 		- bin/tally

@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * The C functions Tally calls over FFI, which FFI has only at runtime: CodSpeed's instrument-hooks
+ * library in FfiInstrumentHooks, and the fixture library of its test.
+ *
+ * @method FFI\CData|null instrument_hooks_init()
+ * @method bool instrument_hooks_is_instrumented(FFI\CData $instance)
+ * @method int instrument_hooks_start_benchmark(FFI\CData $instance)
+ * @method int instrument_hooks_stop_benchmark(FFI\CData $instance)
+ * @method int instrument_hooks_set_executed_benchmark(FFI\CData $instance, int $pid, string $uri)
+ * @method void callgrind_toggle_collect()
+ * @method string recorded_calls()
+ */
+final class FFI
+{
+
+}

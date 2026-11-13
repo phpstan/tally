@@ -4,6 +4,7 @@ namespace Tally;
 
 use InvalidArgumentException;
 use function is_int;
+use function max;
 use function sprintf;
 
 /**
@@ -50,6 +51,26 @@ final class Metrics
 		$values[$metric->value] = $value;
 
 		return new self($values);
+	}
+
+	/**
+	 * Subtracts the metrics of a baseline, such as an empty call through the same path as the
+	 * benchmark. Metrics the baseline does not have stay as they are.
+	 */
+	public function minus(self $baseline): self
+	{
+		$values = $this->values;
+		foreach ($values as $name => $value) {
+			$values[$name] = max(0, $value - ($baseline->values[$name] ?? 0));
+		}
+
+		return new self($values);
+	}
+
+	/** The other metrics replace these, the ones it does not have stay. */
+	public function merge(self $other): self
+	{
+		return new self([...$this->values, ...$other->values]);
 	}
 
 	public function get(Metric $metric): ?int
