@@ -4,6 +4,7 @@ namespace Tally;
 
 use Tally\Quantity\QuantityFormat;
 
+/** @api */
 enum Metric: string
 {
 

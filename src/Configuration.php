@@ -7,6 +7,8 @@ namespace Tally;
  *
  *     return Configuration::create()
  *         ->withPaths([__DIR__ . '/benchmarks']);
+ *
+ * @api
  */
 final class Configuration
 {

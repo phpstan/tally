@@ -5,12 +5,11 @@ namespace Tally\Cli;
 use InvalidArgumentException;
 use Tally\BenchmarkCase;
 use Tally\Configuration;
-use Tally\Discovery\CaseExpander;
 use Tally\Discovery\DirectorySuiteLoader;
 use Tally\Discovery\InvalidBenchmarkException;
+use Tally\Selection\CaseSelector;
 use Tally\Selection\FilterSelector;
 use Tally\Selection\ShardSelector;
-use function getcwd;
 use function is_file;
 use function sprintf;
 
@@ -22,10 +21,14 @@ final class SelectedCases
 
 	public const DEFAULT_CONFIGURATION = 'tally.php';
 
+	public function __construct(private DirectorySuiteLoader $loader, private string $workingDirectory)
+	{
+	}
+
 	/**
 	 * @return list<Option>
 	 */
-	public static function options(): array
+	public function options(): array
 	{
 		return [
 			new Option('config', 'file', sprintf('Configuration file, %s in the working directory by default', self::DEFAULT_CONFIGURATION)),
@@ -39,42 +42,56 @@ final class SelectedCases
 	 * @throws UsageException
 	 * @throws InvalidBenchmarkException
 	 */
-	public static function load(Input $input): array
+	public function load(Input $input): array
 	{
 		$paths = $input->arguments();
 		if ($paths === []) {
-			$paths = self::configuration($input)->paths();
+			$paths = $this->configuration($input)->paths();
 		}
 		if ($paths === []) {
 			throw new UsageException(sprintf('No benchmarks to load. Pass their paths, or list them in %s.', self::DEFAULT_CONFIGURATION));
 		}
 
-		$cases = (new DirectorySuiteLoader($paths, new CaseExpander()))->load();
+		$cases = $this->loader->load($paths);
 
-		try {
-			$filter = $input->option('filter');
-			if ($filter !== null) {
-				$cases = (new FilterSelector($filter))->select($cases);
-			}
-			$shard = $input->option('shard');
-			if ($shard !== null) {
-				$cases = ShardSelector::fromString($shard)->select($cases);
-			}
-		} catch (InvalidArgumentException $e) {
-			throw new UsageException($e->getMessage(), 0, $e);
+		foreach ($this->selectors($input) as $selector) {
+			$cases = $selector->select($cases);
 		}
 
 		return $cases;
 	}
 
 	/**
+	 * @return list<CaseSelector> filters before shards, so that every shard of a filter has some cases
 	 * @throws UsageException
 	 */
-	private static function configuration(Input $input): Configuration
+	private function selectors(Input $input): array
+	{
+		$selectors = [];
+		try {
+			$filter = $input->option('filter');
+			if ($filter !== null) {
+				$selectors[] = new FilterSelector($filter);
+			}
+			$shard = $input->option('shard');
+			if ($shard !== null) {
+				$selectors[] = ShardSelector::fromString($shard);
+			}
+		} catch (InvalidArgumentException $e) {
+			throw new UsageException($e->getMessage(), previous: $e);
+		}
+
+		return $selectors;
+	}
+
+	/**
+	 * @throws UsageException
+	 */
+	private function configuration(Input $input): Configuration
 	{
 		$file = $input->option('config');
 		if ($file === null) {
-			$file = getcwd() . '/' . self::DEFAULT_CONFIGURATION;
+			$file = $this->workingDirectory . '/' . self::DEFAULT_CONFIGURATION;
 			if (!is_file($file)) {
 				return Configuration::create();
 			}

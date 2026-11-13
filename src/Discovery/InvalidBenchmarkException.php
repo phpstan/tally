@@ -2,10 +2,10 @@
 
 namespace Tally\Discovery;
 
-use RuntimeException;
+use Exception;
 use function sprintf;
 
-final class InvalidBenchmarkException extends RuntimeException
+final class InvalidBenchmarkException extends Exception
 {
 
 	public function __construct(string $where, string $problem)

@@ -3,17 +3,41 @@ includes:
 	- vendor/phpstan/phpstan-phpunit/extension.neon
 	- vendor/phpstan/phpstan-phpunit/rules.neon
 	- vendor/phpstan/phpstan-strict-rules/rules.neon
+	- vendor/shipmonk/dead-code-detector/rules.neon
 	- phar://phpstan.phar/conf/bleedingEdge.neon
 
 parameters:
 	level: max
+	checkUninitializedProperties: true
+	checkBenevolentUnionTypes: true
+	reportPossiblyNonexistentConstantArrayOffset: true
+	reportAnyTypeWideningInVarTag: true
+	checkMissingCallableSignature: true
+	checkTooWideReturnTypesInProtectedAndPublicMethods: true
+	checkMissingOverrideMethodAttribute: true
+	rememberPossiblyImpureFunctionValues: false
+	reportPossiblyNonexistentGeneralArrayOffset: true
+	reportAlwaysTrueInLastCondition: true
+	reportWrongPhpDocTypeInVarTag: true
+	exceptions:
+		uncheckedExceptionClasses:
+			- Error
+			- InvalidArgumentException
+			- LogicException
+			- ReflectionException
+			- RuntimeException
+		check:
+			missingCheckedExceptionInThrows: true
+			tooWideThrowType: true
+			throwTypeCovariance: true
 	tmpDir: tmp
 
 	paths:
 		- bin/tally
+		- build
 		- src
 		- tests
 
 	excludePaths:
-		- tests/*/data/*
+		- tests/Fixtures/*
 

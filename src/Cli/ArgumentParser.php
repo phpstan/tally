@@ -2,7 +2,7 @@
 
 namespace Tally\Cli;
 
-use function count;
+use function array_shift;
 use function explode;
 use function sprintf;
 use function str_contains;
@@ -29,13 +29,10 @@ final class ArgumentParser
 
 		$values = [];
 		$positional = [];
-		$count = count($arguments);
-		for ($i = 0; $i < $count; $i++) {
-			$argument = $arguments[$i];
+		while ($arguments !== []) {
+			$argument = array_shift($arguments);
 			if ($argument === '--') {
-				for ($j = $i + 1; $j < $count; $j++) {
-					$positional[] = $arguments[$j];
-				}
+				$positional = [...$positional, ...$arguments];
 				break;
 			}
 			if (!str_starts_with($argument, '--')) {
@@ -62,12 +59,10 @@ final class ArgumentParser
 			}
 
 			if ($value === null) {
-				$next = $arguments[$i + 1] ?? null;
-				if ($next === null || str_starts_with($next, '--')) {
+				$value = array_shift($arguments);
+				if ($value === null || str_starts_with($value, '--')) {
 					throw new UsageException(sprintf('Option --%s needs a value.', $name));
 				}
-				$value = $next;
-				$i++;
 			}
 			$values[$name] = $value;
 		}

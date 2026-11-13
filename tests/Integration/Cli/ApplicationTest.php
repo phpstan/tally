@@ -1,0 +1,213 @@
+<?php declare(strict_types = 1);
+
+namespace Tally\Tests\Integration\Cli;
+
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+use Tally\Cli\ApplicationFactory;
+use function fopen;
+use function implode;
+use function proc_close;
+use function proc_open;
+use function rewind;
+use function stream_get_contents;
+use const PHP_BINARY;
+
+final class ApplicationTest extends TestCase
+{
+
+	private const SUITE = __DIR__ . '/../../Fixtures/Suite';
+	private const HELP = <<<'HELP'
+		Tally counts the instructions, cycles, and memory of PHP benchmarks.
+
+		Usage: tally <command> [options] [arguments]
+
+		Commands:
+		  list  Lists the benchmark cases, one ID per line
+
+		Run tally <command> --help for the options of a command.
+
+		HELP;
+
+	private const LIST_HELP = <<<'HELP'
+		Lists the benchmark cases, one ID per line
+
+		Usage: tally list [options] [<path>...]
+
+		Options:
+		  --config=<file>    Configuration file, tally.php in the working directory by default
+		  --filter=<filter>  Only cases whose ID contains this text, or matches it as a regular expression like /@size-10$/
+		  --shard=<shard>    Only the cases of one shard, like 2/4, balanced by expected instructions
+		  --help             Show this help
+
+		HELP;
+
+	private const SUITE_NAMESPACE = 'Tally\\Tests\\Fixtures\\Suite\\';
+
+	public function testList(): void
+	{
+		[$exitCode, $output] = self::runTally(['list', self::SUITE, '--filter=Loop']);
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(
+			self::SUITE_NAMESPACE . "Nested\\LoopBench::benchSum@size-10\n"
+			. self::SUITE_NAMESPACE . "Nested\\LoopBench::benchSum@size-100\n"
+			. self::SUITE_NAMESPACE . "Nested\\LoopBench::benchSum@size-1000\n",
+			$output,
+		);
+	}
+
+	public function testListShardWithASeparateValue(): void
+	{
+		// a.php has no expectations, so it costs as much as the most expensive case and comes first
+		[$exitCode, $output] = self::runTally(['list', self::SUITE, '--shard', '1/8']);
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(self::SUITE_NAMESPACE . "FilesBench::benchFile@a.php\n", $output);
+	}
+
+	public function testListFiltersBeforeSharding(): void
+	{
+		// size-100 and size-1000, which has no expectations, cost 1000 instructions each, size-10 costs 100
+		[$exitCode, $output] = self::runTally(['list', self::SUITE, '--filter=Loop', '--shard=2/2']);
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(self::SUITE_NAMESPACE . "Nested\\LoopBench::benchSum@size-1000\n", $output);
+	}
+
+	public function testListReadsPathsFromTheConfiguration(): void
+	{
+		[$exitCode, $output] = self::runTally(['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/tally.php', '--filter=String']);
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(self::SUITE_NAMESPACE . "StringBench::benchConcat\n" . self::SUITE_NAMESPACE . "StringBench::benchSprintf\n", $output);
+	}
+
+	public function testListReadsTheConfigurationInTheWorkingDirectory(): void
+	{
+		[$exitCode, $output] = self::runTally(['list'], __DIR__ . '/../../Fixtures/Configuration/cwd');
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(self::SUITE_NAMESPACE . "StringBench::benchConcat\n" . self::SUITE_NAMESPACE . "StringBench::benchSprintf\n", $output);
+	}
+
+	public function testPathsOverrideTheConfiguration(): void
+	{
+		[$exitCode, $output] = self::runTally(['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/not-configuration.php', self::SUITE, '--filter=Sprintf']);
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(self::SUITE_NAMESPACE . "StringBench::benchSprintf\n", $output);
+	}
+
+	/**
+	 * @return iterable<string, array{list<string>, string}>
+	 */
+	public static function dataUsageError(): iterable
+	{
+		yield 'no paths' => [['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/empty.php'], 'No benchmarks to load. Pass their paths, or list them in tally.php.'];
+		yield 'no paths without configuration' => [['list'], 'No benchmarks to load.'];
+		yield 'missing configuration' => [['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/missing.php'], 'Configuration file ' . __DIR__ . '/../../Fixtures/Configuration/missing.php does not exist.'];
+		yield 'configuration of a wrong type' => [['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/not-configuration.php'], 'Configuration file ' . __DIR__ . '/../../Fixtures/Configuration/not-configuration.php must return Tally\\Configuration.'];
+		yield 'invalid filter' => [['list', self::SUITE, '--filter=/[/'], 'Filter /[/ is not a valid regular expression.'];
+		yield 'invalid shard' => [['list', self::SUITE, '--shard=3/2'], 'Shard 3/2 does not exist, use 1/2 to 2/2.'];
+	}
+
+	/**
+	 * @param list<string> $arguments
+	 */
+	#[DataProvider('dataUsageError')]
+	public function testUsageError(array $arguments, string $message): void
+	{
+		[$exitCode, $output, $errorOutput] = self::runTally($arguments);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame('', $output);
+		$this->assertStringContainsString($message, $errorOutput);
+	}
+
+	public function testInvalidBenchmark(): void
+	{
+		[$exitCode, $output, $errorOutput] = self::runTally(['list', __DIR__ . '/../../Fixtures/Invalid']);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame('', $output);
+		$this->assertSame("Tally\\Tests\\Fixtures\\Invalid\\InvalidBench::benchMissingProvider(): data provider missing() does not exist.\n", $errorOutput);
+	}
+
+	public function testUnknownOption(): void
+	{
+		[$exitCode, , $errorOutput] = self::runTally(['list', '--colour']);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame("Unknown option --colour.\n\n" . self::LIST_HELP, $errorOutput);
+	}
+
+	public function testMissingOptionValue(): void
+	{
+		[$exitCode, , $errorOutput] = self::runTally(['list', '--shard']);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertStringContainsString('Option --shard needs a value', $errorOutput);
+	}
+
+	public function testUnknownCommand(): void
+	{
+		[$exitCode, , $errorOutput] = self::runTally(['lst']);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame("Unknown command lst.\n\n" . self::HELP, $errorOutput);
+	}
+
+	public function testHelpListsTheCommands(): void
+	{
+		[$exitCode, $output] = self::runTally([]);
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(self::HELP, $output);
+	}
+
+	public function testCommandHelp(): void
+	{
+		[$exitCode, $output] = self::runTally(['list', '--help']);
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(self::LIST_HELP, $output);
+	}
+
+	public function testBinary(): void
+	{
+		$process = proc_open(
+			[PHP_BINARY, __DIR__ . '/../../../bin/tally', 'list', self::SUITE, '--filter=Indexed'],
+			[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+			$pipes,
+		);
+		self::assertNotFalse($process);
+		self::assertArrayHasKey(1, $pipes);
+		self::assertArrayHasKey(2, $pipes);
+		$output = stream_get_contents($pipes[1]);
+		$errorOutput = stream_get_contents($pipes[2]);
+
+		$this->assertSame(0, proc_close($process), (string) $errorOutput);
+		$this->assertSame(implode("\n", [self::SUITE_NAMESPACE . 'Nested\\IndexedBench::benchIndexed@#0', self::SUITE_NAMESPACE . 'Nested\\IndexedBench::benchIndexed@#1']) . "\n", $output);
+	}
+
+	/**
+	 * @param list<string> $arguments
+	 * @return array{int, string, string}
+	 */
+	private static function runTally(array $arguments, string $workingDirectory = __DIR__): array
+	{
+		$output = fopen('php://memory', 'w+');
+		$errorOutput = fopen('php://memory', 'w+');
+		self::assertNotFalse($output);
+		self::assertNotFalse($errorOutput);
+
+		$exitCode = (new ApplicationFactory())->create($output, $errorOutput, $workingDirectory)->run(['tally', ...$arguments]);
+
+		rewind($output);
+		rewind($errorOutput);
+
+		return [$exitCode, (string) stream_get_contents($output), (string) stream_get_contents($errorOutput)];
+	}
+
+}

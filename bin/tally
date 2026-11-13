@@ -2,6 +2,7 @@
 <?php declare(strict_types = 1);
 
 use Tally\Cli\Application;
+use Tally\Cli\ApplicationFactory;
 
 (static function (): void {
 	// set by Composer's binary proxy since Composer 2.2
@@ -30,5 +31,11 @@ use Tally\Cli\Application;
 		$arguments[] = $argument;
 	}
 
-	exit((new Application(STDOUT, STDERR))->run($arguments));
+	$workingDirectory = getcwd();
+	if ($workingDirectory === false) {
+		fwrite(STDERR, "Cannot read the working directory.\n");
+		exit(2);
+	}
+
+	exit((new ApplicationFactory())->create(STDOUT, STDERR, $workingDirectory)->run($arguments));
 })();

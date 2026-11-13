@@ -2,6 +2,7 @@
 
 namespace Tally\Expectation;
 
+/** @api */
 final class SourceLocation
 {
 

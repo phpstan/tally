@@ -8,6 +8,8 @@ use function sprintf;
 
 /**
  * Values of some of the metrics, used both for what is expected and for what was measured.
+ *
+ * @api
  */
 final class Metrics
 {
@@ -53,17 +55,6 @@ final class Metrics
 	public function get(Metric $metric): ?int
 	{
 		return $this->values[$metric->value] ?? null;
-	}
-
-	/** The values of both, those of $other where both have one */
-	public function merge(self $other): self
-	{
-		return new self([...$this->values, ...$other->values]);
-	}
-
-	public function isEmpty(): bool
-	{
-		return $this->values === [];
 	}
 
 	/**

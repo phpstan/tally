@@ -10,6 +10,8 @@ use Tally\Quantity\InvalidQuantityException;
 /**
  * The metrics a benchmark is expected to measure, such as #[Expected(instructions: '1.204K', cycles: '1.387K', memory: '0B')].
  * A method with a data provider has one per data set, named by dataSet. tally accept writes them.
+ *
+ * @api
  */
 #[Attribute(Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 final class Expected

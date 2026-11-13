@@ -13,8 +13,11 @@
 		 executionOrder="random"
 >
 	<testsuites>
-		<testsuite name="Tally">
-			<directory suffix="Test.php">tests</directory>
+		<testsuite name="Unit">
+			<directory suffix="Test.php">tests/Unit</directory>
+		</testsuite>
+		<testsuite name="Integration">
+			<directory suffix="Test.php">tests/Integration</directory>
 		</testsuite>
 	</testsuites>
 

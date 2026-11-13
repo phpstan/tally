@@ -3,6 +3,7 @@
 namespace Tally\Cli;
 
 use Tally\Discovery\InvalidBenchmarkException;
+use function array_map;
 use function array_slice;
 use function max;
 use function sprintf;
@@ -13,25 +14,13 @@ final class Application
 {
 
 	public const EXIT_SUCCESS = 0;
-	public const EXIT_FAILURE = 1;
 	public const EXIT_ERROR = 2;
 
-	private Output $output;
-
-	/** @var array<string, Command> */
-	private array $commands = [];
-
 	/**
-	 * @param resource $stdout
-	 * @param resource $stderr
-	 * @param list<Command>|null $commands
+	 * @param non-empty-list<Command> $commands
 	 */
-	public function __construct($stdout, $stderr, ?array $commands = null)
+	public function __construct(private Output $output, private ArgumentParser $parser, private array $commands)
 	{
-		$this->output = new Output($stdout, $stderr);
-		foreach ($commands ?? [new ListCommand()] as $command) {
-			$this->commands[$command->name()] = $command;
-		}
 	}
 
 	/**
@@ -47,7 +36,7 @@ final class Application
 			return self::EXIT_SUCCESS;
 		}
 
-		$command = $this->commands[$name] ?? null;
+		$command = $this->command($name);
 		if ($command === null) {
 			$this->output->writeError(sprintf("Unknown command %s.\n\n%s", $name, $this->help()));
 
@@ -56,7 +45,7 @@ final class Application
 
 		$options = [...$command->options(), new Option('help', null, 'Show this help')];
 		try {
-			$input = (new ArgumentParser())->parse(array_slice($argv, 2), $options);
+			$input = $this->parser->parse(array_slice($argv, 2), $options);
 			if ($input->flag('help')) {
 				$this->output->write($this->commandHelp($command, $options));
 
@@ -75,31 +64,36 @@ final class Application
 		}
 	}
 
+	private function command(string $name): ?Command
+	{
+		foreach ($this->commands as $command) {
+			if ($command->name() === $name) {
+				return $command;
+			}
+		}
+
+		return null;
+	}
+
 	private function help(): string
 	{
-		$width = 0;
-		foreach ($this->commands as $name => $command) {
-			$width = max($width, strlen($name));
-		}
+		$width = max(array_map(static fn (Command $command): int => strlen($command->name()), $this->commands));
 
 		$help = "Tally counts the instructions, cycles, and memory of PHP benchmarks.\n\n";
 		$help .= "Usage: tally <command> [options] [arguments]\n\nCommands:\n";
-		foreach ($this->commands as $name => $command) {
-			$help .= sprintf("  %s  %s\n", str_pad($name, $width), $command->description());
+		foreach ($this->commands as $command) {
+			$help .= sprintf("  %s  %s\n", str_pad($command->name(), $width), $command->description());
 		}
 
 		return $help . "\nRun tally <command> --help for the options of a command.\n";
 	}
 
 	/**
-	 * @param list<Option> $options
+	 * @param non-empty-list<Option> $options
 	 */
 	private function commandHelp(Command $command, array $options): string
 	{
-		$width = 0;
-		foreach ($options as $option) {
-			$width = max($width, strlen($option->usage()));
-		}
+		$width = max(array_map(static fn (Option $option): int => strlen($option->usage()), $options));
 
 		$help = sprintf("%s\n\nUsage: tally %s [options] %s\n\nOptions:\n", $command->description(), $command->name(), $command->argumentsUsage());
 		foreach ($options as $option) {

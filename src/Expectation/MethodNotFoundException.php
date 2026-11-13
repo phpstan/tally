@@ -2,10 +2,10 @@
 
 namespace Tally\Expectation;
 
-use RuntimeException;
+use LogicException;
 use function sprintf;
 
-final class MethodNotFoundException extends RuntimeException
+final class MethodNotFoundException extends LogicException
 {
 
 	public function __construct(string $class, string $method)

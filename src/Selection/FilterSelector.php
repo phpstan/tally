@@ -3,6 +3,7 @@
 namespace Tally\Selection;
 
 use InvalidArgumentException;
+use Override;
 use Tally\BenchmarkCase;
 use function array_filter;
 use function array_values;
@@ -38,6 +39,7 @@ final class FilterSelector implements CaseSelector
 		$this->pattern = $filter;
 	}
 
+	#[Override]
 	public function select(array $cases): array
 	{
 		return array_values(array_filter($cases, function (BenchmarkCase $case): bool {

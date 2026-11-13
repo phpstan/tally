@@ -3,16 +3,18 @@
 namespace Tally\Selection;
 
 use InvalidArgumentException;
+use LogicException;
+use Override;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Metric;
-use function array_keys;
+use function array_fill;
+use function array_sum;
 use function max;
-use function min;
 use function preg_match;
-use function range;
 use function sprintf;
 use function usort;
+use const PHP_INT_MAX;
 
 /**
  * Splits the cases into shards that take about the same time, so CI can run them on several
@@ -30,8 +32,11 @@ final class ShardSelector implements CaseSelector
 	 */
 	public function __construct(private int $shard, private int $count)
 	{
-		if ($count < 1 || $shard < 1 || $shard > $count) {
-			throw new InvalidArgumentException(sprintf('Shard %d/%d does not exist, use 1/%d to %d/%d.', $shard, $count, max(1, $count), max(1, $count), max(1, $count)));
+		if ($count < 1) {
+			throw new InvalidArgumentException(sprintf('Shard %d/%d does not exist, there must be at least one shard.', $shard, $count));
+		}
+		if ($shard < 1 || $shard > $count) {
+			throw new InvalidArgumentException(sprintf('Shard %d/%d does not exist, use 1/%d to %d/%d.', $shard, $count, $count, $count, $count));
 		}
 	}
 
@@ -45,12 +50,15 @@ final class ShardSelector implements CaseSelector
 			throw new InvalidArgumentException(sprintf('Shard %s is not like 2/4.', $shard));
 		}
 
-		return new self((int) $matches[1], (int) $matches[2]);
+		[, $shard, $count] = $matches;
+
+		return new self((int) $shard, (int) $count);
 	}
 
 	/**
 	 * @return list<BenchmarkCase> from the most expensive one
 	 */
+	#[Override]
 	public function select(array $cases): array
 	{
 		$known = [];
@@ -62,7 +70,8 @@ final class ShardSelector implements CaseSelector
 
 			$known[] = $instructions;
 		}
-		$unknownCost = $known === [] ? 1 : max($known);
+		// at least 1, so that cases without expectations still spread over the shards
+		$unknownCost = max([1, ...$known]);
 
 		$costed = [];
 		foreach ($cases as $case) {
@@ -70,19 +79,31 @@ final class ShardSelector implements CaseSelector
 		}
 		usort($costed, static fn (array $a, array $b): int => $b[1] !== $a[1] ? $b[1] <=> $a[1] : CaseId::compare($a[0]->id, $b[0]->id));
 
-		$shards = [];
-		$totals = [];
-		foreach (range(0, $this->count - 1) as $shard) {
-			$shards[$shard] = [];
-			$totals[$shard] = 0;
-		}
+		$costsByShard = array_fill(1, $this->count, []);
+		$selected = [];
 		foreach ($costed as [$case, $cost]) {
-			$cheapest = array_keys($totals, min($totals), true)[0];
-			$shards[$cheapest][] = $case;
-			$totals[$cheapest] += $cost;
+			// the first of the shards with the lowest total
+			$cheapest = null;
+			$cheapestTotal = PHP_INT_MAX;
+			foreach ($costsByShard as $shard => $costs) {
+				$total = array_sum($costs);
+				if ($total >= $cheapestTotal) {
+					continue;
+				}
+
+				$cheapest = $shard;
+				$cheapestTotal = $total;
+			}
+
+			$costsByShard[$cheapest ?? throw new LogicException('There is no shard.')][] = $cost;
+			if ($cheapest !== $this->shard) {
+				continue;
+			}
+
+			$selected[] = $case;
 		}
 
-		return $shards[$this->shard - 1];
+		return $selected;
 	}
 
 }

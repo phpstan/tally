@@ -13,11 +13,12 @@ use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\DataSet;
 use Tally\Expectation\AttributeExpectations;
+use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Metrics;
 use Tally\Quantity\InvalidQuantityException;
-use function array_key_exists;
-use function array_keys;
+use function array_map;
 use function count;
+use function in_array;
 use function is_array;
 use function is_int;
 use function is_iterable;
@@ -30,6 +31,10 @@ use function sprintf;
  */
 final class CaseExpander
 {
+
+	public function __construct(private ExpectedAttributeRewriter $rewriter)
+	{
+	}
 
 	/**
 	 * @param ReflectionClass<object> $class
@@ -46,13 +51,13 @@ final class CaseExpander
 		$file = (string) $method->getDeclaringClass()->getFileName();
 		$declaringClass = $method->getDeclaringClass()->getName();
 
-		$caseFor = static fn (?string $dataSet, array $arguments, ?Metrics $metrics) => new BenchmarkCase(
+		$caseFor = fn (?string $dataSet, array $arguments, ?Metrics $metrics) => new BenchmarkCase(
 			new CaseId($class->getName(), $method->getName(), $dataSet),
 			$arguments,
 			$warmup,
 			$beforeMethods,
 			$afterMethods,
-			new AttributeExpectations($file, $declaringClass, $method->getName(), $dataSet, $metrics),
+			new AttributeExpectations($this->rewriter, $file, $declaringClass, $method->getName(), $dataSet, $metrics),
 		);
 
 		$provider = $this->dataSets($class, $method, $where);
@@ -70,18 +75,20 @@ final class CaseExpander
 		}
 
 		[$providerName, $dataSets] = $provider;
+		$names = array_map(static fn (DataSet $dataSet): string => $dataSet->name, $dataSets);
 		$expectedByDataSet = [];
 		foreach ($expected as [$dataSet, $metrics]) {
 			if ($dataSet === null) {
 				throw new InvalidBenchmarkException($where, '#[Expected] needs dataSet, because the method has a data provider.');
 			}
+			if (!in_array($dataSet, $names, true)) {
+				throw new InvalidBenchmarkException($where, sprintf('#[Expected] names data set %s, which %s() does not yield.', $dataSet, $providerName));
+			}
 			$expectedByDataSet[$dataSet] = $metrics;
 		}
 
 		$cases = [];
-		$yielded = [];
 		foreach ($dataSets as $dataSet) {
-			$yielded[$dataSet->name] = true;
 			$metrics = $expectedByDataSet[$dataSet->name] ?? null;
 			if ($dataSet->expectations === null) {
 				$cases[] = $caseFor($dataSet->name, $dataSet->arguments, $metrics);
@@ -99,12 +106,6 @@ final class CaseExpander
 				$afterMethods,
 				$dataSet->expectations,
 			);
-		}
-
-		foreach (array_keys($expectedByDataSet) as $dataSet) {
-			if (!array_key_exists($dataSet, $yielded)) {
-				throw new InvalidBenchmarkException($where, sprintf('#[Expected] names data set %s, which %s() does not yield.', $dataSet, $providerName));
-			}
 		}
 
 		return $cases;
@@ -209,10 +210,10 @@ final class CaseExpander
 				$dataSet = DataSet::named($dataSetName, $value);
 			}
 
-			if (isset($names[$dataSet->name])) {
+			if (in_array($dataSet->name, $names, true)) {
 				throw new InvalidBenchmarkException($where, sprintf('data provider %s() yields data set %s twice.', $name, $dataSet->name));
 			}
-			$names[$dataSet->name] = true;
+			$names[] = $dataSet->name;
 			$dataSets[] = $dataSet;
 		}
 

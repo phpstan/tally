@@ -2,6 +2,8 @@
 
 namespace Tally\Cli;
 
+use Override;
+
 /**
  * Prints the case IDs, one per line. Lists all cases in natural order, and the cases of a shard
  * from the most expensive one.
@@ -9,29 +11,38 @@ namespace Tally\Cli;
 final class ListCommand implements Command
 {
 
+	public function __construct(private SelectedCases $selectedCases)
+	{
+	}
+
+	#[Override]
 	public function name(): string
 	{
 		return 'list';
 	}
 
+	#[Override]
 	public function description(): string
 	{
 		return 'Lists the benchmark cases, one ID per line';
 	}
 
+	#[Override]
 	public function argumentsUsage(): string
 	{
 		return '[<path>...]';
 	}
 
+	#[Override]
 	public function options(): array
 	{
-		return SelectedCases::options();
+		return $this->selectedCases->options();
 	}
 
+	#[Override]
 	public function execute(Input $input, Output $output): int
 	{
-		foreach (SelectedCases::load($input) as $case) {
+		foreach ($this->selectedCases->load($input) as $case) {
 			$output->write($case->id->toString() . "\n");
 		}
 

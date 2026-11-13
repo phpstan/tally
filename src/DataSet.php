@@ -8,6 +8,8 @@ use function array_values;
 /**
  * One set of arguments from a data provider. A provider that yields DataSet objects can attach
  * the place the data set's expectations are stored, instead of an #[Expected] attribute.
+ *
+ * @api
  */
 final class DataSet
 {
