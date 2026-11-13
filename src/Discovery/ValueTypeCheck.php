@@ -6,8 +6,6 @@ use ReflectionIntersectionType;
 use ReflectionNamedType;
 use ReflectionType;
 use ReflectionUnionType;
-use function array_all;
-use function array_any;
 use function get_debug_type;
 use function is_callable;
 use function is_float;
@@ -33,11 +31,16 @@ final class ValueTypeCheck
 		if ($value === null) {
 			return $type->allowsNull();
 		}
-		if ($type instanceof ReflectionUnionType) {
-			return array_any($type->getTypes(), fn (ReflectionType $member): bool => $this->accepts($member, $value));
-		}
-		if ($type instanceof ReflectionIntersectionType) {
-			return array_all($type->getTypes(), fn (ReflectionType $member): bool => $this->accepts($member, $value));
+		if ($type instanceof ReflectionUnionType || $type instanceof ReflectionIntersectionType) {
+			// a union accepts what one of its members does, an intersection what all of them do
+			$union = $type instanceof ReflectionUnionType;
+			foreach ($type->getTypes() as $member) {
+				if ($this->accepts($member, $value) === $union) {
+					return $union;
+				}
+			}
+
+			return !$union;
 		}
 
 		return $type instanceof ReflectionNamedType && $this->acceptsNamed($type, $value);

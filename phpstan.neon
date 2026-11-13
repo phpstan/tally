@@ -8,6 +8,10 @@ includes:
 
 parameters:
 	level: max
+	# composer.json's PHP versions
+	phpVersion:
+		min: 80200
+		max: 80699
 	checkUninitializedProperties: true
 	checkBenevolentUnionTypes: true
 	reportPossiblyNonexistentConstantArrayOffset: true

@@ -23,6 +23,9 @@ jobs:
     strategy:
       matrix:
         php-version:
+          - "8.2"
+          - "8.3"
+          - "8.4"
           - "8.5"
           - "8.6"
 
@@ -45,6 +48,10 @@ jobs:
 
       - name: "Validate Composer"
         run: "composer validate"
+
+      - name: "Without Infection, which needs PHP 8.3"
+        if: matrix.php-version == '8.2'
+        run: "composer remove --dev --no-update infection/infection"
 
       - name: "Install dependencies"
         run: "composer install --no-interaction --no-progress"
@@ -105,6 +112,9 @@ jobs:
       fail-fast: false
       matrix:
         php-version:
+          - "8.2"
+          - "8.3"
+          - "8.4"
           - "8.5"
           - "8.6"
 
@@ -125,6 +135,10 @@ jobs:
           coverage: "none"
           php-version: "${{ matrix.php-version }}"
           extensions: ffi, posix
+
+      - name: "Without Infection, which needs PHP 8.3"
+        if: matrix.php-version == '8.2'
+        run: "composer remove --dev --no-update infection/infection"
 
       - name: "Install dependencies"
         run: "composer install --no-interaction --no-progress"

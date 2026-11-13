@@ -7,11 +7,9 @@ use function array_map;
 use function implode;
 use function in_array;
 use function max;
-use function mb_str_pad;
 use function mb_strlen;
 use function rtrim;
-use const STR_PAD_LEFT;
-use const STR_PAD_RIGHT;
+use function str_repeat;
 
 /** Lays out rows in columns for a terminal: text left, numbers right. */
 final class TextTable
@@ -36,9 +34,11 @@ final class TextTable
 		$styled = [];
 		foreach ($columns as $column => $cells) {
 			$width = max(array_map(mb_strlen(...), $cells));
-			$padding = in_array($column, $rightAligned, true) ? STR_PAD_LEFT : STR_PAD_RIGHT;
+			$right = in_array($column, $rightAligned, true);
 			foreach ($cells as $rowIndex => $cell) {
-				$styled[$rowIndex][$column] = $style($rowIndex, $column, mb_str_pad($cell, $width, ' ', $padding));
+				// by characters, the cells have ± and ×
+				$spaces = str_repeat(' ', $width - mb_strlen($cell));
+				$styled[$rowIndex][$column] = $style($rowIndex, $column, $right ? $spaces . $cell : $cell . $spaces);
 			}
 		}
 

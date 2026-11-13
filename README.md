@@ -43,7 +43,7 @@ Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simul
 composer require --dev phpstan/tally
 ```
 
-Tally needs PHP 8.5 with the FFI and POSIX extensions, and CodSpeed, which runs on Linux.
+Tally needs PHP 8.2 or later with the FFI and POSIX extensions, and CodSpeed, which runs on Linux.
 
 ## Setting up CodSpeed
 
