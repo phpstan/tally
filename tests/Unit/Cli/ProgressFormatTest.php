@@ -70,10 +70,10 @@ final class ProgressFormatTest extends TestCase
 		$format = new ProgressFormat();
 
 		$this->assertSame('.', $format->after(1, 9, Status::Ok, true));
-		$this->assertSame("\e[37;41mS\e[0m", $format->after(1, 9, Status::Slower, true));
-		$this->assertSame("\e[30;43mE\e[0m", $format->after(1, 9, Status::NotMeasured, true));
-		$this->assertSame("\e[34mN\e[0m", $format->after(1, 9, Status::New, true));
-		$this->assertSame("\e[32mF\e[0m", $format->after(1, 9, Status::Faster, true));
+		$this->assertSame("\e[1;31mS\e[0m", $format->after(1, 9, Status::Slower, true));
+		$this->assertSame("\e[1;33mE\e[0m", $format->after(1, 9, Status::NotMeasured, true));
+		$this->assertSame("\e[1;34mN\e[0m", $format->after(1, 9, Status::New, true));
+		$this->assertSame("\e[1;32mF\e[0m", $format->after(1, 9, Status::Faster, true));
 	}
 
 }

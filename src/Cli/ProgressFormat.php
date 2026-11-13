@@ -47,10 +47,11 @@ final class ProgressFormat
 	{
 		[$character, $color] = match ($status) {
 			Status::Ok => ['.', null],
-			Status::Slower => ['S', '37;41'],
-			Status::NotMeasured => ['E', '30;43'],
-			Status::New => ['N', '34'],
-			Status::Faster => ['F', '32'],
+			// the colors of the report's sections
+			Status::Slower => ['S', '1;31'],
+			Status::NotMeasured => ['E', '1;33'],
+			Status::New => ['N', '1;34'],
+			Status::Faster => ['F', '1;32'],
 		};
 
 		return $colors && $color !== null ? "\e[" . $color . 'm' . $character . "\e[0m" : $character;
