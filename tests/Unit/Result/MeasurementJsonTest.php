@@ -80,7 +80,7 @@ final class MeasurementJsonTest extends TestCase
 	 */
 	public static function invalidProvider(): iterable
 	{
-		yield 'not JSON' => ['{', 'it is not JSON: Syntax error.'];
+		yield 'not JSON' => ['{', 'it is not JSON.'];
 		yield 'not an object' => ['[1]', 'it has no case ID.'];
 		yield 'no ID' => ['{"metrics": {}}', 'it has no case ID.'];
 		yield 'an ID that is not one' => ['{"id": "FooBench", "metrics": {}}', 'it has no case ID.'];

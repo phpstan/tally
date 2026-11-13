@@ -45,7 +45,8 @@ final class MeasurementJson
 		try {
 			$data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
 		} catch (JsonException $e) {
-			throw new InvalidResultException('it is not JSON: ' . $e->getMessage() . '.', previous: $e);
+			// PHP's message differs between versions, it stays on the previous exception
+			throw new InvalidResultException('it is not JSON.', previous: $e);
 		}
 
 		if (!is_array($data) || !is_string($data['id'] ?? null)) {
