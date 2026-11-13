@@ -36,13 +36,13 @@ final class ListCommand implements Command
 	#[Override]
 	public function options(): array
 	{
-		return $this->selectedCases->options();
+		return [...$this->selectedCases->suiteOptions(), ...$this->selectedCases->selectionOptions()];
 	}
 
 	#[Override]
 	public function execute(Input $input, Output $output): int
 	{
-		foreach ($this->selectedCases->load($input) as $case) {
+		foreach ($this->selectedCases->load($input, $this->selectedCases->configuration($input), $input->arguments()) as $case) {
 			$output->write($case->id->toString() . "\n");
 		}
 

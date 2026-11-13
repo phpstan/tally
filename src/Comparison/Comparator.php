@@ -2,6 +2,7 @@
 
 namespace Tally\Comparison;
 
+use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Expectation\SourceLocation;
 use Tally\Measurement;
@@ -18,6 +19,14 @@ final class Comparator
 {
 
 	public const NOT_RUN = 'It did not run.';
+
+	/**
+	 * @param Measurement|null $measurement null when the case did not run
+	 */
+	public function compareCase(BenchmarkCase $case, ?Measurement $measurement): CaseComparison
+	{
+		return $this->compare($case->id, $case->expectations->location(), $case->expectations->read(), $case->tolerance, $measurement);
+	}
 
 	public function compare(CaseId $id, SourceLocation $location, ?Metrics $expected, TolerancePolicy $tolerance, ?Measurement $measurement): CaseComparison
 	{

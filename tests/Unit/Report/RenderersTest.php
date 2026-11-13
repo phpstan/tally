@@ -16,7 +16,7 @@ use function file_get_contents;
 final class RenderersTest extends TestCase
 {
 
-	private const REPRODUCE = "vendor/bin/tally run --codspeed --filter='App\\ABench::benchSlower@big'";
+	private const REPRODUCE = "vendor/bin/tally run --filter='App\\ABench::benchSlower@big'";
 	private const ACCEPT = "gh run download 1 -D tmp/tally\nvendor/bin/tally accept tmp/tally";
 
 	/**
@@ -28,6 +28,8 @@ final class RenderersTest extends TestCase
 
 		yield 'summary' => ['summary.txt', static fn (Report $report): string => $console->summary($report, self::REPRODUCE, self::ACCEPT, false)];
 		yield 'summary with colors' => ['summary-colors.txt', static fn (Report $report): string => $console->summary($report, self::REPRODUCE, self::ACCEPT, true)];
+		yield 'failures' => ['failures.txt', static fn (Report $report): string => $console->failures($report, false)];
+		yield 'failures with colors' => ['failures-colors.txt', static fn (Report $report): string => $console->failures($report, true)];
 		yield 'table' => ['table.txt', static fn (Report $report): string => $console->table($report, false)];
 		yield 'table with colors' => ['table-colors.txt', static fn (Report $report): string => $console->table($report, true)];
 		yield 'markdown' => ['summary.md', static fn (Report $report): string => (new MarkdownReport(new Rows()))->render($report, self::REPRODUCE, self::ACCEPT)];
@@ -59,6 +61,7 @@ final class RenderersTest extends TestCase
 			(new MarkdownReport(new Rows()))->render($report, 'reproduce', 'accept'),
 		);
 		$this->assertSame('', (new GitHubAnnotations(new Rows()))->render($report, '/repo'));
+		$this->assertSame('', (new ConsoleReport(new TextTable(), new Rows()))->failures($report, false));
 	}
 
 	public function testNothingToAcceptWhenEveryProblemIsAFailure(): void
@@ -90,6 +93,10 @@ final class RenderersTest extends TestCase
 			. "| `A::timeout` | - | - | - | - | - | not measured |\n"
 			. "| `A::fine` | instructions | 10 | 10 | +0.0 % | ±10 % | ok |\n\n</details>\n",
 			(new MarkdownReport(new Rows()))->render($report, 'reproduce', 'accept'),
+		);
+		$this->assertSame(
+			"2 benchmarks were not measured:\n\n1) A::broken\nIt broke.\nSee the log.\n\n2) A::timeout\nIt timed out.\n",
+			(new ConsoleReport(new TextTable(), new Rows()))->failures($report, false),
 		);
 	}
 

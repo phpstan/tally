@@ -35,7 +35,7 @@ Nice! This does not fail, but accept the new numbers, so a later slowdown back t
                             memory         1.000MiB   1.000MiB    +0.0 %     ±10 %
 
 Reproduce locally
-  vendor/bin/tally run --codspeed --filter='App\ABench::benchSlower@big'
+  vendor/bin/tally run --filter='App\ABench::benchSlower@big'
 
 Accept the new numbers
   gh run download 1 -D tmp/tally

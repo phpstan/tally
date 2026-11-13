@@ -14,12 +14,15 @@ final class Application
 {
 
 	public const EXIT_SUCCESS = 0;
+	/** A benchmark failed, or is slower than expected */
+	public const EXIT_FAILURE = 1;
 	public const EXIT_ERROR = 2;
 
 	/**
 	 * @param non-empty-list<Command> $commands
+	 * @param list<Command> $hiddenCommands left out of the help, Tally runs them itself
 	 */
-	public function __construct(private Output $output, private ArgumentParser $parser, private array $commands)
+	public function __construct(private Output $output, private ArgumentParser $parser, private array $commands, private array $hiddenCommands)
 	{
 	}
 
@@ -66,7 +69,7 @@ final class Application
 
 	private function command(string $name): ?Command
 	{
-		foreach ($this->commands as $command) {
+		foreach ([...$this->commands, ...$this->hiddenCommands] as $command) {
 			if ($command->name() === $name) {
 				return $command;
 			}

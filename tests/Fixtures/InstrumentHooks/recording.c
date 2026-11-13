@@ -1,4 +1,4 @@
-// Stands in for CodSpeed's instrument-hooks library in FfiInstrumentHooksTest: records each call
+// Stands in for CodSpeed's instrument-hooks library in the tests: records each call
 // instead of talking to Valgrind. Build with -DINSTRUMENTED=0 for a process not under the simulation.
 
 #include <stdbool.h>
@@ -57,4 +57,8 @@ void callgrind_toggle_collect(void) {
 
 const char *recorded_calls(void) {
 	return calls;
+}
+
+void clear_recorded_calls(void) {
+	calls[0] = '\0';
 }

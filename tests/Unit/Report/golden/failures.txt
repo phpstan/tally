@@ -1,0 +1,5 @@
+1 benchmark was not measured:
+
+1) App\ABench::benchBroken
+RuntimeException: It broke.
+#0 /repo/benchmarks/ABench.php(12)

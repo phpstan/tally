@@ -26,27 +26,36 @@ final class SelectedCases
 	}
 
 	/**
-	 * @return list<Option>
+	 * @return list<Option> the options that load the benchmarks
 	 */
-	public function options(): array
+	public function suiteOptions(): array
 	{
 		return [
 			new Option('config', 'file', sprintf('Configuration file, %s in the working directory by default', self::DEFAULT_CONFIGURATION)),
+		];
+	}
+
+	/**
+	 * @return list<Option> the options that keep some of the cases
+	 */
+	public function selectionOptions(): array
+	{
+		return [
 			new Option('filter', 'filter', 'Only cases whose ID contains this text, or matches it as a regular expression like /@size-10$/'),
 			new Option('shard', 'shard', 'Only the cases of one shard, like 2/4, balanced by expected instructions'),
 		];
 	}
 
 	/**
+	 * @param list<string> $paths the benchmarks to load, those of the configuration when empty
 	 * @return list<BenchmarkCase>
 	 * @throws UsageException
 	 * @throws InvalidBenchmarkException
 	 */
-	public function load(Input $input): array
+	public function load(Input $input, Configuration $configuration, array $paths): array
 	{
-		$paths = $input->arguments();
 		if ($paths === []) {
-			$paths = $this->configuration($input)->paths();
+			$paths = $configuration->paths();
 		}
 		if ($paths === []) {
 			throw new UsageException(sprintf('No benchmarks to load. Pass their paths, or list them in %s.', self::DEFAULT_CONFIGURATION));
@@ -87,7 +96,7 @@ final class SelectedCases
 	/**
 	 * @throws UsageException
 	 */
-	private function configuration(Input $input): Configuration
+	public function configuration(Input $input): Configuration
 	{
 		$file = $input->option('config');
 		if ($file === null) {

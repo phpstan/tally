@@ -3,10 +3,13 @@
 namespace Tally\Report;
 
 use Closure;
+use Tally\Comparison\CaseComparison;
 use Tally\Comparison\Status;
 use function array_filter;
 use function array_map;
+use function array_values;
 use function count;
+use function sprintf;
 use function str_replace;
 
 /**
@@ -59,6 +62,25 @@ final class ConsoleReport
 		if ($toAccept !== []) {
 			$output .= "\n" . $this->style($colors, '1', 'Accept the new numbers') . "\n";
 			$output .= '  ' . str_replace("\n", "\n  ", $acceptCommand) . "\n";
+		}
+
+		return $output;
+	}
+
+	/**
+	 * The whole errors of the cases that were not measured, which the summary shortens to their
+	 * first lines. Nothing when every case was measured.
+	 */
+	public function failures(Report $report, bool $colors): string
+	{
+		$failed = array_values(array_filter($report->cases, static fn (CaseComparison $case): bool => $case->failure !== null));
+		if ($failed === []) {
+			return '';
+		}
+
+		$output = count($failed) === 1 ? "1 benchmark was not measured:\n" : sprintf("%d benchmarks were not measured:\n", count($failed));
+		foreach ($failed as $i => $case) {
+			$output .= sprintf("\n%s\n%s\n", $this->style($colors, '1', sprintf('%d) %s', $i + 1, $case->id->toString())), $case->failure);
 		}
 
 		return $output;

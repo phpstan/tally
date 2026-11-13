@@ -1,0 +1,8 @@
+{
+    "id": "Tally\\Tests\\Fixtures\\Compare\\CompareBench::benchSlower",
+    "metrics": {
+        "instructions": 2000,
+        "cycles": 3000,
+        "memory": 0
+    }
+}

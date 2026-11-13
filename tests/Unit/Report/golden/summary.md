@@ -46,7 +46,7 @@ Allowed difference: ±10 % of each metric
 ### Reproduce locally
 
 ```
-vendor/bin/tally run --codspeed --filter='App\ABench::benchSlower@big'
+vendor/bin/tally run --filter='App\ABench::benchSlower@big'
 ```
 
 ### Accept the new numbers
