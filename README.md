@@ -6,7 +6,7 @@ Benchmarks PHP code by counting instructions, CPU cycles, and memory instead of 
 final class SortBench
 {
 
-	#[Expected(instructions: '54.87K', cycles: '89.24K', memory: '10.53KiB')]
+	#[Expected(instructions: '59.00K', cycles: '94.43K', memory: '10.53KiB')]
 	public function benchSortHundred(): void
 	{
 		$numbers = range(100, 1, -1);
@@ -20,7 +20,7 @@ final class SortBench
 
 Timing benchmarks don't work in CI. Runners differ from each other in CPU model, clock speed, and cache sizes, and share the hardware with other jobs, so the same code takes a different time on every run. The noise is bigger than most regressions worth catching.
 
-Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simulation, which is built on Valgrind. The simulation counts executed instructions and estimates cycles from simulated cache misses. These numbers are the same on every run and on every runner with the same PHP build, so they are committed next to the benchmark and checked in every pull request, like the expected output of a test.
+Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simulation, which is built on Valgrind. The simulation counts executed instructions and estimates cycles from simulated cache misses. With the same PHP build, these numbers barely move between runs: in two CI runs of Tally's own benchmarks, instructions differed by at most 0.4 % and cycles by at most 0.8 %, and memory not at all. So the numbers are committed next to the benchmark and checked in every pull request, like the expected output of a test.
 
 ## Contents
 
@@ -94,8 +94,8 @@ final class SortBench
 	 * @param list<int> $numbers
 	 */
 	#[DataProvider('shuffled')]
-	#[ExpectedFor('size-10', instructions: '4.190K', cycles: '16.74K', memory: '832B')]
-	#[ExpectedFor('size-1000', instructions: '873.5K', cycles: '1.038M', memory: '59.88KiB')]
+	#[ExpectedFor('size-10', instructions: '4.304K', cycles: '16.52K', memory: '832B')]
+	#[ExpectedFor('size-1000', instructions: '955.3K', cycles: '1.119M', memory: '59.88KiB')]
 	public function benchSort(array $numbers): void
 	{
 		sort($numbers);
@@ -160,14 +160,14 @@ Without `#[Warmup]`, the counted call is the first one. The difference can be la
 ```php
 public function benchCold(): int|false
 {
-	// 72.84K instructions, mostly compiling the regular expression
+	// 75.88K instructions, mostly compiling the regular expression
 	return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.cold$~', 'tally@example.cold');
 }
 
 #[Warmup(1)]
 public function benchWarm(): int|false
 {
-	// 882 instructions, the compiled expression is cached
+	// 864 instructions, the compiled expression is cached
 	return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.warm$~', 'tally@example.warm');
 }
 ```
@@ -413,8 +413,8 @@ Here each script keeps its numbers in a comment at its top:
 <?php declare(strict_types = 1);
 
 /*
- * instructions: 1.247M
- * cycles: 1.419M
+ * instructions: 679.5K
+ * cycles: 854.8K
  * memory: 36.30KiB
  */
 ```

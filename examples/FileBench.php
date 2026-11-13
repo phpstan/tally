@@ -4,6 +4,7 @@ namespace Tally\Examples;
 
 use JsonException;
 use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\Expected;
 use Tally\ScratchDirectory;
 use function file_get_contents;
 use function file_put_contents;
@@ -33,6 +34,7 @@ final class FileBench
 	/**
 	 * @throws JsonException
 	 */
+	#[Expected(instructions: '601.4K', cycles: '715.3K', memory: '23.84KiB')]
 	public function benchDecode(ScratchDirectory $scratch): void
 	{
 		json_decode((string) file_get_contents($scratch->path() . self::FILE), true, 2, JSON_THROW_ON_ERROR);

@@ -3,6 +3,8 @@
 namespace Tally\Examples;
 
 use Tally\Attribute\DataProvider;
+use Tally\Attribute\Expected;
+use Tally\Attribute\ExpectedFor;
 use function mt_srand;
 use function range;
 use function shuffle;
@@ -15,6 +17,7 @@ use function sort;
 final class SortBench
 {
 
+	#[Expected(instructions: '59.00K', cycles: '94.43K', memory: '10.53KiB')]
 	public function benchSortHundred(): void
 	{
 		$numbers = range(100, 1, -1);
@@ -41,6 +44,8 @@ final class SortBench
 	 * @param list<int> $numbers
 	 */
 	#[DataProvider('shuffled')]
+	#[ExpectedFor('size-10', instructions: '4.304K', cycles: '16.52K', memory: '832B')]
+	#[ExpectedFor('size-1000', instructions: '955.3K', cycles: '1.119M', memory: '59.88KiB')]
 	public function benchSort(array $numbers): void
 	{
 		sort($numbers);

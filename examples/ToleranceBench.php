@@ -3,6 +3,7 @@
 namespace Tally\Examples;
 
 use Tally\Attribute\DurationTolerance;
+use Tally\Attribute\Expected;
 use Tally\Attribute\RelativeTolerance;
 use function hash;
 use function str_repeat;
@@ -15,6 +16,7 @@ use function str_repeat;
 final class ToleranceBench
 {
 
+	#[Expected(instructions: '233.4K', cycles: '269.0K', memory: '8.117KiB')]
 	public function benchStrict(): void
 	{
 		hash('sha256', str_repeat('tally', 1_000));
@@ -29,6 +31,7 @@ final class ToleranceBench
 		cyclesPerMillisecond: 7_400_000,
 		memory: 0.1,
 	)]
+	#[Expected(instructions: '23.28M', cycles: '24.32M', memory: '492.1KiB')]
 	public function benchByDuration(): void
 	{
 		hash('sha256', str_repeat('tally', 100_000));

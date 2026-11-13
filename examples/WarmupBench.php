@@ -2,6 +2,7 @@
 
 namespace Tally\Examples;
 
+use Tally\Attribute\Expected;
 use Tally\Attribute\Warmup;
 use function preg_match;
 
@@ -13,12 +14,14 @@ use function preg_match;
 final class WarmupBench
 {
 
+	#[Expected(instructions: '75.88K', cycles: '261.5K', memory: '0B')]
 	public function benchCold(): int|false
 	{
 		return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.cold$~', 'tally@example.cold');
 	}
 
 	#[Warmup(1)]
+	#[Expected(instructions: '864', cycles: '13.18K', memory: '0B')]
 	public function benchWarm(): int|false
 	{
 		return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.warm$~', 'tally@example.warm');
