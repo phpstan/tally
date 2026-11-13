@@ -84,7 +84,7 @@ final class CaseRunnerTest extends TestCase
 	{
 		$memory = new FakeMemory(1_000_000);
 		Journal::$memory = $memory;
-		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 3, [], [], new InMemoryExpectations());
+		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 3, [], [], new InMemoryExpectations(null));
 
 		$metrics = (new CaseRunner(new ArgumentResolver(), $memory, new NativeCounter()))->run($case, new ScratchDirectory('/scratch'), new JournalCounter());
 
@@ -140,7 +140,7 @@ final class CaseRunnerTest extends TestCase
 
 	public function testArgumentsThatDoNotFitFail(): void
 	{
-		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchName', 'too-many'), ['x', 'y'], 0, [], [], new InMemoryExpectations());
+		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchName', 'too-many'), ['x', 'y'], 0, [], [], new InMemoryExpectations(null));
 
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage(RunnerBench::class . '::benchName(): the data set has 2 arguments, but the method takes 1.');
@@ -153,7 +153,7 @@ final class CaseRunnerTest extends TestCase
 	 */
 	public function testAMissingClassFails(): void
 	{
-		$case = new BenchmarkCase(new CaseId('App\MissingBench', 'benchFoo', null), [], 0, [], [], new InMemoryExpectations());
+		$case = new BenchmarkCase(new CaseId('App\MissingBench', 'benchFoo', null), [], 0, [], [], new InMemoryExpectations(null));
 
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage('App\MissingBench::benchFoo: class App\MissingBench does not exist.');
@@ -163,7 +163,7 @@ final class CaseRunnerTest extends TestCase
 
 	private static function runner(): CaseRunner
 	{
-		return new CaseRunner(new ArgumentResolver(), new FakeMemory(), new NativeCounter());
+		return new CaseRunner(new ArgumentResolver(), new FakeMemory(0), new NativeCounter());
 	}
 
 	/**
@@ -172,7 +172,7 @@ final class CaseRunnerTest extends TestCase
 	 */
 	private static function case(string $method, string $name, int $warmup, array $before, array $after): BenchmarkCase
 	{
-		return new BenchmarkCase(new CaseId(RunnerBench::class, $method, $name), [$name], $warmup, $before, $after, new InMemoryExpectations());
+		return new BenchmarkCase(new CaseId(RunnerBench::class, $method, $name), [$name], $warmup, $before, $after, new InMemoryExpectations(null));
 	}
 
 }

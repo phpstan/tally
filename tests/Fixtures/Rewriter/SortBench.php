@@ -4,6 +4,7 @@ namespace Tally\Tests\Fixtures\Rewriter;
 
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\Expected;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 
 final class SortBench
@@ -20,8 +21,8 @@ final class SortBench
 	}
 
 	#[DataProvider('sizes')]
-	#[Expected(dataSet: 'small', instructions: '100')]
-	#[Expected(dataSet: 'large', instructions: '10.00K')]
+	#[ExpectedFor('small', instructions: '100', cycles: '120', memory: '0B')]
+	#[ExpectedFor(dataSet: 'large', instructions: '10.00K', cycles: '12.00K', memory: '0B')]
 	public function benchSizes(int $size): void
 	{
 	}
@@ -31,7 +32,7 @@ final class SortBench
 final class OtherBench
 {
 
-	#[Expected(instructions: '5')]
+	#[Expected(instructions: '5', cycles: '6', memory: '0B')]
 	public function benchSort(): void
 	{
 	}

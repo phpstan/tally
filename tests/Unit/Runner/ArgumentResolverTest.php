@@ -33,8 +33,6 @@ final class ArgumentResolverTest extends TestCase
 		}), [1, 'b'], [1, 'scratch', 'b', 'meter']];
 		yield 'a nullable service' => [new ReflectionFunction(static function (?Meter $meter): void {
 		}), [], ['meter']];
-		yield 'the default of a parameter the data set leaves out' => [new ReflectionFunction(static function (int $a, string $b = 'default', ?Meter $meter = null): void {
-		}), [1], [1, 'default', 'meter']];
 		yield 'a data argument of the type of a service is still data when the parameter is untyped' => [new ReflectionFunction(static function ($a): void {
 		}), ['scratch'], ['scratch']];
 		yield 'a variadic parameter takes the rest' => [new ReflectionFunction(static function (Meter $meter, int $a, int ...$rest): void {
@@ -53,7 +51,7 @@ final class ArgumentResolverTest extends TestCase
 	#[DataProvider('resolveProvider')]
 	public function testResolve(ReflectionFunction $function, array $arguments, array $expected): void
 	{
-		$meter = new MeterSession(new RecordingCounter(), new FakeMemory());
+		$meter = new MeterSession(new RecordingCounter(), new FakeMemory(0));
 		$scratch = new ScratchDirectory('/tmp/scratch');
 
 		$resolved = (new ArgumentResolver())->resolve($function, $arguments, $meter, $scratch);
@@ -89,7 +87,7 @@ final class ArgumentResolverTest extends TestCase
 		(new ArgumentResolver())->resolve(
 			new ReflectionMethod($this, 'method'),
 			$arguments,
-			new MeterSession(new RecordingCounter(), new FakeMemory()),
+			new MeterSession(new RecordingCounter(), new FakeMemory(0)),
 			new ScratchDirectory('/tmp/scratch'),
 		);
 	}
@@ -105,7 +103,7 @@ final class ArgumentResolverTest extends TestCase
 			new ReflectionFunction(static function (ScratchDirectory $scratch, int $a): void {
 			}),
 			[1, 'b', 3],
-			new MeterSession(new RecordingCounter(), new FakeMemory()),
+			new MeterSession(new RecordingCounter(), new FakeMemory(0)),
 			$scratch,
 		);
 
@@ -123,7 +121,7 @@ final class ArgumentResolverTest extends TestCase
 		(new ArgumentResolver())->resolveHook(
 			new ReflectionMethod($this, 'method'),
 			[1],
-			new MeterSession(new RecordingCounter(), new FakeMemory()),
+			new MeterSession(new RecordingCounter(), new FakeMemory(0)),
 			new ScratchDirectory('/tmp/scratch'),
 		);
 	}
@@ -140,7 +138,7 @@ final class ArgumentResolverTest extends TestCase
 			new ReflectionFunction(static function (): void {
 			}),
 			[1],
-			new MeterSession(new RecordingCounter(), new FakeMemory()),
+			new MeterSession(new RecordingCounter(), new FakeMemory(0)),
 			new ScratchDirectory('/tmp/scratch'),
 		);
 	}

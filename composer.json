@@ -37,6 +37,7 @@
 	},
 	"autoload-dev": {
 		"psr-4": {
+			"Tally\\Build\\": "build/",
 			"Tally\\Tests\\": "tests/"
 		}
 	},

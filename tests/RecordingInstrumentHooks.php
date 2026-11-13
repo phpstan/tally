@@ -10,7 +10,12 @@ final class RecordingInstrumentHooks implements InstrumentHooks
 {
 
 	/** @var list<string> */
-	public array $calls = [];
+	public array $calls;
+
+	public function __construct()
+	{
+		$this->calls = [];
+	}
 
 	#[Override]
 	public function startBenchmark(): void

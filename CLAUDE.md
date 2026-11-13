@@ -4,22 +4,26 @@ Tally benchmarks PHP code by counting instructions, cycles, and memory under Cod
 
 ## Layout
 
-- `src/Attribute` – the attributes benchmark classes use: `Expected`, `Warmup`, `BeforeMethods`, `AfterMethods`, `DataProvider`.
+- `src/Attribute` – the attributes benchmark classes use: `Expected` (a method without a data provider), `ExpectedFor` (one data set), `Warmup`, `BeforeMethods`, `AfterMethods`, `DataProvider`, and the tolerance policies `RelativeTolerance` and `DurationTolerance`.
 - `src/Quantity` – `QuantityFormat` formats and parses numbers with units (`3.119B`, `44.49MiB`).
-- `src/Expectation` – where expected metrics are stored. `ExpectationSource` is the interface, `AttributeExpectations` the file adapter for `#[Expected]`, `ExpectedAttributeRewriter` the pure code-to-code rewrite it uses, `Tokens` the token list it walks.
+- `src/Expectation` – where expected metrics are stored. `ExpectationSource` is the interface, `AttributeExpectations` the file adapter for `#[Expected]` and `#[ExpectedFor]`, `ExpectedAttributeRewriter` the pure code-to-code rewrite it uses, `Tokens` the token list it walks.
 - `src/Discovery` – `DirectorySuiteLoader` finds and loads `*Bench.php` files (I/O), `CaseExpander` turns one method into its cases (pure, works on reflection).
 - `src/Selection` – `CaseSelector` implementations: `FilterSelector`, `ShardSelector` (longest-processing-time sharding by expected instructions).
+- `src/Runner` – running one case in this process. `CaseRunner` calls the hooks and warm-up uncounted, then counts an empty `#baseline` call and one call of the benchmark. `MeterSession` is the `Meter` a benchmark gets: it drives a `Counter` (`CodSpeedCounter` over `InstrumentHooks`, `NativeCounter`) and measures memory above the start through `Memory`. `ArgumentResolver` fills parameters: `Meter` and `ScratchDirectory` by type, the rest from the data set. `FfiInstrumentHooks` is the only class that calls C.
+- `src/Comparison` – `TolerancePolicy`, implemented by the tolerance attributes, and `Percent` for reports.
+- `src/Result` – `MeasurementJson`, the format of a measured case in results files.
 - `src/Cli` – `Application`, the commands, `ArgumentParser`, `Input`, `Output`. `ApplicationFactory` is the composition root.
-- `src/` root – value objects shared by everything: `Metric`, `Metrics`, `CaseId`, `BenchmarkCase`, `DataSet`, `Configuration`.
+- `src/` root – value objects shared by everything: `Metric`, `Metrics`, `CaseId`, `BenchmarkCase`, `DataSet`, `Measurement`, `ScratchDirectory`, `Configuration`, and the `Meter` interface.
 - `bin/tally` – finds the autoloader and runs `ApplicationFactory`.
-- `build/` – scripts for the build, such as the coverage check.
+- `build/` – scripts for the build, such as the coverage check. `build/PHPStan` holds Tally's own PHPStan rules, `build/stubs` the stubs for what PHPStan cannot see, such as the C functions FFI calls.
 - `tests/Unit` – pure logic, no file system, processes, or network. `tests/Integration` – adapters and the CLI. `tests/Fixtures` – benchmark classes and configuration files the tests load; excluded from PHPStan and the coding standard because some are invalid on purpose.
 
 ## Design rules
 
 - Every class is `final`. Behavior is composed from injected collaborators, never inherited. Interfaces are for real variation points (`ExpectationSource`, `CaseSelector`, `Command`), not for every class.
 - Services are stateless and get their collaborators through the constructor. No singletons, no static service methods, no service creating another service with `new`. `ApplicationFactory` decides which implementation each service gets.
-- Value objects (`Metrics`, `CaseId`, `DataSet`, `Configuration`, `Tokens`) are immutable: `readonly` properties, `with…()` methods that return a copy.
+- Value objects (`Metrics`, `CaseId`, `DataSet`, `Measurement`, `Configuration`, `Tokens`) are immutable: `readonly` properties, `with…()` methods that return a copy. `MeterSession` is the one mutable object, because a benchmark pauses and resumes it; it counts one span and is thrown away.
+- No optional parameters and no default values, in `src` and `tests` alike: every parameter is required and every call passes every argument, and properties get their values in the constructor. Attributes too: `#[Expected]` takes all three metrics. A value used by default, like the 10 % tolerance, is a named constant where it is chosen. PHPStan enforces this with the rules in `build/PHPStan`.
 - Keep pure logic and I/O in separate classes. Logic takes everything it needs as arguments and returns its result (`ExpectedAttributeRewriter` takes code and returns code); a thin adapter reads and writes (`AttributeExpectations` reads and writes the file).
 - No runtime dependencies besides PHP 8.5. Dev dependencies are fine.
 - Errors the user causes and can fix (invalid benchmark, bad CLI usage, unparsable quantity) are checked exceptions extending `Exception` and are declared with `@throws`. Errors that only a bug in Tally causes extend `LogicException`.

@@ -12,7 +12,7 @@ final class FakeMemory implements Memory
 
 	private int $peak;
 
-	public function __construct(private int $usage = 0)
+	public function __construct(private int $usage)
 	{
 		$this->peak = $usage;
 	}

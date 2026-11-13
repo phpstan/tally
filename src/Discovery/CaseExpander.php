@@ -8,6 +8,7 @@ use Tally\Attribute\AfterMethods;
 use Tally\Attribute\BeforeMethods;
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\Expected;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
@@ -48,6 +49,7 @@ final class CaseExpander
 		$afterMethods = $this->hookMethods($class, $method, AfterMethods::class, 'after', $where);
 		$warmup = $this->warmup($class, $method, $where);
 		$expected = $this->expected($method, $where);
+		$expectedFor = $this->expectedFor($method, $where);
 		$file = (string) $method->getDeclaringClass()->getFileName();
 		$declaringClass = $method->getDeclaringClass()->getName();
 
@@ -62,27 +64,22 @@ final class CaseExpander
 
 		$provider = $this->dataSets($class, $method, $where);
 		if ($provider === null) {
-			foreach ($expected as [$dataSet]) {
-				if ($dataSet !== null) {
-					throw new InvalidBenchmarkException($where, sprintf('#[Expected] names data set %s, but the method has no data provider.', $dataSet));
-				}
-			}
-			if (count($expected) > 1) {
-				throw new InvalidBenchmarkException($where, 'it has more than one #[Expected] attribute.');
+			foreach ($expectedFor as [$dataSet]) {
+				throw new InvalidBenchmarkException($where, sprintf('#[ExpectedFor] names data set %s, but the method has no data provider.', $dataSet));
 			}
 
-			return [$caseFor(null, [], $expected[0][1] ?? null)];
+			return [$caseFor(null, [], $expected)];
+		}
+		if ($expected !== null) {
+			throw new InvalidBenchmarkException($where, '#[Expected] is for a method without a data provider, use #[ExpectedFor] for each data set.');
 		}
 
 		[$providerName, $dataSets] = $provider;
 		$names = array_map(static fn (DataSet $dataSet): string => $dataSet->name, $dataSets);
 		$expectedByDataSet = [];
-		foreach ($expected as [$dataSet, $metrics]) {
-			if ($dataSet === null) {
-				throw new InvalidBenchmarkException($where, '#[Expected] needs dataSet, because the method has a data provider.');
-			}
+		foreach ($expectedFor as [$dataSet, $metrics]) {
 			if (!in_array($dataSet, $names, true)) {
-				throw new InvalidBenchmarkException($where, sprintf('#[Expected] names data set %s, which %s() does not yield.', $dataSet, $providerName));
+				throw new InvalidBenchmarkException($where, sprintf('#[ExpectedFor] names data set %s, which %s() does not yield.', $dataSet, $providerName));
 			}
 			$expectedByDataSet[$dataSet] = $metrics;
 		}
@@ -95,7 +92,7 @@ final class CaseExpander
 				continue;
 			}
 			if ($metrics !== null) {
-				throw new InvalidBenchmarkException($where, sprintf('data set %s has its own expectations and an #[Expected] attribute.', $dataSet->name));
+				throw new InvalidBenchmarkException($where, sprintf('data set %s has its own expectations and an #[ExpectedFor] attribute.', $dataSet->name));
 			}
 
 			$cases[] = new BenchmarkCase(
@@ -154,14 +151,39 @@ final class CaseExpander
 	}
 
 	/**
-	 * @return list<array{string|null, Metrics}>
 	 * @throws InvalidBenchmarkException
 	 */
-	private function expected(ReflectionMethod $method, string $where): array
+	private function expected(ReflectionMethod $method, string $where): ?Metrics
+	{
+		$attributes = $method->getAttributes(Expected::class);
+		if (count($attributes) > 1) {
+			throw new InvalidBenchmarkException($where, 'it has more than one #[Expected] attribute.');
+		}
+		if ($attributes === []) {
+			return null;
+		}
+
+		try {
+			return $attributes[0]->newInstance()->metrics();
+		} catch (InvalidQuantityException $e) {
+			throw new InvalidBenchmarkException($where, $e->getMessage());
+		}
+	}
+
+	/**
+	 * @return list<array{string, Metrics}> data set names and their metrics
+	 * @throws InvalidBenchmarkException
+	 */
+	private function expectedFor(ReflectionMethod $method, string $where): array
 	{
 		$expected = [];
-		foreach ($method->getAttributes(Expected::class) as $attribute) {
+		$names = [];
+		foreach ($method->getAttributes(ExpectedFor::class) as $attribute) {
 			$instance = $attribute->newInstance();
+			if (in_array($instance->dataSet, $names, true)) {
+				throw new InvalidBenchmarkException($where, sprintf('#[ExpectedFor] names data set %s twice.', $instance->dataSet));
+			}
+			$names[] = $instance->dataSet;
 			try {
 				$expected[] = [$instance->dataSet, $instance->metrics()];
 			} catch (InvalidQuantityException $e) {

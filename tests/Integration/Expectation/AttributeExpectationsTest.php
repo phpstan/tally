@@ -32,14 +32,14 @@ final class AttributeExpectationsTest extends TestCase
 		copy(__DIR__ . '/../../Fixtures/Rewriter/SortBench.php', $file);
 
 		try {
-			$source = new AttributeExpectations(new ExpectedAttributeRewriter(), $file, SortBench::class, 'benchSort', null, Metrics::fromArray(['instructions' => 1000]));
-			$this->assertSame(['instructions' => 1000], $source->read()?->toArray());
+			$source = new AttributeExpectations(new ExpectedAttributeRewriter(), $file, SortBench::class, 'benchSort', null, Metrics::fromArray(['instructions' => 1000, 'cycles' => 1100, 'memory' => 0]));
+			$this->assertSame(['instructions' => 1000, 'cycles' => 1100, 'memory' => 0], $source->read()?->toArray());
 
-			$source->write(Metrics::fromArray(['instructions' => 3_000]));
+			$source->write(Metrics::fromArray(['instructions' => 3_000, 'cycles' => 3_300, 'memory' => 1024]));
 
-			$this->assertSame(['instructions' => 3_000], $source->read()?->toArray());
-			$this->assertTrue(str_contains((string) file_get_contents($file), "#[Expected(instructions: '3.000K')]"));
-			$this->assertEquals(new SourceLocation($file, 12), $source->location());
+			$this->assertSame(['instructions' => 3_000, 'cycles' => 3_300, 'memory' => 1024], $source->read()?->toArray());
+			$this->assertTrue(str_contains((string) file_get_contents($file), "#[Expected(instructions: '3.000K', cycles: '3.300K', memory: '1.000KiB')]"));
+			$this->assertEquals(new SourceLocation($file, 13), $source->location());
 		} finally {
 			unlink($file);
 		}
@@ -58,7 +58,7 @@ final class AttributeExpectationsTest extends TestCase
 		try {
 			$source = new AttributeExpectations(new ExpectedAttributeRewriter(), $file, SortBench::class, 'benchSort', null, null);
 			try {
-				$source->write(Metrics::fromArray(['instructions' => 3_000]));
+				$source->write(Metrics::fromArray(['instructions' => 3_000, 'cycles' => 3_300, 'memory' => 1024]));
 				self::fail('Writing a read-only file succeeded.');
 			} catch (RuntimeException $e) {
 				$this->assertSame(sprintf('Cannot write %s.', $file), $e->getMessage());

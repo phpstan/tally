@@ -11,7 +11,7 @@ use Tally\Metrics;
 final class InMemoryExpectations implements ExpectationSource
 {
 
-	public function __construct(private ?Metrics $metrics = null)
+	public function __construct(private ?Metrics $metrics)
 	{
 	}
 

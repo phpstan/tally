@@ -18,7 +18,7 @@ final class MeterSessionTest extends TestCase
 	public function testCountsTheSpanAndNamesItsPart(): void
 	{
 		$counter = new RecordingCounter();
-		$session = new MeterSession($counter, new FakeMemory());
+		$session = new MeterSession($counter, new FakeMemory(0));
 
 		$session->start();
 		$session->pause();
@@ -31,7 +31,7 @@ final class MeterSessionTest extends TestCase
 
 	public function testExcludeReturnsWhatTheCallbackReturns(): void
 	{
-		$session = new MeterSession(new RecordingCounter(), new FakeMemory());
+		$session = new MeterSession(new RecordingCounter(), new FakeMemory(0));
 		$session->start();
 
 		$result = new MeterStateException('the result');
@@ -42,7 +42,7 @@ final class MeterSessionTest extends TestCase
 	public function testExcludeResumesWhenTheCallbackThrows(): void
 	{
 		$counter = new RecordingCounter();
-		$session = new MeterSession($counter, new FakeMemory());
+		$session = new MeterSession($counter, new FakeMemory(0));
 		$session->start();
 
 		$this->expectException(MeterStateException::class);
@@ -235,7 +235,7 @@ final class MeterSessionTest extends TestCase
 		$this->expectException(MeterStateException::class);
 		$this->expectExceptionMessage($message);
 
-		$misuse(new MeterSession(new RecordingCounter(), new FakeMemory()));
+		$misuse(new MeterSession(new RecordingCounter(), new FakeMemory(0)));
 	}
 
 }

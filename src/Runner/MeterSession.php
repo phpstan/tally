@@ -19,61 +19,60 @@ use function max;
 final class MeterSession implements Meter
 {
 
-	private const NOT_STARTED = 0;
-	private const COUNTING = 1;
-	private const PAUSED = 2;
-	private const STOPPED = 3;
+	/** The usage at the start plus what was allocated while paused, null before the start */
+	private ?int $baseUsage;
 
-	private int $state = self::NOT_STARTED;
+	/** null while counting */
+	private ?int $usageAtPause;
 
-	/** The usage at the start plus what was allocated while paused */
-	private int $baseUsage = 0;
+	private bool $stopped;
 
-	private int $usageAtPause = 0;
-
-	private int $peakAboveBase = 0;
+	/** @var list<int> the peak memory above the base usage of each counted span before the last pause */
+	private array $peaksAboveBase;
 
 	public function __construct(private Counter $counter, private Memory $memory)
 	{
+		$this->baseUsage = null;
+		$this->usageAtPause = null;
+		$this->stopped = false;
+		$this->peaksAboveBase = [];
 	}
 
 	public function start(): void
 	{
-		if ($this->state !== self::NOT_STARTED) {
+		if ($this->baseUsage !== null) {
 			throw new MeterStateException('The meter has already started.');
 		}
 
 		$this->memory->resetPeak();
 		$this->baseUsage = $this->memory->usage();
-		$this->state = self::COUNTING;
 		$this->counter->start();
 	}
 
 	#[Override]
 	public function pause(): void
 	{
-		$this->assertStarted('pause');
-		if ($this->state === self::PAUSED) {
+		$baseUsage = $this->counted('pause');
+		if ($this->usageAtPause !== null) {
 			throw new MeterStateException('Meter::pause() was called while the meter is paused.');
 		}
 
 		$this->counter->pause();
-		$this->recordPeak();
+		$this->peaksAboveBase[] = $this->memory->peak() - $baseUsage;
 		$this->usageAtPause = $this->memory->usage();
-		$this->state = self::PAUSED;
 	}
 
 	#[Override]
 	public function resume(): void
 	{
-		$this->assertStarted('resume');
-		if ($this->state !== self::PAUSED) {
+		$baseUsage = $this->counted('resume');
+		if ($this->usageAtPause === null) {
 			throw new MeterStateException('Meter::resume() was called while the meter is not paused.');
 		}
 
-		$this->baseUsage += $this->memory->usage() - $this->usageAtPause;
+		$this->baseUsage = $baseUsage + $this->memory->usage() - $this->usageAtPause;
+		$this->usageAtPause = null;
 		$this->memory->resetPeak();
-		$this->state = self::COUNTING;
 		$this->counter->resume();
 	}
 
@@ -99,32 +98,31 @@ final class MeterSession implements Meter
 	 */
 	public function stop(string $part): Metrics
 	{
-		if ($this->state === self::NOT_STARTED) {
+		if ($this->baseUsage === null) {
 			throw new MeterStateException('The meter was stopped before it started.');
 		}
-		if ($this->state === self::PAUSED) {
+		if ($this->usageAtPause !== null) {
 			throw new MeterStateException('The benchmark returned while the meter is paused, call Meter::resume() first.');
 		}
 
 		$this->counter->stop($part);
-		$this->state = self::STOPPED;
-		$this->recordPeak();
+		$this->stopped = true;
+		// the peak was reset at the start, so the first span's is never below zero
+		$peaks = [...$this->peaksAboveBase, $this->memory->peak() - $this->baseUsage];
 
-		return Metrics::none()->with(Metric::Memory, $this->peakAboveBase);
+		return Metrics::none()->with(Metric::Memory, max($peaks));
 	}
 
-	private function assertStarted(string $method): void
+	/**
+	 * @return int the base usage
+	 */
+	private function counted(string $method): int
 	{
-		if ($this->state === self::COUNTING || $this->state === self::PAUSED) {
-			return;
+		if ($this->baseUsage === null || $this->stopped) {
+			throw new MeterStateException('Meter::' . $method . '() was called while the benchmark is not counted.');
 		}
 
-		throw new MeterStateException('Meter::' . $method . '() was called while the benchmark is not counted.');
-	}
-
-	private function recordPeak(): void
-	{
-		$this->peakAboveBase = max($this->peakAboveBase, $this->memory->peak() - $this->baseUsage);
+		return $this->baseUsage;
 	}
 
 }

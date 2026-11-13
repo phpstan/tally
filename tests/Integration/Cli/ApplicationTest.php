@@ -46,7 +46,7 @@ final class ApplicationTest extends TestCase
 
 	public function testList(): void
 	{
-		[$exitCode, $output] = self::runTally(['list', self::SUITE, '--filter=Loop']);
+		[$exitCode, $output] = self::runTally(__DIR__, ['list', self::SUITE, '--filter=Loop']);
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(
@@ -60,7 +60,7 @@ final class ApplicationTest extends TestCase
 	public function testListShardWithASeparateValue(): void
 	{
 		// a.php has no expectations, so it costs as much as the most expensive case and comes first
-		[$exitCode, $output] = self::runTally(['list', self::SUITE, '--shard', '1/8']);
+		[$exitCode, $output] = self::runTally(__DIR__, ['list', self::SUITE, '--shard', '1/8']);
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(self::SUITE_NAMESPACE . "FilesBench::benchFile@a.php\n", $output);
@@ -69,7 +69,7 @@ final class ApplicationTest extends TestCase
 	public function testListFiltersBeforeSharding(): void
 	{
 		// size-100 and size-1000, which has no expectations, cost 1000 instructions each, size-10 costs 100
-		[$exitCode, $output] = self::runTally(['list', self::SUITE, '--filter=Loop', '--shard=2/2']);
+		[$exitCode, $output] = self::runTally(__DIR__, ['list', self::SUITE, '--filter=Loop', '--shard=2/2']);
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(self::SUITE_NAMESPACE . "Nested\\LoopBench::benchSum@size-1000\n", $output);
@@ -77,7 +77,7 @@ final class ApplicationTest extends TestCase
 
 	public function testListReadsPathsFromTheConfiguration(): void
 	{
-		[$exitCode, $output] = self::runTally(['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/tally.php', '--filter=String']);
+		[$exitCode, $output] = self::runTally(__DIR__, ['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/tally.php', '--filter=String']);
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(self::SUITE_NAMESPACE . "StringBench::benchConcat\n" . self::SUITE_NAMESPACE . "StringBench::benchSprintf\n", $output);
@@ -85,7 +85,7 @@ final class ApplicationTest extends TestCase
 
 	public function testListReadsTheConfigurationInTheWorkingDirectory(): void
 	{
-		[$exitCode, $output] = self::runTally(['list'], __DIR__ . '/../../Fixtures/Configuration/cwd');
+		[$exitCode, $output] = self::runTally(__DIR__ . '/../../Fixtures/Configuration/cwd', ['list']);
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(self::SUITE_NAMESPACE . "StringBench::benchConcat\n" . self::SUITE_NAMESPACE . "StringBench::benchSprintf\n", $output);
@@ -93,7 +93,7 @@ final class ApplicationTest extends TestCase
 
 	public function testPathsOverrideTheConfiguration(): void
 	{
-		[$exitCode, $output] = self::runTally(['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/not-configuration.php', self::SUITE, '--filter=Sprintf']);
+		[$exitCode, $output] = self::runTally(__DIR__, ['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/not-configuration.php', self::SUITE, '--filter=Sprintf']);
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(self::SUITE_NAMESPACE . "StringBench::benchSprintf\n", $output);
@@ -118,7 +118,7 @@ final class ApplicationTest extends TestCase
 	#[DataProvider('dataUsageError')]
 	public function testUsageError(array $arguments, string $message): void
 	{
-		[$exitCode, $output, $errorOutput] = self::runTally($arguments);
+		[$exitCode, $output, $errorOutput] = self::runTally(__DIR__, $arguments);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('', $output);
@@ -127,7 +127,7 @@ final class ApplicationTest extends TestCase
 
 	public function testInvalidBenchmark(): void
 	{
-		[$exitCode, $output, $errorOutput] = self::runTally(['list', __DIR__ . '/../../Fixtures/Invalid']);
+		[$exitCode, $output, $errorOutput] = self::runTally(__DIR__, ['list', __DIR__ . '/../../Fixtures/Invalid']);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('', $output);
@@ -136,7 +136,7 @@ final class ApplicationTest extends TestCase
 
 	public function testUnknownOption(): void
 	{
-		[$exitCode, , $errorOutput] = self::runTally(['list', '--colour']);
+		[$exitCode, , $errorOutput] = self::runTally(__DIR__, ['list', '--colour']);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame("Unknown option --colour.\n\n" . self::LIST_HELP, $errorOutput);
@@ -144,7 +144,7 @@ final class ApplicationTest extends TestCase
 
 	public function testMissingOptionValue(): void
 	{
-		[$exitCode, , $errorOutput] = self::runTally(['list', '--shard']);
+		[$exitCode, , $errorOutput] = self::runTally(__DIR__, ['list', '--shard']);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertStringContainsString('Option --shard needs a value', $errorOutput);
@@ -152,7 +152,7 @@ final class ApplicationTest extends TestCase
 
 	public function testUnknownCommand(): void
 	{
-		[$exitCode, , $errorOutput] = self::runTally(['lst']);
+		[$exitCode, , $errorOutput] = self::runTally(__DIR__, ['lst']);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame("Unknown command lst.\n\n" . self::HELP, $errorOutput);
@@ -160,7 +160,7 @@ final class ApplicationTest extends TestCase
 
 	public function testHelpListsTheCommands(): void
 	{
-		[$exitCode, $output] = self::runTally([]);
+		[$exitCode, $output] = self::runTally(__DIR__, []);
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(self::HELP, $output);
@@ -168,7 +168,7 @@ final class ApplicationTest extends TestCase
 
 	public function testCommandHelp(): void
 	{
-		[$exitCode, $output] = self::runTally(['list', '--help']);
+		[$exitCode, $output] = self::runTally(__DIR__, ['list', '--help']);
 
 		$this->assertSame(0, $exitCode);
 		$this->assertSame(self::LIST_HELP, $output);
@@ -195,7 +195,7 @@ final class ApplicationTest extends TestCase
 	 * @param list<string> $arguments
 	 * @return array{int, string, string}
 	 */
-	private static function runTally(array $arguments, string $workingDirectory = __DIR__): array
+	private static function runTally(string $workingDirectory, array $arguments): array
 	{
 		$output = fopen('php://memory', 'w+');
 		$errorOutput = fopen('php://memory', 'w+');

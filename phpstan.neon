@@ -46,3 +46,6 @@ parameters:
 	excludePaths:
 		- tests/Fixtures/*
 
+rules:
+	- Tally\Build\PHPStan\NoDefaultParameterValueRule
+	- Tally\Build\PHPStan\NoDefaultPropertyValueRule

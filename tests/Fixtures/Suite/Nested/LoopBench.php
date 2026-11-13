@@ -5,7 +5,7 @@ namespace Tally\Tests\Fixtures\Suite\Nested;
 use Tally\Attribute\AfterMethods;
 use Tally\Attribute\BeforeMethods;
 use Tally\Attribute\DataProvider;
-use Tally\Attribute\Expected;
+use Tally\Attribute\ExpectedFor;
 
 #[BeforeMethods('setUp')]
 final class LoopBench
@@ -32,8 +32,8 @@ final class LoopBench
 	#[DataProvider('sizes')]
 	#[BeforeMethods('prepare')]
 	#[AfterMethods('tearDown')]
-	#[Expected(dataSet: 'size-10', instructions: '100')]
-	#[Expected(dataSet: 'size-100', instructions: '1000')]
+	#[ExpectedFor('size-10', instructions: '100', cycles: '110', memory: '0B')]
+	#[ExpectedFor('size-100', instructions: '1000', cycles: '1100', memory: '0B')]
 	public function benchSum(int $size): void
 	{
 	}

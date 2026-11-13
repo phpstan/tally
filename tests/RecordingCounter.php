@@ -10,7 +10,12 @@ final class RecordingCounter implements Counter
 {
 
 	/** @var list<string> */
-	public array $calls = [];
+	public array $calls;
+
+	public function __construct()
+	{
+		$this->calls = [];
+	}
 
 	#[Override]
 	public function start(): void

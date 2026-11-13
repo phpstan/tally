@@ -22,21 +22,15 @@ use function strtolower;
 final class FilterSelector implements CaseSelector
 {
 
-	private ?string $pattern = null;
+	/** The filter when it is a regular expression */
+	private ?string $pattern;
 
 	/**
 	 * @throws InvalidArgumentException
 	 */
 	public function __construct(private string $filter)
 	{
-		if (strlen($filter) < 2 || !str_starts_with($filter, '/') || !str_ends_with($filter, '/')) {
-			return;
-		}
-
-		if (@preg_match($filter, '') === false) {
-			throw new InvalidArgumentException(sprintf('Filter %s is not a valid regular expression.', $filter));
-		}
-		$this->pattern = $filter;
+		$this->pattern = $this->pattern($filter);
 	}
 
 	#[Override]
@@ -50,6 +44,21 @@ final class FilterSelector implements CaseSelector
 
 			return str_contains(strtolower($id), strtolower($this->filter));
 		}));
+	}
+
+	/**
+	 * @throws InvalidArgumentException
+	 */
+	private function pattern(string $filter): ?string
+	{
+		if (strlen($filter) < 2 || !str_starts_with($filter, '/') || !str_ends_with($filter, '/')) {
+			return null;
+		}
+		if (@preg_match($filter, '') === false) {
+			throw new InvalidArgumentException(sprintf('Filter %s is not a valid regular expression.', $filter));
+		}
+
+		return $filter;
 	}
 
 }

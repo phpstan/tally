@@ -3,6 +3,7 @@
 namespace Tally;
 
 use InvalidArgumentException;
+use Tally\Quantity\InvalidQuantityException;
 use function is_int;
 use function max;
 use function sprintf;
@@ -43,6 +44,20 @@ final class Metrics
 		}
 
 		return $metrics;
+	}
+
+	/**
+	 * Every metric, from text such as 3.119B and 44.49MiB.
+	 *
+	 * @throws InvalidQuantityException
+	 */
+	public static function parse(string $instructions, string $cycles, string $memory): self
+	{
+		return new self([
+			Metric::Instructions->value => Metric::Instructions->format()->parse($instructions),
+			Metric::Cycles->value => Metric::Cycles->format()->parse($cycles),
+			Metric::Memory->value => Metric::Memory->format()->parse($memory),
+		]);
 	}
 
 	public function with(Metric $metric, int $value): self

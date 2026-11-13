@@ -5,6 +5,7 @@ namespace Tally\Tests\Fixtures\Invalid;
 use Tally\Attribute\BeforeMethods;
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\Expected;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\DataSet;
 use Tally\Metrics;
@@ -69,29 +70,29 @@ final class InvalidBench
 	}
 
 	#[DataProvider('withSource')]
-	#[Expected(dataSet: 'a', instructions: '1')]
+	#[ExpectedFor('a', instructions: '1', cycles: '1', memory: '0B')]
 	public function benchTwoSources(): void
 	{
 	}
 
-	#[Expected(dataSet: 'a', instructions: '1')]
+	#[ExpectedFor('a', instructions: '1', cycles: '1', memory: '0B')]
 	public function benchDataSetWithoutProvider(): void
 	{
 	}
 
 	#[DataProvider('plain')]
-	#[Expected(dataSet: 'b', instructions: '1')]
+	#[ExpectedFor('b', instructions: '1', cycles: '1', memory: '0B')]
 	public function benchStaleDataSet(): void
 	{
 	}
 
 	#[DataProvider('plain')]
-	#[Expected(instructions: '1')]
-	public function benchExpectedWithoutDataSet(): void
+	#[Expected(instructions: '1', cycles: '1', memory: '0B')]
+	public function benchExpectedWithDataProvider(): void
 	{
 	}
 
-	#[Expected(instructions: '1.2X')]
+	#[Expected(instructions: '1.2X', cycles: '1', memory: '0B')]
 	public function benchInvalidQuantity(): void
 	{
 	}
@@ -106,8 +107,21 @@ final class InvalidBench
 	{
 	}
 
-	#[Expected(instructions: '1')]
-	#[Expected(instructions: '2')]
+	#[DataProvider('plain')]
+	#[ExpectedFor('a', instructions: '1', cycles: '1', memory: '0B')]
+	#[ExpectedFor('a', instructions: '2', cycles: '2', memory: '0B')]
+	public function benchTwoExpectedFor(): void
+	{
+	}
+
+	#[DataProvider('plain')]
+	#[ExpectedFor('a', instructions: '1.2X', cycles: '1', memory: '0B')]
+	public function benchInvalidQuantityFor(): void
+	{
+	}
+
+	#[Expected(instructions: '1', cycles: '1', memory: '0B')]
+	#[Expected(instructions: '2', cycles: '2', memory: '0B')]
 	public function benchTwoExpected(): void
 	{
 	}

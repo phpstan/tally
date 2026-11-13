@@ -2,7 +2,9 @@
 
 namespace Tally\Expectation;
 
+use InvalidArgumentException;
 use Tally\Attribute\Expected;
+use Tally\Attribute\ExpectedFor;
 use Tally\Metric;
 use Tally\Metrics;
 use function count;
@@ -37,9 +39,10 @@ use const T_USE;
 use const T_WHITESPACE;
 
 /**
- * Finds and rewrites the #[Expected] attribute of one benchmark method in PHP code, using PHP's
- * tokenizer. Everything else in the code stays byte for byte the same. A missing attribute is
- * added after the method's other attributes, and imported when the file does not import it yet.
+ * Finds and rewrites the #[Expected] attribute of one benchmark method, or its #[ExpectedFor] of
+ * one data set, in PHP code, using PHP's tokenizer. Everything else in the code stays byte for byte
+ * the same. A missing attribute is added after the method's other attributes, and imported when
+ * the file does not import it yet.
  *
  * @phpstan-type Attribute array{start: int, end: int, name: string, dataSet: string|null, line: int}
  * @phpstan-type Member array{attributes: list<Attribute>, insertAt: int}
@@ -67,15 +70,18 @@ final class ExpectedAttributeRewriter
 	}
 
 	/**
+	 * @param Metrics $metrics every metric
 	 * @throws MethodNotFoundException
 	 * @throws UnsupportedAttributeException
+	 * @throws InvalidArgumentException when a metric is missing
 	 */
 	public function rewrite(string $code, string $class, string $method, ?string $dataSet, Metrics $metrics): string
 	{
+		$arguments = $this->arguments($dataSet, $metrics);
 		$tokens = new Tokens($code);
 		$scan = $this->scan($tokens, $class, $method);
 		$attribute = $this->findAttribute($scan['member'], $dataSet);
-		$arguments = $this->arguments($dataSet, $metrics);
+		$attributeClass = $dataSet === null ? Expected::class : ExpectedFor::class;
 
 		if ($attribute !== null) {
 			$start = $tokens->at($attribute['start'])->pos;
@@ -85,10 +91,10 @@ final class ExpectedAttributeRewriter
 		}
 
 		$edits = [];
-		$name = $this->localName($scan);
+		$name = $this->localName($scan, $attributeClass);
 		if ($name === null) {
-			$name = 'Expected';
-			$edits[] = $this->importEdit($tokens, $scan);
+			$name = $this->shortName($attributeClass);
+			$edits[] = $this->importEdit($tokens, $scan, $attributeClass);
 		}
 
 		$insertAt = $scan['member']['insertAt'];
@@ -112,14 +118,10 @@ final class ExpectedAttributeRewriter
 	{
 		$arguments = [];
 		if ($dataSet !== null) {
-			$arguments[] = 'dataSet: ' . var_export($dataSet, true);
+			$arguments[] = var_export($dataSet, true);
 		}
 		foreach (Metric::cases() as $metric) {
-			$value = $metrics->get($metric);
-			if ($value === null) {
-				continue;
-			}
-
+			$value = $metrics->get($metric) ?? throw new InvalidArgumentException(sprintf('The %s to write are missing.', $metric->value));
 			$arguments[] = sprintf('%s: %s', $metric->value, var_export($metric->format()->format($value), true));
 		}
 
@@ -145,37 +147,46 @@ final class ExpectedAttributeRewriter
 	 * The name the code can use for the attribute, null when it needs an import.
 	 *
 	 * @param Scan $scan
+	 * @param class-string $attributeClass
 	 */
-	private function localName(array $scan): ?string
+	private function localName(array $scan, string $attributeClass): ?string
 	{
 		foreach ($scan['imports'] as $import) {
-			if (strcasecmp($import['name'], Expected::class) === 0) {
+			if (strcasecmp($import['name'], $attributeClass) === 0) {
 				return $import['alias'];
 			}
 		}
 
-		$namespace = $scan['namespace'];
 		foreach ($scan['imports'] as $import) {
-			if (strcasecmp($import['alias'], 'Expected') === 0) {
-				return '\\' . Expected::class;
+			if (strcasecmp($import['alias'], $this->shortName($attributeClass)) === 0) {
+				return '\\' . $attributeClass;
 			}
 		}
 
-		return $namespace === null ? '\\' . Expected::class : null;
+		return $scan['namespace'] === null ? '\\' . $attributeClass : null;
+	}
+
+	/**
+	 * @param class-string $class
+	 */
+	private function shortName(string $class): string
+	{
+		return substr($class, (int) strrpos($class, '\\') + 1);
 	}
 
 	/**
 	 * Keeps the imports sorted, before the imports of functions and constants.
 	 *
 	 * @param Scan $scan
+	 * @param class-string $attributeClass
 	 * @return array{int, string}
 	 */
-	private function importEdit(Tokens $tokens, array $scan): array
+	private function importEdit(Tokens $tokens, array $scan, string $attributeClass): array
 	{
-		$statement = 'use ' . Expected::class . ';';
+		$statement = 'use ' . $attributeClass . ';';
 		foreach ($scan['imports'] as $import) {
 			// 0 would be the attribute itself, which needs no import
-			if ((strtolower($import['name']) <=> strtolower(Expected::class)) === 1) {
+			if ((strtolower($import['name']) <=> strtolower($attributeClass)) === 1) {
 				return [$tokens->at($import['start'])->pos, $statement . "\n"];
 			}
 		}
@@ -317,7 +328,7 @@ final class ExpectedAttributeRewriter
 
 	/**
 	 * @param list<Import> $imports
-	 * @return array{list<Attribute>, int} the #[Expected] attributes of the group, and the index of its closing bracket
+	 * @return array{list<Attribute>, int} the #[Expected] and #[ExpectedFor] attributes of the group, and the index of its closing bracket
 	 * @throws UnsupportedAttributeException
 	 */
 	private function parseAttributeGroup(Tokens $tokens, int $start, ?string $namespace, array $imports): array
@@ -367,28 +378,22 @@ final class ExpectedAttributeRewriter
 	{
 		// the closing bracket after a trailing comma, which is not the attribute either
 		$name = $tokens->next($start - 1);
-		if (strcasecmp($this->resolve($tokens->at($name)->text, $namespace, $aliases), Expected::class) !== 0) {
+		$resolved = $this->resolve($tokens->at($name)->text, $namespace, $aliases);
+		$isExpected = strcasecmp($resolved, Expected::class) === 0;
+		if (!$isExpected && strcasecmp($resolved, ExpectedFor::class) !== 0) {
 			return null;
 		}
 
-		$attributeEnd = $name;
-		$dataSet = null;
 		$open = $tokens->next($name);
-		if ($tokens->at($open)->text === '(') {
-			$attributeEnd = $tokens->previous($end);
-			// from the opening parenthesis
-			for ($i = $open; $i !== $attributeEnd; $i++) {
-				if (!$tokens->at($i)->is(T_STRING) || $tokens->at($i)->text !== 'dataSet') {
-					continue;
-				}
-				// the named argument dataSet: '...'
-				$value = $tokens->next($tokens->next($i));
-				if (!$tokens->at($value)->is(T_CONSTANT_ENCAPSED_STRING)) {
-					throw new UnsupportedAttributeException($tokens->at($value)->line);
-				}
-
-				$dataSet = $this->stringValue($tokens->at($value)->text);
+		$hasArguments = $tokens->at($open)->text === '(';
+		$attributeEnd = $hasArguments ? $tokens->previous($end) : $name;
+		$dataSet = null;
+		if (!$isExpected) {
+			$value = $hasArguments ? $this->dataSetArgument($tokens, $open, $attributeEnd) : null;
+			if ($value === null) {
+				throw new UnsupportedAttributeException($tokens->at($name)->line);
 			}
+			$dataSet = $this->stringValue($tokens->at($value)->text);
 		}
 
 		return [
@@ -398,6 +403,35 @@ final class ExpectedAttributeRewriter
 			'dataSet' => $dataSet,
 			'line' => $tokens->at($name)->line,
 		];
+	}
+
+	/**
+	 * The string literal of the data set: the named argument dataSet, or the first argument.
+	 *
+	 * @param int $open the opening parenthesis
+	 * @param int $close the closing parenthesis
+	 * @return int|null null when the data set is not a string literal
+	 */
+	private function dataSetArgument(Tokens $tokens, int $open, int $close): ?int
+	{
+		for ($i = $open; $i !== $close; $i++) {
+			if ($tokens->at($i)->is(T_STRING) && $tokens->at($i)->text === 'dataSet') {
+				$value = $tokens->next($tokens->next($i));
+
+				return $this->isLiteralArgument($tokens, $value) ? $value : null;
+			}
+		}
+
+		$first = $tokens->next($open);
+
+		return $this->isLiteralArgument($tokens, $first) ? $first : null;
+	}
+
+	/** A string literal that is the whole argument, not the start of an expression */
+	private function isLiteralArgument(Tokens $tokens, int $index): bool
+	{
+		return $tokens->at($index)->is(T_CONSTANT_ENCAPSED_STRING)
+			&& in_array($tokens->at($tokens->next($index))->text, [',', ')'], true);
 	}
 
 	/**

@@ -16,7 +16,7 @@ use function sprintf;
 /**
  * Fills the parameters of a benchmark, before, or after method: a parameter declared as Meter or
  * ScratchDirectory gets that service, the others get the arguments of the data set in order.
- * A parameter the data set has no argument for gets its default value.
+ * Default values of parameters are not used, the data set passes every argument.
  */
 final class ArgumentResolver
 {
@@ -77,8 +77,6 @@ final class ArgumentResolver
 				$remaining = [];
 			} elseif ($remaining !== []) {
 				$resolved[] = array_shift($remaining);
-			} elseif ($parameter->isDefaultValueAvailable()) {
-				$resolved[] = $parameter->getDefaultValue();
 			} else {
 				throw new InvalidBenchmarkException($this->name($function), sprintf(
 					'the data set has %s, but parameter $%s needs one too.',

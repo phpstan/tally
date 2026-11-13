@@ -60,7 +60,7 @@ final class CaseExpanderTest extends TestCase
 		$this->assertSame(['size-1000', 'size-10', 'size-100'], array_map(static fn (BenchmarkCase $case): ?string => $case->id->dataSet, $cases));
 		$this->assertSame([[1000], [10], [100]], array_map(static fn (BenchmarkCase $case): array => $case->arguments, $cases));
 		$this->assertSame(
-			[null, ['instructions' => 100], ['instructions' => 1000]],
+			[null, ['instructions' => 100, 'cycles' => 110, 'memory' => 0], ['instructions' => 1000, 'cycles' => 1100, 'memory' => 0]],
 			array_map(static fn (BenchmarkCase $case): ?array => $case->expectations->read()?->toArray(), $cases),
 		);
 		// the class's before methods run first
@@ -101,15 +101,17 @@ final class CaseExpanderTest extends TestCase
 		yield ['benchNonStaticProvider', '::benchNonStaticProvider(): data provider nonStaticProvider() must be public and static.'];
 		yield ['benchDuplicateNames', '::benchDuplicateNames(): data provider duplicateNames() yields data set a twice.'];
 		yield ['benchNotArrays', '::benchNotArrays(): data set a of notArrays() is neither an array of arguments nor a DataSet.'];
-		yield ['benchTwoSources', '::benchTwoSources(): data set a has its own expectations and an #[Expected] attribute.'];
-		yield ['benchDataSetWithoutProvider', '::benchDataSetWithoutProvider(): #[Expected] names data set a, but the method has no data provider.'];
-		yield ['benchStaleDataSet', '::benchStaleDataSet(): #[Expected] names data set b, which plain() does not yield.'];
-		yield ['benchExpectedWithoutDataSet', '::benchExpectedWithoutDataSet(): #[Expected] needs dataSet, because the method has a data provider.'];
+		yield ['benchTwoSources', '::benchTwoSources(): data set a has its own expectations and an #[ExpectedFor] attribute.'];
+		yield ['benchDataSetWithoutProvider', '::benchDataSetWithoutProvider(): #[ExpectedFor] names data set a, but the method has no data provider.'];
+		yield ['benchStaleDataSet', '::benchStaleDataSet(): #[ExpectedFor] names data set b, which plain() does not yield.'];
+		yield ['benchExpectedWithDataProvider', '::benchExpectedWithDataProvider(): #[Expected] is for a method without a data provider, use #[ExpectedFor] for each data set.'];
 		yield ['benchInvalidQuantity', '::benchInvalidQuantity(): "1.2X" is not a quantity'];
 		yield ['benchMissingBeforeMethod', '::benchMissingBeforeMethod(): before method missing() does not exist.'];
 		yield ['benchPrivateBeforeMethod', '::benchPrivateBeforeMethod(): before method hidden() must be public.'];
 		yield ['benchNotIterable', '::benchNotIterable(): data provider notIterable() must return an iterable.'];
 		yield ['benchTwoExpected', '::benchTwoExpected(): it has more than one #[Expected] attribute.'];
+		yield ['benchTwoExpectedFor', '::benchTwoExpectedFor(): #[ExpectedFor] names data set a twice.'];
+		yield ['benchInvalidQuantityFor', '::benchInvalidQuantityFor(): "1.2X" is not a quantity'];
 		yield ['benchNegativeWarmup', '::benchNegativeWarmup(): #[Warmup] needs zero or more calls.'];
 	}
 
