@@ -11,6 +11,9 @@ use function substr;
 final class Percent
 {
 
+	/** From how many times the original value signed() shows the ratio instead of a percentage */
+	private const RATIO_FROM = 10;
+
 	public function __construct(private float $fraction)
 	{
 	}
@@ -23,9 +26,17 @@ final class Percent
 		return (str_ends_with($text, '.0') ? substr($text, 0, -2) : $text) . ' %';
 	}
 
-	/** With a sign and one decimal, for a change: +50.0 %, -1.3 %, and 0.0 % for what rounds to no change */
+	/**
+	 * With a sign and one decimal, for a change: +50.0 %, -1.3 %, and 0.0 % for what rounds to no
+	 * change. From ten times the original value, the ratio is easier to read: 1248× instead of +124700.0 %.
+	 */
 	public function signed(): string
 	{
+		$ratio = 1 + $this->fraction;
+		if ($ratio >= self::RATIO_FROM) {
+			return sprintf('%.0f×', $ratio);
+		}
+
 		$text = $this->rounded();
 
 		return ($text === '0.0' || str_starts_with($text, '-') ? $text : '+' . $text) . ' %';

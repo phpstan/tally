@@ -25,6 +25,9 @@ final class PercentTest extends TestCase
 		yield 'a fraction rounded to a whole one below 10' => [0.0499999, '5 %', '+5.0 %'];
 		yield 'a third' => [1 / 3, '33.3 %', '+33.3 %'];
 		yield 'more than 100' => [5.0, '500 %', '+500.0 %'];
+		yield 'just below ten times the original' => [8.9994, '899.9 %', '+899.9 %'];
+		yield 'ten times the original' => [9.0, '900 %', '10×'];
+		yield 'a ratio, rounded' => [1247.4, '124740 %', '1248×'];
 		yield 'negative' => [-0.2, '-20 %', '-20.0 %'];
 		yield 'a negative fraction' => [-0.0127, '-1.3 %', '-1.3 %'];
 	}
