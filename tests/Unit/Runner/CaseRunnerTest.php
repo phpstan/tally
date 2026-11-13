@@ -11,8 +11,8 @@ use Tally\CaseId;
 use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Runner\ArgumentResolver;
 use Tally\Runner\CaseRunner;
+use Tally\Runner\IdleCounter;
 use Tally\Runner\MeterStateException;
-use Tally\Runner\NativeCounter;
 use Tally\ScratchDirectory;
 use Tally\Tests\FakeMemory;
 use Tally\Tests\Fixtures\Runner\Journal;
@@ -87,7 +87,7 @@ final class CaseRunnerTest extends TestCase
 		Journal::$memory = $memory;
 		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 3, [], [], new InMemoryExpectations(null), new RelativeTolerance(0.1));
 
-		$metrics = (new CaseRunner(new ArgumentResolver(), $memory, new NativeCounter()))->run($case, new ScratchDirectory('/scratch'), new JournalCounter());
+		$metrics = (new CaseRunner(new ArgumentResolver(), $memory, new IdleCounter()))->run($case, new ScratchDirectory('/scratch'), new JournalCounter());
 
 		$this->assertSame(['memory' => 1000], $metrics->toArray());
 		$this->assertSame(1_004_000, $memory->usage());
@@ -164,7 +164,7 @@ final class CaseRunnerTest extends TestCase
 
 	private static function runner(): CaseRunner
 	{
-		return new CaseRunner(new ArgumentResolver(), new FakeMemory(0), new NativeCounter());
+		return new CaseRunner(new ArgumentResolver(), new FakeMemory(0), new IdleCounter());
 	}
 
 	/**

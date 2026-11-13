@@ -4,8 +4,11 @@ namespace Tally\Runner;
 
 use Override;
 
-/** Counts nothing: a run without CodSpeed measures only memory. */
-final class NativeCounter implements Counter
+/**
+ * Counts nothing, for calls outside the counted span: before and after methods, warm-up calls, and the
+ * native run that checks a case and fills its scratch directory before CodSpeed counts it.
+ */
+final class IdleCounter implements Counter
 {
 
 	#[Override]

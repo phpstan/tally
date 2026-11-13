@@ -32,7 +32,7 @@ final class CaseRunner
 	public function __construct(
 		private ArgumentResolver $resolver,
 		private Memory $memory,
-		private NativeCounter $uncounted
+		private IdleCounter $uncounted
 	)
 	{
 	}
