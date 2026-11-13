@@ -30,8 +30,10 @@ use Tally\Result\MeasurementJson;
 use Tally\Result\ResultsDirectory;
 use Tally\Runner\ArgumentResolver;
 use Tally\Runner\CaseRunner;
+use Tally\Runner\FailureDescription;
 use Tally\Runner\IdleCounter;
 use Tally\Runner\PhpMemory;
+use function dirname;
 
 /**
  * Builds the application with its services. The only place that decides which implementation
@@ -91,7 +93,15 @@ final class ApplicationFactory
 				new CompareCommand($selectedCases, $resultsArguments, $comparator, $reportOutput, $environment, $workingDirectory),
 				new AcceptCommand($selectedCases, $resultsArguments, $comparator, $expectationFiles, $expectationChanges),
 			],
-			[new WorkerCommand($selectedCases, new CaseRunner(new ArgumentResolver(), new PhpMemory(), $idle), $idle, $json)],
+			[new WorkerCommand(
+				$selectedCases,
+				new CaseRunner(new ArgumentResolver(), new PhpMemory(), $idle),
+				$idle,
+				$json,
+				new FailureDescription($relativePath),
+				dirname(__DIR__, 2),
+				$workingDirectory,
+			)],
 		);
 	}
 

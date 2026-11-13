@@ -8,6 +8,7 @@ use Tally\Measurement;
 use Tally\Result\MeasurementJson;
 use Tally\Runner\CaseRunner;
 use Tally\Runner\CodSpeedCounter;
+use Tally\Runner\FailureDescription;
 use Tally\Runner\FfiInstrumentHooks;
 use Tally\Runner\IdleCounter;
 use Tally\ScratchDirectory;
@@ -28,7 +29,10 @@ final class WorkerCommand implements Command
 		private SelectedCases $selectedCases,
 		private CaseRunner $runner,
 		private IdleCounter $idle,
-		private MeasurementJson $json
+		private MeasurementJson $json,
+		private FailureDescription $failureDescription,
+		private string $tallyDirectory,
+		private string $workingDirectory
 	)
 	{
 	}
@@ -91,7 +95,7 @@ final class WorkerCommand implements Command
 
 			return Measurement::measured($case->id, $this->runner->run($case, new ScratchDirectory($scratch), $counter));
 		} catch (Throwable $e) {
-			return Measurement::failed($case->id, sprintf("%s: %s\nat %s:%d", $e::class, $e->getMessage(), $e->getFile(), $e->getLine()));
+			return Measurement::failed($case->id, $this->failureDescription->describe($e, $this->tallyDirectory, $this->workingDirectory));
 		}
 	}
 

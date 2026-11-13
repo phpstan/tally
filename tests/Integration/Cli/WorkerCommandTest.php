@@ -13,13 +13,13 @@ use Tally\Tests\InProcessTally;
 use Tally\Tests\InstrumentHooksFixture;
 use function array_keys;
 use function array_values;
+use function dirname;
 use function file_get_contents;
 use function getmypid;
 use function is_dir;
 use function mkdir;
 use function proc_close;
 use function proc_open;
-use function realpath;
 use function sprintf;
 use function sys_get_temp_dir;
 use const PHP_BINARY;
@@ -134,7 +134,7 @@ final class WorkerCommandTest extends TestCase
 		$this->assertSame('', $output);
 		$result = $this->writtenResult();
 		$this->assertSame(self::BENCH . '::benchThrows', $result->id->toString());
-		$this->assertSame("RuntimeException: It broke.\nat " . realpath(self::WORKER . '/WorkerBench.php') . ':29', $result->failure);
+		$this->assertSame("RuntimeException: It broke.\nat tests/Fixtures/Worker/WorkerBench.php:29", $result->failure);
 	}
 
 	/**
@@ -145,7 +145,7 @@ final class WorkerCommandTest extends TestCase
 		[$exitCode] = $this->worker(self::BENCH . '::benchAllocate', ['--instrument-hooks=' . InstrumentHooksFixture::compile(false)], $this->directory);
 
 		$this->assertSame(1, $exitCode);
-		$this->assertStringStartsWith("Tally\\Runner\\CodSpeedException: The benchmark does not run under CodSpeed's CPU simulation.\nat ", (string) $this->writtenResult()->failure);
+		$this->assertStringStartsWith("The benchmark does not run under CodSpeed's CPU simulation.\n", (string) $this->writtenResult()->failure);
 	}
 
 	public function testReportsAResultThatCannotBeWritten(): void
@@ -192,7 +192,7 @@ final class WorkerCommandTest extends TestCase
 	 */
 	private function worker(string $id, array $options, string $scratch): array
 	{
-		return InProcessTally::run(__DIR__, [], [
+		return InProcessTally::run(dirname(__DIR__, 3), [], [
 			'worker',
 			'--case=' . $id,
 			'--scratch=' . $scratch,
