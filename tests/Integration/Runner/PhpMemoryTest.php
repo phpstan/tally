@@ -7,25 +7,42 @@ use Tally\Runner\PhpMemory;
 use function str_repeat;
 use function strlen;
 
+/**
+ * The margins are megabytes: coverage collection allocates a little whenever a line runs for the
+ * first time, so exact values differ with and without it.
+ */
 final class PhpMemoryTest extends TestCase
 {
 
-	public function testReadsAndResetsPhpsMemoryUsage(): void
+	private const MIB = 1024 * 1024;
+
+	public function testResettingForgetsAnEarlierPeak(): void
+	{
+		$memory = new PhpMemory();
+		$earlier = str_repeat('x', 8 * self::MIB);
+		$this->assertSame(8 * self::MIB, strlen($earlier));
+		unset($earlier);
+
+		$memory->resetPeak();
+		$before = $memory->usage();
+
+		$this->assertGreaterThanOrEqual($before, $memory->peak());
+		$this->assertLessThan($before + self::MIB, $memory->peak());
+	}
+
+	public function testReadsTheUsageAndThePeak(): void
 	{
 		$memory = new PhpMemory();
 		$memory->resetPeak();
 		$before = $memory->usage();
-		$this->assertSame($before, $memory->peak());
 
-		$allocated = str_repeat('x', 1024 * 1024);
-		$this->assertSame(1024 * 1024, strlen($allocated));
-		$this->assertGreaterThanOrEqual($before + 1024 * 1024, $memory->usage());
+		$allocated = str_repeat('x', self::MIB);
+		$this->assertSame(self::MIB, strlen($allocated));
+		$this->assertGreaterThanOrEqual($before + self::MIB, $memory->usage());
 		unset($allocated);
-		$this->assertLessThan($before + 1024 * 1024, $memory->usage());
-		$this->assertGreaterThanOrEqual($before + 1024 * 1024, $memory->peak());
 
-		$memory->resetPeak();
-		$this->assertLessThan($before + 1024 * 1024, $memory->peak());
+		$this->assertLessThan($before + self::MIB, $memory->usage());
+		$this->assertGreaterThanOrEqual($before + self::MIB, $memory->peak());
 	}
 
 }

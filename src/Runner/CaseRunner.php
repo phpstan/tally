@@ -22,7 +22,8 @@ use function sprintf;
  * The baseline is a separate part of the profile, named after the case with #baseline. It goes
  * through the same steps as the counted call: the return from starting the counter, a closure
  * call with the resolved arguments, and stopping the counter, so subtracting it leaves the cost
- * of the benchmark method alone.
+ * of the benchmark method alone. Its memory is subtracted here, its instructions and cycles
+ * from CodSpeed's profile.
  */
 final class CaseRunner
 {
@@ -38,7 +39,7 @@ final class CaseRunner
 	}
 
 	/**
-	 * @return Metrics the memory of the counted call; the counter's tool reports the rest
+	 * @return Metrics the memory of the counted call above the baseline; the counter's tool reports the rest
 	 * @throws InvalidBenchmarkException
 	 * @throws Throwable what the benchmark throws
 	 */
@@ -65,7 +66,7 @@ final class CaseRunner
 			$arguments = $this->resolver->resolve($benchmark, $case->arguments, $session, $scratch);
 			$session->start();
 			$baseline(...$arguments);
-			$session->stop($id . self::BASELINE_SUFFIX);
+			$baselineMemory = $session->stop($id . self::BASELINE_SUFFIX);
 
 			$call = $benchmark->getClosure($object);
 			$session = new MeterSession($counter, $this->memory);
@@ -73,7 +74,7 @@ final class CaseRunner
 			$session->start();
 			$call(...$arguments);
 
-			return $session->stop($id);
+			return $session->stop($id)->minus($baselineMemory);
 		} finally {
 			foreach ($case->afterMethods as $name) {
 				$this->callHook($object, $class->getMethod($name), $case, $scratch);

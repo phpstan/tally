@@ -14,6 +14,7 @@ use Tally\Runner\CaseRunner;
 use Tally\Runner\IdleCounter;
 use Tally\Runner\MeterStateException;
 use Tally\ScratchDirectory;
+use Tally\Tests\AllocatingCounter;
 use Tally\Tests\FakeMemory;
 use Tally\Tests\Fixtures\Runner\Journal;
 use Tally\Tests\Fixtures\Runner\RunnerBench;
@@ -91,6 +92,20 @@ final class CaseRunnerTest extends TestCase
 
 		$this->assertSame(['memory' => 1000], $metrics->toArray());
 		$this->assertSame(1_004_000, $memory->usage());
+	}
+
+	/**
+	 * @throws Throwable
+	 */
+	public function testSubtractsTheMemoryOfTheBaseline(): void
+	{
+		$memory = new FakeMemory(1_000_000);
+		Journal::$memory = $memory;
+		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 0, [], [], new InMemoryExpectations(null), new RelativeTolerance(0.1));
+
+		$metrics = (new CaseRunner(new ArgumentResolver(), $memory, new IdleCounter()))->run($case, new ScratchDirectory('/scratch'), new AllocatingCounter($memory, 56));
+
+		$this->assertSame(['memory' => 1000], $metrics->toArray());
 	}
 
 	/**
