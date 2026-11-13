@@ -80,7 +80,7 @@ final class CompareAndAcceptCommandTest extends TestCase
 
 		$this->assertSame(0, $exitCode, $errorOutput);
 		$this->assertSame(
-			'new  ' . self::ACCEPT_BENCH . "::benchMissing\n"
+			'new     ' . self::ACCEPT_BENCH . "::benchMissing\n"
 			. 'slower  ' . self::ACCEPT_BENCH . "::benchSlower\n"
 			. "slower  Tally\\Tests\\Fixtures\\Compare\\OtherAcceptBench::benchSlower\n"
 			. "\nAccepted the numbers of 3 cases.\n",
@@ -108,7 +108,7 @@ final class CompareAndAcceptCommandTest extends TestCase
 		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', '--config=' . self::COMPARE . '/tally.php', __DIR__ . '/../../Fixtures/Results/ok']);
 
 		$this->assertSame(0, $exitCode, $errorOutput);
-		$this->assertSame("\nAccepted the numbers of 0 cases.\n", $output);
+		$this->assertSame("Accepted the numbers of 0 cases.\n", $output);
 	}
 
 	/**
@@ -138,7 +138,7 @@ final class CompareAndAcceptCommandTest extends TestCase
 		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', ...$arguments]);
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('Cannot accept ' . $id . ": The data set is generated.\n", $errorOutput);
-		$this->assertSame("\nAccepted the numbers of 0 cases.\n", $output);
+		$this->assertSame("Accepted the numbers of 0 cases.\n", $output);
 
 		[$exitCode, $output] = InProcessTally::run(__DIR__, [], ['compare', ...$arguments]);
 		$this->assertSame(0, $exitCode);

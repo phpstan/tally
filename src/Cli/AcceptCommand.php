@@ -9,10 +9,13 @@ use Tally\Comparison\Comparator;
 use Tally\Comparison\Status;
 use Tally\Expectation\ExpectationChanges;
 use Tally\Expectation\ExpectationFiles;
+use function array_filter;
 use function array_map;
+use function count;
 use function implode;
 use function in_array;
 use function sprintf;
+use function str_pad;
 
 /**
  * Writes the measured numbers of the cases that changed as their expectations: into #[Expected]
@@ -21,6 +24,9 @@ use function sprintf;
  */
 final class AcceptCommand implements Command
 {
+
+	/** The longest status of a case whose numbers are accepted: slower, faster, or new */
+	private const STATUS_WIDTH = 6;
 
 	public function __construct(
 		private SelectedCases $selectedCases,
@@ -93,16 +99,16 @@ final class AcceptCommand implements Command
 			$written = [...$written, ...$change->cases];
 		}
 
-		$count = 0;
-		foreach ($changed as [$case, , $status]) {
-			if (!in_array($case->id->toString(), $written, true)) {
-				continue;
-			}
-
-			$output->write(sprintf("%s  %s\n", $status->value, $case->id->toString()));
-			$count++;
+		$accepted = array_filter($changed, static fn (array $change): bool => in_array($change[0]->id->toString(), $written, true));
+		foreach ($accepted as [$case, , $status]) {
+			$output->write(sprintf("%s  %s\n", str_pad($status->value, self::STATUS_WIDTH), $case->id->toString()));
 		}
-		$output->write(sprintf("\nAccepted the numbers of %d %s.\n", $count, $count === 1 ? 'case' : 'cases'));
+		$output->write(sprintf(
+			"%sAccepted the numbers of %d %s.\n",
+			$accepted === [] ? '' : "\n",
+			count($accepted),
+			count($accepted) === 1 ? 'case' : 'cases',
+		));
 
 		return $failed ? Application::EXIT_ERROR : Application::EXIT_SUCCESS;
 	}
