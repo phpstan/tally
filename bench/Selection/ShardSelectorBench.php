@@ -62,6 +62,7 @@ final class ShardSelectorBench
 				[],
 				new AttributeExpectations($rewriter, SuiteSource::FILE, $class, $method, null, $i % 10 === 0 ? null : $source->measured($i * 7_919 % 1_000)),
 				new RelativeTolerance(CaseExpander::DEFAULT_TOLERANCE),
+				null,
 			);
 		}
 

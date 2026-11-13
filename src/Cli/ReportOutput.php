@@ -83,7 +83,7 @@ final class ReportOutput
 		$accepted = [];
 		foreach ($cases as $case) {
 			$measurement = $measurements[$case->id->toString()] ?? null;
-			if ($measurement === null || $measurement->failure !== null || $case->expectations->read() !== null) {
+			if ($measurement === null || $measurement->failure !== null || $case->growth !== null || $case->expectations->read() !== null) {
 				continue;
 			}
 

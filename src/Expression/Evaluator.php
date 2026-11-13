@@ -30,6 +30,17 @@ final class Evaluator
 	}
 
 	/**
+	 * Like evaluate(), for an expression that must give a number, such as a formula
+	 *
+	 * @param array<string, mixed> $variables
+	 * @throws ExpressionException
+	 */
+	public function evaluateNumber(Expression $expression, array $variables): float
+	{
+		return $this->number($expression->source, $expression->node, $variables);
+	}
+
+	/**
 	 * @param array<string, mixed> $variables
 	 * @throws ExpressionException
 	 */

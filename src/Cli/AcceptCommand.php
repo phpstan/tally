@@ -71,8 +71,9 @@ final class AcceptCommand implements Command
 		$changed = [];
 		foreach ($cases as $case) {
 			$measurement = $measurements[$case->id->toString()] ?? null;
-			$status = $this->comparator->compareCase($case, $measurement)->status;
-			if ($measurement === null || $status === Status::Ok || $status === Status::NotMeasured) {
+			$comparison = $this->comparator->compareCase($case, $measurements);
+			$status = $comparison->status;
+			if ($measurement === null || !$comparison->acceptable || $status === Status::Ok || $status === Status::NotMeasured) {
 				continue;
 			}
 

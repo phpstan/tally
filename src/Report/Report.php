@@ -58,6 +58,18 @@ final class Report
 		return false;
 	}
 
+	/** Whether tally accept has numbers to write: of a slower, faster, or new case it can write */
+	public function hasNumbersToAccept(): bool
+	{
+		foreach ($this->cases as $case) {
+			if ($case->acceptable && $case->status !== Status::Ok && $case->status !== Status::NotMeasured) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	public function headline(): string
 	{
 		if ($this->cases === []) {

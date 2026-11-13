@@ -99,7 +99,7 @@ final class ExpectationChangesTest extends TestCase
 
 	private static function case(string $id, ExpectationSource $expectations): BenchmarkCase
 	{
-		return new BenchmarkCase(CaseId::fromString($id), [], 0, [], [], $expectations, new RelativeTolerance(0.1));
+		return new BenchmarkCase(CaseId::fromString($id), [], 0, [], [], $expectations, new RelativeTolerance(0.1), null);
 	}
 
 }

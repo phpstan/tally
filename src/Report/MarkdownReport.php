@@ -3,7 +3,6 @@
 namespace Tally\Report;
 
 use Tally\Comparison\Status;
-use function array_filter;
 use function array_keys;
 use function array_map;
 use function array_shift;
@@ -50,7 +49,7 @@ final class MarkdownReport
 		}
 		if ($sections !== []) {
 			$output .= "### Reproduce locally\n\n```\n" . $reproduceCommand . "\n```\n\n";
-			if (array_filter($sections, static fn (Section $section): bool => $section->status !== Status::NotMeasured) !== []) {
+			if ($report->hasNumbersToAccept()) {
 				$output .= "### Accept the new numbers\n\n```\n" . $acceptCommand . "\n```\n\n";
 			}
 		}

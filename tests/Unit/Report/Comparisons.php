@@ -7,6 +7,7 @@ use Tally\CaseId;
 use Tally\Comparison\CaseComparison;
 use Tally\Comparison\Comparator;
 use Tally\Comparison\TolerancePolicy;
+use Tally\Complexity\GrowthPoint;
 use Tally\Expectation\SourceLocation;
 use Tally\Measurement;
 use Tally\Metrics;
@@ -40,6 +41,22 @@ final class Comparisons
 	public static function compare(string $id, int $line, ?array $expected, ?array $measured, ?string $failure): CaseComparison
 	{
 		return self::compareWith(new RelativeTolerance(0.1), $id, $line, $expected, $measured, $failure);
+	}
+
+	/** A case compared by its growth from A::a@small, by 10 times, whose base counted 1000 instructions */
+	public static function grown(string $id, int $instructions): CaseComparison
+	{
+		$caseId = CaseId::fromString($id);
+		$base = CaseId::fromString('A::a@small');
+
+		return (new Comparator())->compareGrowth(
+			$caseId,
+			new SourceLocation(self::FILE, 1),
+			new GrowthPoint('O(n)', $base, 10.0),
+			new RelativeTolerance(0.1),
+			Measurement::measured($caseId, Metrics::fromArray(['instructions' => $instructions])),
+			Measurement::measured($base, Metrics::fromArray(['instructions' => 1000])),
+		);
 	}
 
 	/**

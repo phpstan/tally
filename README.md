@@ -28,6 +28,7 @@ Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simul
 - [Setting up CodSpeed](#setting-up-codspeed)
 - [Writing benchmarks](#writing-benchmarks)
 - [Attributes](#attributes)
+- [Complexity](#complexity)
 - [Running](#running)
 - [Commands](#commands)
 - [Configuration](#configuration)
@@ -213,6 +214,8 @@ All attributes are in the `Tally\Attribute` namespace.
 | `#[Warmup(calls)]` | class, method | Calls the benchmark this many times before counting, so the counted call does not include autoloading or filling caches. |
 | `#[RelativeTolerance(share)]` | class, method | Each metric may differ from its expected value by this share, such as `0.05` for ±5 %. |
 | `#[DurationTolerance(tolerances: […], instructionsPerMillisecond: …, cyclesPerMillisecond: …, memory: …)]` | class, method | Allows a larger share the quicker the benchmark is. See below. |
+| `#[Complexity(size: '…', formula: '…')]` | method | Instead of expected numbers, how the instructions may grow with the size of the data sets. See [complexity](#complexity). |
+| `#[Constant(size)]`, `#[Logarithmic(size)]`, `#[Linear(size)]`, `#[Linearithmic(size)]`, `#[Quadratic(size)]`, `#[Polynomial(size, degree: k)]`, `#[Exponential(size)]` | method | `#[Complexity]` with the formula `1`, `log(n)`, `n`, `n * log(n)`, `n^2`, `n^k`, `2^n`. |
 
 A benchmark without a tolerance policy may differ by ±10 %. A policy on the method replaces the one on the class.
 
@@ -245,6 +248,73 @@ public function benchWarm(): int|false
 ```
 
 Here a benchmark under 100 ms may differ by 50 ms, one from 100 ms by 25 %, and so on. Each range allows at least what the range below allows at its upper end. Memory may differ by 10 %.
+
+## Complexity
+
+Expected numbers catch any change. Sometimes what matters is how the cost grows: a lookup that must stay constant, a sort that must not turn quadratic. A complexity class checks that, with no numbers to keep up to date:
+
+```php
+/**
+ * @param list<int> $numbers
+ */
+#[DataProvider('lists')]
+#[Linearithmic('numbers')]
+public function benchSort(array $numbers): void
+{
+	sort($numbers);
+}
+```
+
+The data set of the smallest size is the base. Each other data set may count at most the base's instructions times the growth of the formula between the two sizes, plus the tolerance. For `n * log(n)` from 100 to 10000 elements, that is 200 times. Growing less passes: the class is an upper bound. Cycles and memory are not checked.
+
+The size is an expression of the method's parameters. An array's size is its count, a number is the size itself. A path picks it from inside an argument:
+
+```php
+#[DataProvider('orders')]
+#[Linear('order.items')]
+public function benchTotal(array $order): int
+```
+
+Paths take keys by name (`order.items`), by number (`rows[0]`), or by a quoted string (`input['a b']`).
+
+The formula is an expression of `n` with `+ - * / ^`, parentheses, and the functions `log` (natural), `sqrt`, `exp`, and `factorial`. Any row of a table of time complexities can be written, such as `#[Complexity(size: 'number', formula: 'sqrt(n)')]` for trial division. It must be above 0 at every size of the data sets. The presets are this attribute with a fixed formula.
+
+When the instructions grow faster than the class allows:
+
+```
+Tally counts 3 cases under CodSpeed's CPU simulation, 16 at once.
+
+.SS                                                                 3 / 3 (100%)
+
+Benchmarks failed: 2 slower, 1 unchanged
+Allowed difference: instructions grow at most as O(n) from the smallest data set, ±10 % of each metric
+
+Slower than expected
+These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, loosen the complexity class.
+
+  Benchmark                            Metric         Expected   Measured     Change   Allowed
+  App\PairsBench::benchPairs@size-20   instructions     93.44K     178.7K    +91.2 %     ±10 %
+  App\PairsBench::benchPairs@size-40   instructions     186.9K     699.7K   +274.4 %     ±10 %
+
+Reproduce locally
+  vendor/bin/tally run --filter='App\PairsBench::benchPairs@size-40'
+```
+
+`tally accept` does not write anything for these cases; change the attribute instead. A method needs a data provider with at least two data sets of different sizes, and cannot also have `#[ExpectedFor]` or expectations from its data provider. `--filter` adds the base of each selected case, and `--shard` keeps the cases of a method in one shard, because each is compared with its base.
+
+Mistakes in the expressions are found when the benchmarks are loaded, before anything is counted:
+
+```
+App\PairsBench::benchPairs(): #[Complexity] formula: Unknown function "lg". Did you mean "log"?
+  n * lg(n)
+      ^^
+```
+
+```
+App\PairsBench::benchPairs(): #[Complexity] size: Unknown variable "input". The variables are "numbers".
+  input.numbers
+  ^^^^^
+```
 
 ## Running
 

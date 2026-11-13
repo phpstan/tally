@@ -5,6 +5,7 @@ namespace Tally\Tests\Integration\Cli;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tally\Execution\DirectoryRemover;
 use Tally\Measurement;
 use Tally\Result\InvalidResultException;
 use Tally\Result\MeasurementJson;
@@ -23,6 +24,7 @@ use function proc_close;
 use function proc_open;
 use function realpath;
 use function sprintf;
+use function str_repeat;
 use function sys_get_temp_dir;
 use const JSON_THROW_ON_ERROR;
 
@@ -70,6 +72,40 @@ final class RunCommandTest extends TestCase
 			self::BENCH . '::benchSlower' => ['instructions' => 2000, 'cycles' => 3000, 'memory' => 0],
 			self::BENCH . '::benchThrows' => "RuntimeException: It broke.\nat " . realpath(self::RUN . '/RunBench.php') . ':27',
 		], $results);
+	}
+
+	/**
+	 * @throws InvalidResultException
+	 */
+	public function testComparesTheGrowthWithTheBaseThatFinishesLater(): void
+	{
+		$growth = 'Tally\\Tests\\Fixtures\\Growth\\GrowthBench::benchLinear';
+		$environment = $this->environment();
+		$environment['TALLY_FAKE_COUNTS'] = json_encode([
+			$growth . '@large' => [2500, 3000, 100, 150],
+			$growth . '@small' => [1100, 1500, 100, 150],
+		], JSON_THROW_ON_ERROR);
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $environment, ['run', '--jobs=1', '--filter=@large', '--output=' . $this->output . '-growth', __DIR__ . '/../../Fixtures/Growth']);
+
+		$this->assertSame(1, $exitCode, $errorOutput);
+		$this->assertSame(
+			"Tally counts 2 cases under CodSpeed's CPU simulation, 1 at once.\n\n"
+			. 'S.' . str_repeat(' ', 65) . " 2 / 2 (100%)\n\n"
+			. "Benchmarks failed: 1 slower, 1 unchanged\n"
+			. "Allowed difference: instructions grow at most as O(n) from the smallest data set, ±10 % of each metric\n\n"
+			. "Slower than expected\n"
+			. "These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, loosen the complexity class.\n\n"
+			. "  Benchmark                                                    Metric         Expected   Measured    Change   Allowed\n"
+			. '  ' . $growth . "@large   instructions     2.000K     2.400K   +20.0 %     ±10 %\n\n"
+			. "Reproduce locally\n"
+			. "  vendor/bin/tally run --filter='" . $growth . "@large'\n",
+			$output,
+		);
+
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $environment, ['accept', $this->output . '-growth', __DIR__ . '/../../Fixtures/Growth']);
+		(new DirectoryRemover())->remove($this->output . '-growth');
+		$this->assertSame(0, $exitCode, $errorOutput);
+		$this->assertSame("Accepted the numbers of 0 cases.\n", $output);
 	}
 
 	public function testPassesWhenEveryCaseMatches(): void

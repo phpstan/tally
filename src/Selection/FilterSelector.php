@@ -6,7 +6,9 @@ use InvalidArgumentException;
 use Override;
 use Tally\BenchmarkCase;
 use function array_filter;
+use function array_map;
 use function array_values;
+use function in_array;
 use function preg_match;
 use function sprintf;
 use function str_contains;
@@ -17,7 +19,8 @@ use function strtolower;
 
 /**
  * Keeps the cases whose ID contains the filter, ignoring case, or matches it when the filter is
- * a regular expression between slashes, like /@size-10$/.
+ * a regular expression between slashes, like /@size-10$/, and the bases of the cases compared by
+ * their growth among them.
  */
 final class FilterSelector implements CaseSelector
 {
@@ -36,14 +39,21 @@ final class FilterSelector implements CaseSelector
 	#[Override]
 	public function select(array $cases): array
 	{
-		return array_values(array_filter($cases, function (BenchmarkCase $case): bool {
-			$id = $case->id->toString();
-			if ($this->pattern !== null) {
-				return preg_match($this->pattern, $id) === 1;
-			}
+		$matching = array_filter($cases, $this->matches(...));
+		// the cases compared by their growth need the measurement of their base
+		$bases = array_map(static fn (BenchmarkCase $case): ?string => $case->growth?->base->toString(), $matching);
 
-			return str_contains(strtolower($id), strtolower($this->filter));
-		}));
+		return array_values(array_filter($cases, static fn (BenchmarkCase $case): bool => in_array($case, $matching, true) || in_array($case->id->toString(), $bases, true)));
+	}
+
+	private function matches(BenchmarkCase $case): bool
+	{
+		$id = $case->id->toString();
+		if ($this->pattern !== null) {
+			return preg_match($this->pattern, $id) === 1;
+		}
+
+		return str_contains(strtolower($id), strtolower($this->filter));
 	}
 
 	/**

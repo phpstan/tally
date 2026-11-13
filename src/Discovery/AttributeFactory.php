@@ -41,7 +41,7 @@ final class AttributeFactory
 	public function create(ReflectionAttribute $attribute, string $where): object
 	{
 		$class = new ReflectionClass($attribute->getName());
-		$name = '#[' . $this->shortName($class->getName()) . ']';
+		$name = $this->name($class->getName());
 		if ($attribute->isRepeated() && !$this->isRepeatable($class)) {
 			throw new InvalidBenchmarkException($where, sprintf('%s can be used only once.', $name));
 		}
@@ -115,11 +115,12 @@ final class AttributeFactory
 		return ($flags & Attribute::IS_REPEATABLE) !== 0;
 	}
 
-	private function shortName(string $className): string
+	/** How messages name an attribute, such as #[Expected] */
+	public function name(string $className): string
 	{
 		$backslash = strrchr($className, '\\');
 
-		return $backslash === false ? $className : substr($backslash, 1);
+		return '#[' . ($backslash === false ? $className : substr($backslash, 1)) . ']';
 	}
 
 	private function count(int $count): string

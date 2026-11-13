@@ -63,7 +63,7 @@ final class CompareCommand implements Command
 		$measurements = $this->resultsArguments->read($input);
 		$cases = $this->selectedCases->load($input, $this->selectedCases->configuration($input), $this->resultsArguments->paths($input));
 
-		$report = new Report(array_map(fn (BenchmarkCase $case) => $this->comparator->compareCase($case, $measurements[$case->id->toString()] ?? null), $cases));
+		$report = new Report(array_map(fn (BenchmarkCase $case) => $this->comparator->compareCase($case, $measurements), $cases));
 		if ($input->flag('table')) {
 			$output->write($this->reportOutput->table($report, $output) . "\n");
 		}

@@ -13,10 +13,22 @@ use Tally\Bench\SuiteSource;
 use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
+use Tally\Discovery\GrowthPoints;
 use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\ExpectedAttributeRewriter;
+use Tally\Expression\Evaluator;
+use Tally\Expression\ExpressionErrors;
+use Tally\Expression\FunctionLibrary;
+use Tally\Expression\Functions\Exponential;
+use Tally\Expression\Functions\Factorial;
+use Tally\Expression\Functions\Log;
+use Tally\Expression\Functions\SquareRoot;
+use Tally\Expression\Lexer;
+use Tally\Expression\Parser;
+use Tally\Expression\TypeChecker;
 use Tally\ScratchDirectory;
+use Tally\Text\ClosestName;
 use function class_exists;
 use function file_put_contents;
 use function sprintf;
@@ -39,8 +51,18 @@ final class CaseExpanderBench
 		}
 	}
 
+	private CaseExpander $expander;
+
 	public function __construct(private ScratchDirectory $scratch)
 	{
+		$functions = new FunctionLibrary([new Log(), new SquareRoot(), new Exponential(), new Factorial()]);
+		$errors = new ExpressionErrors(new ClosestName());
+		$this->expander = new CaseExpander(
+			new ExpectedAttributeRewriter(),
+			new AttributeFactory(new ValueTypeCheck()),
+			new ArgumentResolver(),
+			new GrowthPoints(new Parser(new Lexer()), new TypeChecker($functions, $errors), new Evaluator($functions, $errors)),
+		);
 	}
 
 	#[Before]
@@ -70,14 +92,13 @@ final class CaseExpanderBench
 		}
 
 		$class = new ReflectionClass($name);
-		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver());
-		$hooks = $expander->hooks($class);
+		$hooks = $this->expander->hooks($class);
 		foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
 			if ($method->isStatic()) {
 				continue;
 			}
 
-			$expander->expand($class, $method, $hooks);
+			$this->expander->expand($class, $method, $hooks);
 		}
 	}
 

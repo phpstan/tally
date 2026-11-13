@@ -8,6 +8,7 @@ use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
 use Tally\Discovery\ConstructorArguments;
 use Tally\Discovery\DirectorySuiteLoader;
+use Tally\Discovery\GrowthPoints;
 use Tally\Discovery\ValueTypeCheck;
 use Tally\Execution\CaseJobs;
 use Tally\Execution\CaseOutcome;
@@ -17,6 +18,16 @@ use Tally\Execution\WorkerCommandLine;
 use Tally\Expectation\ExpectationChanges;
 use Tally\Expectation\ExpectationFiles;
 use Tally\Expectation\ExpectedAttributeRewriter;
+use Tally\Expression\Evaluator;
+use Tally\Expression\ExpressionErrors;
+use Tally\Expression\FunctionLibrary;
+use Tally\Expression\Functions\Exponential;
+use Tally\Expression\Functions\Factorial;
+use Tally\Expression\Functions\Log;
+use Tally\Expression\Functions\SquareRoot;
+use Tally\Expression\Lexer;
+use Tally\Expression\Parser;
+use Tally\Expression\TypeChecker;
 use Tally\Process\ProcessKiller;
 use Tally\Process\ProcessPool;
 use Tally\Process\ProcessTable;
@@ -62,8 +73,11 @@ final class ApplicationFactory
 		$closestName = new ClosestName();
 		$argumentResolver = new ArgumentResolver();
 		$constructorArguments = new ConstructorArguments();
+		$functions = new FunctionLibrary([new Log(), new SquareRoot(), new Exponential(), new Factorial()]);
+		$expressionErrors = new ExpressionErrors($closestName);
+		$growthPoints = new GrowthPoints(new Parser(new Lexer()), new TypeChecker($functions, $expressionErrors), new Evaluator($functions, $expressionErrors));
 		$selectedCases = new SelectedCases(
-			new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), $argumentResolver), $constructorArguments, $relativePath),
+			new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), $argumentResolver, $growthPoints), $constructorArguments, $relativePath),
 			$workingDirectory,
 		);
 		$idle = new IdleCounter();

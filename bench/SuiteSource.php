@@ -70,6 +70,7 @@ final class SuiteSource
 			[],
 			new AttributeExpectations($rewriter, self::FILE, $class, $method, $dataSet, null),
 			new RelativeTolerance(CaseExpander::DEFAULT_TOLERANCE),
+			null,
 		);
 	}
 

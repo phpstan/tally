@@ -14,6 +14,7 @@ use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Report\RelativePath;
+use Tally\Tests\Expressions;
 use Tally\Tests\Fixtures\Loading\TwoInvalid\ABench;
 use Tally\Tests\Fixtures\Loading\TwoInvalid\ZBench;
 use function array_map;
@@ -137,7 +138,7 @@ final class DirectorySuiteLoaderTest extends TestCase
 	 */
 	private static function ids(array $paths): array
 	{
-		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver()), new ConstructorArguments(), new RelativePath());
+		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints()), new ConstructorArguments(), new RelativePath());
 
 		return array_map(static fn (BenchmarkCase $case): string => $case->id->toString(), $loader->load($paths, dirname(__DIR__, 3)));
 	}

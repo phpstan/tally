@@ -70,6 +70,30 @@ final class ShardSelectorTest extends TestCase
 		$this->assertSame($expected, $shards);
 	}
 
+	public function testCasesComparedByTheirGrowthStayWithTheirBase(): void
+	{
+		// the cases of A::sort cost 9 together, so A::x and A::y (9) go into the other shard, then A::find (3) into the first
+		$cases = Cases::withBases(
+			['A::sort@small' => 1, 'A::sort@large' => 8, 'A::x' => 5, 'A::y' => 4, 'A::find@small' => 2, 'A::find@large' => 1],
+			['A::sort@small' => 'A::sort@small', 'A::sort@large' => 'A::sort@small', 'A::find@small' => 'A::find@small', 'A::find@large' => 'A::find@small'],
+		);
+
+		$this->assertSame(
+			[['A::sort@small', 'A::sort@large', 'A::find@small', 'A::find@large'], ['A::x', 'A::y']],
+			[Cases::ids((new ShardSelector(1, 2))->select($cases)), Cases::ids((new ShardSelector(2, 2))->select($cases))],
+		);
+	}
+
+	public function testUnitsOfEqualCostsAreOrderedByTheirFirstCase(): void
+	{
+		$cases = Cases::withBases(
+			['B::m@small' => 1, 'B::m@large' => 1, 'A::m@small' => 1, 'A::m@large' => 1],
+			['B::m@small' => 'B::m@small', 'B::m@large' => 'B::m@small', 'A::m@small' => 'A::m@small', 'A::m@large' => 'A::m@small'],
+		);
+
+		$this->assertSame(['A::m@small', 'A::m@large', 'B::m@small', 'B::m@large'], Cases::ids((new ShardSelector(1, 1))->select($cases)));
+	}
+
 	public function testShardsAreDisjointAndCoverEveryCase(): void
 	{
 		$costs = [];

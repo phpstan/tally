@@ -72,6 +72,36 @@ final class EvaluatorTest extends TestCase
 	}
 
 	/**
+	 * @return iterable<string, array{string, array<string, mixed>, float}>
+	 */
+	public static function dataEvaluateNumber(): iterable
+	{
+		yield 'a whole number is a float' => ['1', [], 1.0];
+		yield 'a whole number from a variable' => ['n', ['n' => 3], 3.0];
+		yield 'arithmetic' => ['n * log(n)', ['n' => 1], 0.0];
+	}
+
+	/**
+	 * @param array<string, mixed> $variables
+	 * @throws ExpressionException
+	 */
+	#[DataProvider('dataEvaluateNumber')]
+	public function testEvaluateNumber(string $source, array $variables, float $value): void
+	{
+		$this->assertSame($value, $this->evaluator()->evaluateNumber((new Parser(new Lexer()))->parse($source), $variables));
+	}
+
+	public function testEvaluateNumberOfAnArray(): void
+	{
+		try {
+			$this->evaluator()->evaluateNumber((new Parser(new Lexer()))->parse('input.items'), ['input' => ['items' => [1]]]);
+			self::fail('No exception.');
+		} catch (ExpressionException $e) {
+			$this->assertSame(implode("\n", ['input.items is an array of 1, not a number.', '  input.items', '  ^^^^^^^^^^^']), $e->getMessage());
+		}
+	}
+
+	/**
 	 * @return iterable<string, array{string, array<string, mixed>, list<string>}>
 	 */
 	public static function dataInvalid(): iterable

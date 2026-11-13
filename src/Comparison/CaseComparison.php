@@ -12,6 +12,7 @@ final class CaseComparison
 	/**
 	 * @param list<MetricComparison> $metrics
 	 * @param string|null $failure why the case was not measured
+	 * @param bool $acceptable whether tally accept can write its numbers, false for a case compared by its growth
 	 */
 	public function __construct(
 		public readonly CaseId $id,
@@ -19,7 +20,8 @@ final class CaseComparison
 		public readonly TolerancePolicy $tolerance,
 		public readonly array $metrics,
 		public readonly ?string $failure,
-		public readonly Status $status
+		public readonly Status $status,
+		public readonly bool $acceptable
 	)
 	{
 	}

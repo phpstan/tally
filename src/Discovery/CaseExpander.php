@@ -15,6 +15,8 @@ use Tally\Attribute\Warmup;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Comparison\TolerancePolicy;
+use Tally\Complexity\ComplexityClass;
+use Tally\Complexity\GrowthPoint;
 use Tally\DataSet;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectationSource;
@@ -42,7 +44,12 @@ final class CaseExpander
 	/** The share each metric may differ by in a benchmark without a tolerance policy */
 	public const DEFAULT_TOLERANCE = 0.1;
 
-	public function __construct(private ExpectedAttributeRewriter $rewriter, private AttributeFactory $attributes, private ArgumentResolver $resolver)
+	public function __construct(
+		private ExpectedAttributeRewriter $rewriter,
+		private AttributeFactory $attributes,
+		private ArgumentResolver $resolver,
+		private GrowthPoints $growthPoints
+	)
 	{
 	}
 
@@ -88,6 +95,7 @@ final class CaseExpander
 		$tolerance = $this->tolerance($class, $method, $where);
 		$expected = $this->expected($method, $where);
 		$expectedFor = $this->expectedFor($method, $where);
+		$complexity = $this->complexity($method, $where);
 		$file = (string) $method->getDeclaringClass()->getFileName();
 		$declaringClass = $method->getDeclaringClass()->getName();
 
@@ -103,6 +111,12 @@ final class CaseExpander
 		);
 
 		$provider = $this->dataSets($class, $method, $where);
+		if ($provider === null && $complexity !== null) {
+			throw new InvalidBenchmarkException($where, sprintf('%s compares data sets of different sizes, but the method has no data provider.', $complexity[1]));
+		}
+		if ($complexity !== null && $expectedFor !== []) {
+			throw new InvalidBenchmarkException($where, sprintf('%s checks how the instructions grow and #[ExpectedFor] expects numbers, keep one of them.', $complexity[1]));
+		}
 		if ($provider === null) {
 			foreach ($expectedFor as [$dataSet]) {
 				throw new InvalidBenchmarkException($where, sprintf('#[ExpectedFor] names data set %s, but the method has no data provider.', $dataSet));
@@ -134,11 +148,21 @@ final class CaseExpander
 			if ($metrics !== null) {
 				throw new InvalidBenchmarkException($where, sprintf('data set %s has expectations from the data provider and from #[ExpectedFor], keep one of them.', $dataSet->name));
 			}
+			if ($complexity !== null) {
+				throw new InvalidBenchmarkException($where, sprintf('data set %s has expectations from the data provider, but %s checks how the instructions grow, keep one of them.', $dataSet->name, $complexity[1]));
+			}
 
 			$cases[] = $this->case($class, $method, $dataSet->name, $dataSet->arguments, $warmup, $hooks, $dataSet->expectations, $tolerance);
 		}
+		if ($complexity === null) {
+			return $cases;
+		}
 
-		return $cases;
+		return array_map(
+			static fn (BenchmarkCase $case, GrowthPoint $growth): BenchmarkCase => $case->withGrowth($growth),
+			$cases,
+			$this->growthPoints->points($class->getName(), $method, $complexity[0], $complexity[1], $dataSets, $where),
+		);
 	}
 
 	/**
@@ -165,7 +189,7 @@ final class CaseExpander
 			$this->resolver->resolveHook($class->getMethod($hook), $arguments);
 		}
 
-		return new BenchmarkCase(new CaseId($class->getName(), $method->getName(), $dataSet), $arguments, $warmup, $hooks['before'], $hooks['after'], $expectations, $tolerance);
+		return new BenchmarkCase(new CaseId($class->getName(), $method->getName(), $dataSet), $arguments, $warmup, $hooks['before'], $hooks['after'], $expectations, $tolerance, null);
 	}
 
 	/**
@@ -205,6 +229,24 @@ final class CaseExpander
 		}
 
 		return new RelativeTolerance(self::DEFAULT_TOLERANCE);
+	}
+
+	/**
+	 * @return array{ComplexityClass, string}|null the complexity class and the name of its attribute
+	 * @throws InvalidBenchmarkException
+	 */
+	private function complexity(ReflectionMethod $method, string $where): ?array
+	{
+		$attributes = $method->getAttributes(ComplexityClass::class, ReflectionAttribute::IS_INSTANCEOF);
+		if (count($attributes) > 1) {
+			$names = array_map(static fn (ReflectionAttribute $attribute): string => $attribute->getName(), $attributes);
+			throw new InvalidBenchmarkException($where, 'it has more than one complexity class: ' . implode(', ', $names) . '.');
+		}
+		if ($attributes === []) {
+			return null;
+		}
+
+		return [$this->attributes->create($attributes[0], $where), $this->attributes->name($attributes[0]->getName())];
 	}
 
 	/**

@@ -137,7 +137,7 @@ final class RunCommand implements Command
 		}
 
 		$report = new Report(array_map(
-			fn (array $case): CaseComparison => $this->compare($case[0], $case[1], $measurements[$case[0]->id->toString()] ?? null),
+			fn (array $case): CaseComparison => $this->comparator->compareLocated($case[0], $case[1], $measurements),
 			$located,
 		));
 		$output->write("\n");
@@ -160,30 +160,40 @@ final class RunCommand implements Command
 		}
 
 		$measurements = [];
+		$shown = 0;
+		// the cases whose status is not shown yet, because their growth is compared with a base that did not finish
+		$waiting = [];
 		$this->pool->run(
 			$jobsOfCases,
 			$jobs,
 			$this->workingDirectory,
 			$this->environment,
-			function (Job $job, array $processResults) use ($settings, $resultsDirectory, $output, &$measurements, $cases): void {
-				[$case, $location] = $job->subject;
+			function (Job $job, array $processResults) use ($settings, $resultsDirectory, $output, &$measurements, &$shown, &$waiting, $cases): void {
+				[$case] = $job->subject;
+				$waiting[] = $job->subject;
 				$measurement = $this->caseJobs->measurement($settings, $case->id, $processResults);
 				$measurements[$case->id->toString()] = $measurement;
 				if ($resultsDirectory !== null) {
 					$this->results->write($resultsDirectory, $measurement);
 				}
 
-				$status = $this->compare($case, $location, $measurement)->status;
-				$output->write($this->progress->after(count($measurements), count($cases), $status, $output->colors));
+				$stillWaiting = [];
+				foreach ($waiting as [$waitingCase, $location]) {
+					$base = $waitingCase->growth?->base->toString();
+					if ($base !== null && !isset($measurements[$base])) {
+						$stillWaiting[] = [$waitingCase, $location];
+						continue;
+					}
+
+					$shown++;
+					$status = $this->comparator->compareLocated($waitingCase, $location, $measurements)->status;
+					$output->write($this->progress->after($shown, count($cases), $status, $output->colors));
+				}
+				$waiting = $stillWaiting;
 			},
 		);
 
 		return $measurements;
-	}
-
-	private function compare(BenchmarkCase $case, SourceLocation $location, ?Measurement $measurement): CaseComparison
-	{
-		return $this->comparator->compare($case->id, $location, $case->expectations->read(), $case->tolerance, $measurement);
 	}
 
 	/**

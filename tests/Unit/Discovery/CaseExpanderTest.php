@@ -14,6 +14,7 @@ use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
+use Tally\Tests\Expressions;
 use Tally\Tests\Fixtures\HookArguments\HookArgumentsBench;
 use Tally\Tests\Fixtures\Invalid\InvalidBench;
 use Tally\Tests\Fixtures\Suite\FilesBench;
@@ -194,7 +195,7 @@ final class CaseExpanderTest extends TestCase
 	private static function expand(string $class, string $method): array
 	{
 		$reflection = new ReflectionClass($class);
-		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver());
+		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints());
 
 		return $expander->expand($reflection, $reflection->getMethod($method), $expander->hooks($reflection));
 	}

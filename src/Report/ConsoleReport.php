@@ -5,7 +5,6 @@ namespace Tally\Report;
 use Closure;
 use Tally\Comparison\CaseComparison;
 use Tally\Comparison\Status;
-use function array_filter;
 use function count;
 use function explode;
 use function implode;
@@ -69,8 +68,7 @@ final class ConsoleReport
 
 		$output .= "\n" . $this->style($colors, '1', 'Reproduce locally') . "\n";
 		$output .= '  ' . $reproduceCommand . "\n";
-		$toAccept = array_filter($sections, static fn (Section $section): bool => $section->status !== Status::NotMeasured);
-		if ($toAccept !== []) {
+		if ($report->hasNumbersToAccept()) {
 			$output .= "\n" . $this->style($colors, '1', 'Accept the new numbers') . "\n";
 			$output .= '  ' . str_replace("\n", "\n  ", $acceptCommand) . "\n";
 		}

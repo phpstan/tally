@@ -9,6 +9,7 @@ use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Metric;
 use function array_fill;
+use function array_map;
 use function array_sum;
 use function max;
 use function preg_match;
@@ -21,7 +22,8 @@ use const PHP_INT_MAX;
  * runners: hands out the cases from the most expensive one, each to the shard with the lowest
  * total so far (longest-processing-time-first scheduling). The cost of a case is its expected
  * instructions; a case without them is usually a new reproducer of something slow, so it costs
- * as much as the most expensive one. The same cases with the same costs always give the same shards.
+ * as much as the most expensive one. The cases of a benchmark compared by their growth go into one
+ * shard together, with their base. The same cases with the same costs always give the same shards.
  */
 final class ShardSelector implements CaseSelector
 {
@@ -73,15 +75,22 @@ final class ShardSelector implements CaseSelector
 		// at least 1, so that cases without expectations still spread over the shards
 		$unknownCost = max([1, ...$known]);
 
-		$costed = [];
+		$cost = static fn (BenchmarkCase $case): int => $case->expectations->read()?->get(Metric::Instructions) ?? $unknownCost;
+
+		// a case compared by its growth goes into the shard of its base
+		$casesByUnit = [];
 		foreach ($cases as $case) {
-			$costed[] = [$case, $case->expectations->read()?->get(Metric::Instructions) ?? $unknownCost];
+			$casesByUnit[$case->growth?->base->toString() ?? $case->id->toString()][] = $case;
 		}
-		usort($costed, static fn (array $a, array $b): int => $b[1] !== $a[1] ? $b[1] <=> $a[1] : CaseId::compare($a[0]->id, $b[0]->id));
+		$units = [];
+		foreach ($casesByUnit as $unitCases) {
+			$units[] = [$unitCases, array_sum(array_map($cost, $unitCases))];
+		}
+		usort($units, static fn (array $a, array $b): int => $b[1] !== $a[1] ? $b[1] <=> $a[1] : CaseId::compare($a[0][0]->id, $b[0][0]->id));
 
 		$costsByShard = array_fill(1, $this->count, []);
 		$selected = [];
-		foreach ($costed as [$case, $cost]) {
+		foreach ($units as [$unitCases, $unitCost]) {
 			// the first of the shards with the lowest total
 			$cheapest = null;
 			$cheapestTotal = PHP_INT_MAX;
@@ -95,12 +104,12 @@ final class ShardSelector implements CaseSelector
 				$cheapestTotal = $total;
 			}
 
-			$costsByShard[$cheapest ?? throw new LogicException('There is no shard.')][] = $cost;
+			$costsByShard[$cheapest ?? throw new LogicException('There is no shard.')][] = $unitCost;
 			if ($cheapest !== $this->shard) {
 				continue;
 			}
 
-			$selected[] = $case;
+			$selected = [...$selected, ...$unitCases];
 		}
 
 		return $selected;
