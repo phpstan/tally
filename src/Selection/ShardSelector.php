@@ -8,8 +8,9 @@ use Override;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Metric;
+use function array_column;
 use function array_fill;
-use function array_map;
+use function array_slice;
 use function array_sum;
 use function max;
 use function preg_match;
@@ -75,27 +76,32 @@ final class ShardSelector implements CaseSelector
 		// at least 1, so that cases without expectations still spread over the shards
 		$unknownCost = max([1, ...$known]);
 
-		$cost = static fn (BenchmarkCase $case): int => $case->expectations->read()?->get(Metric::Instructions) ?? $unknownCost;
-
-		// a case compared by its growth goes into the shard of its base
-		$casesByUnit = [];
-		foreach ($cases as $case) {
-			$casesByUnit[$case->growth?->base->toString() ?? $case->id->toString()][] = $case;
-		}
+		// a case compared by its growth goes into the shard of its base, with the other cases compared
+		// with it: a unit is its cost, its first case, and the rest
 		$units = [];
-		foreach ($casesByUnit as $unitCases) {
-			$units[] = [$unitCases, array_sum(array_map($cost, $unitCases))];
-		}
-		usort($units, static fn (array $a, array $b): int => $b[1] !== $a[1] ? $b[1] <=> $a[1] : CaseId::compare($a[0][0]->id, $b[0][0]->id));
+		$growing = [];
+		foreach ($cases as $case) {
+			$cost = $case->expectations->read()?->get(Metric::Instructions) ?? $unknownCost;
+			$base = $case->growth?->base->toString();
+			if ($base === null) {
+				$units[] = [$cost, $case, []];
+				continue;
+			}
 
-		$costsByShard = array_fill(1, $this->count, []);
+			$growing[$base][] = [$cost, $case];
+		}
+		foreach ($growing as $members) {
+			$units[] = [array_sum(array_column($members, 0)), $members[0][1], array_column(array_slice($members, 1), 1)];
+		}
+		usort($units, static fn (array $a, array $b): int => $b[0] !== $a[0] ? $b[0] <=> $a[0] : CaseId::compare($a[1]->id, $b[1]->id));
+
+		$totals = array_fill(1, $this->count, 0);
 		$selected = [];
-		foreach ($units as [$unitCases, $unitCost]) {
+		foreach ($units as [$unitCost, $first, $rest]) {
 			// the first of the shards with the lowest total
 			$cheapest = null;
 			$cheapestTotal = PHP_INT_MAX;
-			foreach ($costsByShard as $shard => $costs) {
-				$total = array_sum($costs);
+			foreach ($totals as $shard => $total) {
 				if ($total >= $cheapestTotal) {
 					continue;
 				}
@@ -104,12 +110,15 @@ final class ShardSelector implements CaseSelector
 				$cheapestTotal = $total;
 			}
 
-			$costsByShard[$cheapest ?? throw new LogicException('There is no shard.')][] = $unitCost;
+			$totals[$cheapest ?? throw new LogicException('There is no shard.')] = $cheapestTotal + $unitCost;
 			if ($cheapest !== $this->shard) {
 				continue;
 			}
 
-			$selected = [...$selected, ...$unitCases];
+			$selected[] = $first;
+			foreach ($rest as $other) {
+				$selected[] = $other;
+			}
 		}
 
 		return $selected;
