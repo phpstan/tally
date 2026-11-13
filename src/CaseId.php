@@ -3,6 +3,8 @@
 namespace Tally;
 
 use InvalidArgumentException;
+use function md5;
+use function preg_replace;
 use function sprintf;
 use function strnatcmp;
 use function strpos;
@@ -14,6 +16,9 @@ use function substr;
  */
 final class CaseId
 {
+
+	/** Leaves room for the hash and a suffix within the 255 bytes most file systems allow */
+	private const READABLE_FILE_NAME_LIMIT = 100;
 
 	/**
 	 * @param class-string|string $class
@@ -50,6 +55,18 @@ final class CaseId
 	public static function compare(self $a, self $b): int
 	{
 		return strnatcmp($a->toString(), $b->toString());
+	}
+
+	/**
+	 * A name for files and directories of the case: the ID with other characters than letters,
+	 * digits, dots, and dashes replaced, shortened, and made unique by a hash of the whole ID.
+	 */
+	public function fileName(): string
+	{
+		$id = $this->toString();
+		$readable = substr((string) preg_replace('~[^A-Za-z0-9.-]+~', '-', $id), 0, self::READABLE_FILE_NAME_LIMIT);
+
+		return $readable . '-' . substr(md5($id), 0, 8);
 	}
 
 	public function toString(): string
