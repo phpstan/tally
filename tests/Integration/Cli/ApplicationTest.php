@@ -143,7 +143,7 @@ final class ApplicationTest extends TestCase
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('', $output);
 		$this->assertSame(
-			"tests/Fixtures/Loading/NoBenchmarks, tests/Fixtures/Loading/Static/../NoBenchmarks: no benchmarks found. Benchmarks are the public, non-static bench* methods of classes in *Bench.php files.\n",
+			"No benchmarks in tests/Fixtures/Loading/NoBenchmarks, tests/Fixtures/Loading/Static/../NoBenchmarks.\nBenchmarks are the public, non-static bench* methods of classes in *Bench.php files.\n",
 			$errorOutput,
 		);
 	}
@@ -172,12 +172,24 @@ final class ApplicationTest extends TestCase
 		$this->assertStringContainsString('Option --shard needs a value', $errorOutput);
 	}
 
-	public function testUnknownCommand(): void
+	/**
+	 * @return iterable<string, array{string, string}>
+	 */
+	public static function dataUnknownCommand(): iterable
 	{
-		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, [], ['lst']);
+		yield 'a mistyped command' => ['lst', "Unknown command lst, did you mean list?\nRun tally --help for the commands.\n"];
+		yield 'not like any command' => ['deploy', "Unknown command deploy.\nRun tally --help for the commands.\n"];
+		yield 'the hidden command is not suggested' => ['wroker', "Unknown command wroker.\nRun tally --help for the commands.\n"];
+	}
+
+	#[DataProvider('dataUnknownCommand')]
+	public function testUnknownCommand(string $command, string $error): void
+	{
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], [$command]);
 
 		$this->assertSame(2, $exitCode);
-		$this->assertSame("Unknown command lst.\n\n" . self::HELP, $errorOutput);
+		$this->assertSame('', $output);
+		$this->assertSame($error, $errorOutput);
 	}
 
 	public function testHelpListsTheCommands(): void

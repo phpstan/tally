@@ -5,6 +5,7 @@ namespace Tally\Tests\Unit\Cli;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tally\Cli\ArgumentParser;
+use Tally\Cli\ClosestName;
 use Tally\Cli\Input;
 use Tally\Cli\Option;
 use Tally\Cli\UsageException;
@@ -61,6 +62,7 @@ final class ArgumentParserTest extends TestCase
 	{
 		yield 'unknown' => [['--colour'], 'Unknown option --colour.'];
 		yield 'unknown with a value' => [['--colour=red'], 'Unknown option --colour.'];
+		yield 'mistyped' => [['--fitler=Sort'], 'Unknown option --fitler, did you mean --filter?'];
 		yield 'flag with a value' => [['--help=yes'], 'Option --help does not take a value.'];
 		yield 'missing value' => [['--filter'], 'Option --filter needs a value.'];
 		yield 'option instead of a value' => [['--filter', '--help'], 'Option --filter needs a value.'];
@@ -84,7 +86,7 @@ final class ArgumentParserTest extends TestCase
 	 */
 	private static function parse(array $arguments): Input
 	{
-		return (new ArgumentParser())->parse($arguments, [
+		return (new ArgumentParser(new ClosestName()))->parse($arguments, [
 			new Option('filter', 'filter', ''),
 			new Option('shard', 'shard', ''),
 			new Option('help', null, ''),

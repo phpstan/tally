@@ -50,12 +50,14 @@ final class ApplicationFactory
 	 * @param string $workingDirectory where tally.php is looked for
 	 * @param array<string, string> $environment
 	 * @param bool $colors whether to color the standard output
+	 * @param bool $errorColors whether to color the error output
 	 * @param string $phpBinary runs the workers
 	 * @param string $tallyBinary the bin/tally the workers run
 	 */
-	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, string $phpBinary, string $tallyBinary): Application
+	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, bool $errorColors, string $phpBinary, string $tallyBinary): Application
 	{
 		$relativePath = new RelativePath();
+		$closestName = new ClosestName();
 		$selectedCases = new SelectedCases(
 			new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck())), $relativePath),
 			$workingDirectory,
@@ -78,8 +80,9 @@ final class ApplicationFactory
 		);
 
 		return new Application(
-			new Output($stdout, $stderr, $colors),
-			new ArgumentParser(),
+			new Output($stdout, $stderr, $colors, $errorColors),
+			new ArgumentParser($closestName),
+			$closestName,
 			[
 				new ListCommand($selectedCases),
 				new RunCommand(

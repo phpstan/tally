@@ -32,16 +32,16 @@ final class CodSpeedInstallationTest extends TestCase
 	public static function dataMissing(): iterable
 	{
 		$environment = ['PATH' => self::BIN, 'INSTRUMENT_HOOKS_LIBRARY' => self::LIBRARY];
-		$seeSetUp = 'See https://github.com/phpstan/tally#setting-up-codspeed';
+		$seeSetUp = "\nSet it up as https://github.com/phpstan/tally#setting-up-codspeed describes.";
 
-		yield 'FFI' => [$environment, ['Core', 'posix'], "Tally needs PHP's FFI extension. " . $seeSetUp];
-		yield 'POSIX' => [$environment, ['Core', 'ffi'], "Tally needs PHP's POSIX extension. " . $seeSetUp];
-		yield 'no PATH' => [['INSTRUMENT_HOOKS_LIBRARY' => self::LIBRARY], self::EXTENSIONS, "Tally counts with CodSpeed's CPU simulation, but the codspeed CLI is not on PATH. " . $seeSetUp];
+		yield 'FFI' => [$environment, ['Core', 'posix'], "Tally needs PHP's FFI extension." . $seeSetUp];
+		yield 'POSIX' => [$environment, ['Core', 'ffi'], "Tally needs PHP's POSIX extension." . $seeSetUp];
+		yield 'no PATH' => [['INSTRUMENT_HOOKS_LIBRARY' => self::LIBRARY], self::EXTENSIONS, "Tally counts with CodSpeed's CPU simulation, but the codspeed CLI is not on PATH." . $seeSetUp];
 		yield 'not on PATH' => [['PATH' => self::NOT_EXECUTABLE . ':' . __DIR__] + $environment, self::EXTENSIONS, 'the codspeed CLI is not on PATH.'];
 		yield 'a directory on PATH' => [['PATH' => self::BIN . '/..'] + $environment, self::EXTENSIONS, 'the codspeed CLI is not on PATH.'];
-		yield 'no library' => [['PATH' => self::BIN], self::EXTENSIONS, "Tally counts with CodSpeed's CPU simulation, but INSTRUMENT_HOOKS_LIBRARY is not set to CodSpeed's instrument-hooks library. " . $seeSetUp];
+		yield 'no library' => [['PATH' => self::BIN], self::EXTENSIONS, "Tally counts with CodSpeed's CPU simulation, but INSTRUMENT_HOOKS_LIBRARY is not set to CodSpeed's instrument-hooks library." . $seeSetUp];
 		yield 'empty library' => [['INSTRUMENT_HOOKS_LIBRARY' => ''] + $environment, self::EXTENSIONS, 'INSTRUMENT_HOOKS_LIBRARY is not set'];
-		yield 'missing library' => [['INSTRUMENT_HOOKS_LIBRARY' => '/nonexistent.so'] + $environment, self::EXTENSIONS, 'INSTRUMENT_HOOKS_LIBRARY is set to /nonexistent.so, which does not exist. ' . $seeSetUp];
+		yield 'missing library' => [['INSTRUMENT_HOOKS_LIBRARY' => '/nonexistent.so'] + $environment, self::EXTENSIONS, 'INSTRUMENT_HOOKS_LIBRARY is set to /nonexistent.so, which does not exist.' . $seeSetUp];
 		yield 'a directory as the library' => [['INSTRUMENT_HOOKS_LIBRARY' => __DIR__] + $environment, self::EXTENSIONS, 'which does not exist.'];
 	}
 

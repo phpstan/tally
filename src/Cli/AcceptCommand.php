@@ -85,14 +85,14 @@ final class AcceptCommand implements Command
 		);
 		$failed = $plan->failures !== [];
 		foreach ($plan->failures as $id => $failure) {
-			$output->writeError(sprintf("Cannot accept %s: %s\n", $id, $failure));
+			$output->error(sprintf('Cannot accept %s: %s', $id, $failure));
 		}
 		$written = [];
 		foreach ($plan->files as $change) {
 			try {
 				$this->files->write($change);
 			} catch (RuntimeException $e) {
-				$output->writeError(sprintf("Cannot accept %s: %s\n", implode(', ', $change->cases), $e->getMessage()));
+				$output->error(sprintf('Cannot accept %s: %s', implode(', ', $change->cases), $e->getMessage()));
 				$failed = true;
 				continue;
 			}

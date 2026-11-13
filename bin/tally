@@ -39,7 +39,9 @@ use Tally\Cli\ApplicationFactory;
 
 	$environment = getenv();
 	// https://no-color.org
-	$colors = stream_isatty(STDOUT) && ($environment['NO_COLOR'] ?? '') === '';
+	$noColor = ($environment['NO_COLOR'] ?? '') !== '';
+	$colors = stream_isatty(STDOUT) && !$noColor;
+	$errorColors = stream_isatty(STDERR) && !$noColor;
 
-	exit((new ApplicationFactory())->create(STDOUT, STDERR, $workingDirectory, $environment, $colors, PHP_BINARY, __FILE__)->run($arguments));
+	exit((new ApplicationFactory())->create(STDOUT, STDERR, $workingDirectory, $environment, $colors, $errorColors, PHP_BINARY, __FILE__)->run($arguments));
 })();

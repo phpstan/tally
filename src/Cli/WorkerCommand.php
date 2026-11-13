@@ -77,7 +77,7 @@ final class WorkerCommand implements Command
 
 		$measurement = $this->run($case, $scratch, $input->option('instrument-hooks'));
 		if (@file_put_contents($resultFile, $this->json->encode($measurement)) === false) {
-			$output->writeError(sprintf("Cannot write %s.\n", $resultFile));
+			$output->error(sprintf('Cannot write %s.', $resultFile));
 
 			return Application::EXIT_ERROR;
 		}

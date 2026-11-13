@@ -23,7 +23,13 @@ final class Application
 	 * @param non-empty-list<Command> $commands
 	 * @param list<Command> $hiddenCommands left out of the help, Tally runs them itself
 	 */
-	public function __construct(private Output $output, private ArgumentParser $parser, private array $commands, private array $hiddenCommands)
+	public function __construct(
+		private Output $output,
+		private ArgumentParser $parser,
+		private ClosestName $closestName,
+		private array $commands,
+		private array $hiddenCommands
+	)
 	{
 	}
 
@@ -42,7 +48,12 @@ final class Application
 
 		$command = $this->command($name);
 		if ($command === null) {
-			$this->output->writeError(sprintf("Unknown command %s.\n\n%s", $name, $this->help()));
+			$closest = $this->closestName->find($name, array_map(static fn (Command $command): string => $command->name(), $this->commands));
+			$this->output->error(sprintf(
+				"Unknown command %s%s\nRun tally --help for the commands.",
+				$name,
+				$closest === null ? '.' : sprintf(', did you mean %s?', $closest),
+			));
 
 			return self::EXIT_ERROR;
 		}
@@ -58,11 +69,11 @@ final class Application
 
 			return $command->execute($input, $this->output);
 		} catch (UsageException $e) {
-			$this->output->writeError(sprintf("%s\nRun tally %s --help for its options.\n", $e->getMessage(), $command->name()));
+			$this->output->error(sprintf("%s\nRun tally %s --help for its options.", $e->getMessage(), $command->name()));
 
 			return self::EXIT_ERROR;
-		} catch (InvalidBenchmarkException | ExpectationException $e) {
-			$this->output->writeError($e->getMessage() . "\n");
+		} catch (InvalidBenchmarkException | NoBenchmarksException | ExpectationException $e) {
+			$this->output->error($e->getMessage());
 
 			return self::EXIT_ERROR;
 		}

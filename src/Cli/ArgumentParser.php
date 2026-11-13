@@ -2,6 +2,7 @@
 
 namespace Tally\Cli;
 
+use function array_keys;
 use function array_shift;
 use function explode;
 use function sprintf;
@@ -14,6 +15,10 @@ use function substr;
  */
 final class ArgumentParser
 {
+
+	public function __construct(private ClosestName $closestName)
+	{
+	}
 
 	/**
 	 * @param list<string> $arguments without the program and the command
@@ -47,7 +52,8 @@ final class ArgumentParser
 			}
 			$option = $byName[$name] ?? null;
 			if ($option === null) {
-				throw new UsageException(sprintf('Unknown option --%s.', $name));
+				$closest = $this->closestName->find($name, array_keys($byName));
+				throw new UsageException(sprintf('Unknown option --%s%s', $name, $closest === null ? '.' : sprintf(', did you mean --%s?', $closest)));
 			}
 
 			if ($option->valueName === null) {

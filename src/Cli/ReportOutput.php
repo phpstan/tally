@@ -68,7 +68,7 @@ final class ReportOutput
 			return;
 		}
 
-		$output->writeError(sprintf("Cannot write the job summary to %s.\n", $summary));
+		$output->error(sprintf('Cannot write the job summary to %s.', $summary));
 	}
 
 	/**

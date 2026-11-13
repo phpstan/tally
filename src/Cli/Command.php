@@ -24,6 +24,7 @@ interface Command
 	 * @return Application::EXIT_*
 	 * @throws UsageException
 	 * @throws InvalidBenchmarkException
+	 * @throws NoBenchmarksException
 	 * @throws ExpectationException
 	 */
 	public function execute(Input $input, Output $output): int;

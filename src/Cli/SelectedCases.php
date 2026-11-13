@@ -22,7 +22,7 @@ final class SelectedCases
 {
 
 	public const DEFAULT_CONFIGURATION = 'tally.php';
-	private const NO_BENCHMARKS = 'no benchmarks found. Benchmarks are the public, non-static bench* methods of classes in *Bench.php files.';
+	private const NO_BENCHMARKS = 'Benchmarks are the public, non-static bench* methods of classes in *Bench.php files.';
 
 	public function __construct(private DirectorySuiteLoader $loader, private string $workingDirectory)
 	{
@@ -54,6 +54,7 @@ final class SelectedCases
 	 * @return list<BenchmarkCase>
 	 * @throws UsageException
 	 * @throws InvalidBenchmarkException
+	 * @throws NoBenchmarksException
 	 */
 	public function load(Input $input, Configuration $configuration, array $paths): array
 	{
@@ -66,7 +67,7 @@ final class SelectedCases
 
 		$cases = $this->loader->load($paths, $this->workingDirectory);
 		if ($cases === []) {
-			throw new InvalidBenchmarkException(implode(', ', $paths), self::NO_BENCHMARKS);
+			throw new NoBenchmarksException(sprintf("No benchmarks in %s.\n%s", implode(', ', $paths), self::NO_BENCHMARKS));
 		}
 
 		$filter = $input->option('filter');

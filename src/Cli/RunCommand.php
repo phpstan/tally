@@ -92,7 +92,7 @@ final class RunCommand implements Command
 		try {
 			[$codspeed, $instrumentHooks] = $this->installation->locate($this->environment, get_loaded_extensions());
 		} catch (CodSpeedException $e) {
-			$output->writeError($e->getMessage() . "\n");
+			$output->error($e->getMessage());
 
 			return Application::EXIT_ERROR;
 		}
@@ -129,7 +129,7 @@ final class RunCommand implements Command
 		try {
 			$measurements = $this->measure($located, $settings, $jobs, $input->option('output'), $output);
 		} catch (RuntimeException $e) {
-			$output->writeError($e->getMessage() . "\n");
+			$output->error($e->getMessage());
 
 			return Application::EXIT_ERROR;
 		} finally {

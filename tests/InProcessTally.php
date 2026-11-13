@@ -31,7 +31,7 @@ final class InProcessTally
 		Assert::assertNotFalse($errorOutput);
 
 		$exitCode = (new ApplicationFactory())
-			->create($output, $errorOutput, $workingDirectory, $environment, false, PHP_BINARY, self::BINARY)
+			->create($output, $errorOutput, $workingDirectory, $environment, false, false, PHP_BINARY, self::BINARY)
 			->run(['tally', ...$arguments]);
 
 		rewind($output);

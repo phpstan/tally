@@ -33,7 +33,7 @@ final class CodSpeedInstallation
 	{
 		foreach (['ffi' => 'FFI', 'posix' => 'POSIX'] as $extension => $name) {
 			if (!in_array($extension, array_map(strtolower(...), $extensions), true)) {
-				throw new CodSpeedException(sprintf("Tally needs PHP's %s extension. %s", $name, $this->setUp()));
+				throw new CodSpeedException(sprintf("Tally needs PHP's %s extension.\n%s", $name, $this->setUp()));
 			}
 		}
 
@@ -53,7 +53,7 @@ final class CodSpeedInstallation
 			}
 		}
 
-		throw new CodSpeedException(sprintf("Tally counts with CodSpeed's CPU simulation, but the codspeed CLI is not on PATH. %s", $this->setUp()));
+		throw new CodSpeedException(sprintf("Tally counts with CodSpeed's CPU simulation, but the codspeed CLI is not on PATH.\n%s", $this->setUp()));
 	}
 
 	/**
@@ -64,10 +64,10 @@ final class CodSpeedInstallation
 	{
 		$library = $environment[self::INSTRUMENT_HOOKS_VARIABLE] ?? '';
 		if ($library === '') {
-			throw new CodSpeedException(sprintf("Tally counts with CodSpeed's CPU simulation, but %s is not set to CodSpeed's instrument-hooks library. %s", self::INSTRUMENT_HOOKS_VARIABLE, $this->setUp()));
+			throw new CodSpeedException(sprintf("Tally counts with CodSpeed's CPU simulation, but %s is not set to CodSpeed's instrument-hooks library.\n%s", self::INSTRUMENT_HOOKS_VARIABLE, $this->setUp()));
 		}
 		if (!is_file($library)) {
-			throw new CodSpeedException(sprintf('%s is set to %s, which does not exist. %s', self::INSTRUMENT_HOOKS_VARIABLE, $library, $this->setUp()));
+			throw new CodSpeedException(sprintf("%s is set to %s, which does not exist.\n%s", self::INSTRUMENT_HOOKS_VARIABLE, $library, $this->setUp()));
 		}
 
 		return $library;
@@ -75,7 +75,7 @@ final class CodSpeedInstallation
 
 	private function setUp(): string
 	{
-		return sprintf('See %s', self::SETUP_URL);
+		return sprintf('Set it up as %s describes.', self::SETUP_URL);
 	}
 
 }
