@@ -166,3 +166,67 @@ jobs:
 
       - name: "PHPStan"
         run: "make phpstan"
+
+  coverage:
+    name: "Code Coverage"
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: "pcov"
+          php-version: "8.5"
+          extensions: ffi
+
+      - name: "Install dependencies"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "Code coverage"
+        run: "make coverage"
+
+  mutation-testing:
+    name: "Mutation Testing"
+    runs-on: "ubuntu-latest"
+    needs: ["tests", "static-analysis"]
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: "pcov"
+          php-version: "8.5"
+          extensions: ffi
+
+      - name: "Install dependencies"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "Infection on the changed lines"
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin "$GITHUB_BASE_REF"
+          make infection INFECTION_ARGS="--git-diff-base=origin/$GITHUB_BASE_REF --git-diff-lines --ignore-msi-with-no-mutations --min-msi=100 --min-covered-msi=100 --logger-github"
+
+      - name: "Infection on the whole codebase"
+        if: github.event_name != 'pull_request'
+        run: "make infection INFECTION_ARGS=--logger-github"
