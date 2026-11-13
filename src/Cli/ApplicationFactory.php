@@ -3,8 +3,10 @@
 namespace Tally\Cli;
 
 use Tally\Comparison\Comparator;
+use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
 use Tally\Discovery\DirectorySuiteLoader;
+use Tally\Discovery\ValueTypeCheck;
 use Tally\Execution\CaseJobs;
 use Tally\Execution\CaseOutcome;
 use Tally\Execution\CodSpeedInstallation;
@@ -53,12 +55,15 @@ final class ApplicationFactory
 	 */
 	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, string $phpBinary, string $tallyBinary): Application
 	{
-		$selectedCases = new SelectedCases(new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter())), $workingDirectory);
+		$relativePath = new RelativePath();
+		$selectedCases = new SelectedCases(
+			new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck())), $relativePath),
+			$workingDirectory,
+		);
 		$idle = new IdleCounter();
 		$json = new MeasurementJson();
 		$comparator = new Comparator();
 		$rows = new Rows();
-		$relativePath = new RelativePath();
 		$resultsArguments = new ResultsArguments(new ResultsDirectory($json));
 		$expectationFiles = new ExpectationFiles();
 		$expectationChanges = new ExpectationChanges();

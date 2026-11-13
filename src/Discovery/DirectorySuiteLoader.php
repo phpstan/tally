@@ -3,13 +3,15 @@
 namespace Tally\Discovery;
 
 use FilesystemIterator;
+use ParseError;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
-use ReflectionMethod;
 use SplFileInfo;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
+use Tally\Report\RelativePath;
+use Throwable;
 use function array_filter;
 use function array_map;
 use function get_declared_classes;
@@ -17,6 +19,7 @@ use function in_array;
 use function is_file;
 use function iterator_to_array;
 use function realpath;
+use function sprintf;
 use function str_ends_with;
 use function str_starts_with;
 use function usort;
@@ -28,21 +31,21 @@ use function usort;
 final class DirectorySuiteLoader
 {
 
-	public function __construct(private CaseExpander $expander)
+	public function __construct(private CaseExpander $expander, private RelativePath $relativePath)
 	{
 	}
 
 	/**
 	 * @param list<string> $paths directories to search, and files to load
+	 * @param string $workingDirectory errors name files relative to it
 	 * @return list<BenchmarkCase> in the order of CaseId::compare()
 	 * @throws InvalidBenchmarkException
 	 */
-	public function load(array $paths): array
+	public function load(array $paths, string $workingDirectory): array
 	{
 		$files = $this->files($paths);
 		foreach ($files as $file) {
-			// the autoloader may have loaded it already
-			require_once $file;
+			$this->require($file, $this->relativePath->of($file, $workingDirectory));
 		}
 
 		$cases = [];
@@ -52,9 +55,12 @@ final class DirectorySuiteLoader
 				continue;
 			}
 			$hooks = $this->expander->hooks($class);
-			foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
-				if ($method->isStatic() || !str_starts_with($method->getName(), 'bench')) {
+			foreach ($class->getMethods() as $method) {
+				if (!str_starts_with($method->getName(), 'bench')) {
 					continue;
+				}
+				if (!$method->isPublic() || $method->isStatic()) {
+					throw new InvalidBenchmarkException($className . '::' . $method->getName() . '()', 'a bench* method must be public and not static. Rename it if it is not a benchmark.');
 				}
 
 				$cases = [...$cases, ...$this->expander->expand($class, $method, $hooks)];
@@ -64,6 +70,21 @@ final class DirectorySuiteLoader
 		usort($cases, static fn (BenchmarkCase $a, BenchmarkCase $b): int => CaseId::compare($a->id, $b->id));
 
 		return $cases;
+	}
+
+	/**
+	 * @throws InvalidBenchmarkException
+	 */
+	private function require(string $file, string $name): void
+	{
+		try {
+			// the autoloader may have loaded it already
+			require_once $file;
+		} catch (ParseError $e) {
+			throw new InvalidBenchmarkException($name, sprintf('%s on line %d.', $e->getMessage(), $e->getLine()));
+		} catch (Throwable $e) {
+			throw new InvalidBenchmarkException($name, sprintf('loading it threw %s: %s', $e::class, $e->getMessage()));
+		}
 	}
 
 	/**

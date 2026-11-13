@@ -6,8 +6,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Tally\BenchmarkCase;
+use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
 use Tally\Discovery\InvalidBenchmarkException;
+use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
@@ -133,10 +135,19 @@ final class CaseExpanderTest extends TestCase
 		yield ['benchAfter', '::benchAfter(): a benchmark method cannot be a #[After] method, give the hook a name that does not start with bench.'];
 		yield ['benchNotIterable', '::benchNotIterable(): data provider notIterable() must return an iterable.'];
 		yield ['benchTwoTolerances', '::benchTwoTolerances(): it has more than one tolerance policy: Tally\Attribute\RelativeTolerance, Tally\Attribute\DurationTolerance.'];
-		yield ['benchTwoExpected', '::benchTwoExpected(): it has more than one #[Expected] attribute.'];
+		yield ['benchTwoExpected', '::benchTwoExpected(): #[Expected] can be used only once.'];
 		yield ['benchTwoExpectedFor', '::benchTwoExpectedFor(): #[ExpectedFor] names data set a twice.'];
 		yield ['benchInvalidQuantityFor', '::benchInvalidQuantityFor(): "1.2X" is not a quantity'];
 		yield ['benchNegativeWarmup', '::benchNegativeWarmup(): #[Warmup] needs zero or more calls.'];
+		yield ['benchWarmupOfWrongType', '::benchWarmupOfWrongType(): #[Warmup] argument calls must be int, string given.'];
+		yield ['benchExpectedWithoutMemory', '::benchExpectedWithoutMemory(): #[Expected] needs argument memory.'];
+		yield ['benchNegativeTolerance', '::benchNegativeTolerance(): #[RelativeTolerance] needs zero or more, -0.1 given.'];
+		yield ['benchInvalidDataProvider', '::benchInvalidDataProvider(): #[DataProvider] argument method must be string, int given.'];
+		yield ['benchInvalidExpectedFor', '::benchInvalidExpectedFor(): #[ExpectedFor] needs argument dataSet.'];
+		yield ['benchProviderWithParameter', '::benchProviderWithParameter(): data provider withParameter() cannot take arguments, Tally calls it without any.'];
+		yield ['benchProviderThrows', '::benchProviderThrows(): data provider throws() threw RuntimeException: Cannot read the fixtures.'];
+		yield ['benchProviderThrowsWhileYielding', '::benchProviderThrowsWhileYielding(): data provider throwsWhileYielding() threw Error: Call to undefined function Tally\\Tests\\Fixtures\\Invalid\\missing()'];
+		yield ['benchProviderYieldsInvalid', '::benchProviderYieldsInvalid(): data set b of yieldsInvalid() is neither an array of arguments nor a DataSet.'];
 	}
 
 	/**
@@ -170,7 +181,7 @@ final class CaseExpanderTest extends TestCase
 	private static function expand(string $class, string $method): array
 	{
 		$reflection = new ReflectionClass($class);
-		$expander = new CaseExpander(new ExpectedAttributeRewriter());
+		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()));
 
 		return $expander->expand($reflection, $reflection->getMethod($method), $expander->hooks($reflection));
 	}

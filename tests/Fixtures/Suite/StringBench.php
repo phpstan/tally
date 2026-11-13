@@ -24,12 +24,4 @@ final class StringBench
 	{
 	}
 
-	public static function benchStatic(): void
-	{
-	}
-
-	private function benchPrivate(): void
-	{
-	}
-
 }

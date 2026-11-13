@@ -10,6 +10,7 @@ use Tally\Attribute\Expected;
 use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\RelativeTolerance;
 use Tally\Attribute\Warmup;
+use RuntimeException;
 use Tally\DataSet;
 use Tally\Metrics;
 use Tally\Tests\InMemoryExpectations;
@@ -41,6 +42,28 @@ final class InvalidBench
 	public static function notIterable(): int
 	{
 		return 1;
+	}
+
+	public static function withParameter(int $size): iterable
+	{
+		yield [$size];
+	}
+
+	public static function throws(): array
+	{
+		throw new RuntimeException('Cannot read the fixtures.');
+	}
+
+	public static function throwsWhileYielding(): iterable
+	{
+		yield 'a' => [1];
+		yield 'b' => [missing()];
+	}
+
+	public static function yieldsInvalid(): iterable
+	{
+		yield 'a' => [1];
+		yield 'b' => 2;
 	}
 
 	public static function withSource(): iterable
@@ -138,6 +161,51 @@ final class InvalidBench
 
 	#[Warmup(-1)]
 	public function benchNegativeWarmup(): void
+	{
+	}
+
+	#[Warmup('1')]
+	public function benchWarmupOfWrongType(): void
+	{
+	}
+
+	#[Expected(instructions: '1K', cycles: '1K')]
+	public function benchExpectedWithoutMemory(): void
+	{
+	}
+
+	#[RelativeTolerance(-0.1)]
+	public function benchNegativeTolerance(): void
+	{
+	}
+
+	#[DataProvider(1)]
+	public function benchInvalidDataProvider(): void
+	{
+	}
+
+	#[ExpectedFor(instructions: '1K', cycles: '1K', memory: '0B')]
+	public function benchInvalidExpectedFor(): void
+	{
+	}
+
+	#[DataProvider('withParameter')]
+	public function benchProviderWithParameter(int $size): void
+	{
+	}
+
+	#[DataProvider('throws')]
+	public function benchProviderThrows(int $size): void
+	{
+	}
+
+	#[DataProvider('throwsWhileYielding')]
+	public function benchProviderThrowsWhileYielding(int $size): void
+	{
+	}
+
+	#[DataProvider('yieldsInvalid')]
+	public function benchProviderYieldsInvalid(int $size): void
 	{
 	}
 

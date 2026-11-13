@@ -2,13 +2,18 @@
 
 namespace Tally\Tests\Integration\Discovery;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tally\BenchmarkCase;
+use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
 use Tally\Discovery\DirectorySuiteLoader;
 use Tally\Discovery\InvalidBenchmarkException;
+use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\ExpectedAttributeRewriter;
+use Tally\Report\RelativePath;
 use function array_map;
+use function dirname;
 
 final class DirectorySuiteLoaderTest extends TestCase
 {
@@ -74,15 +79,47 @@ final class DirectorySuiteLoaderTest extends TestCase
 	}
 
 	/**
+	 * @return iterable<string, array{string, string}>
+	 */
+	public static function dataInvalid(): iterable
+	{
+		yield 'a syntax error' => ['Syntax', 'tests/Fixtures/Loading/Syntax/BrokenBench.php: syntax error, unexpected token ";", expecting ")" on line 10.'];
+		yield 'an error while loading' => ['Throwing', 'tests/Fixtures/Loading/Throwing/ThrowingBench.php: loading it threw Error: Class "Tally\\Tests\\Fixtures\\Loading\\Throwing\\MissingParent" not found'];
+		yield 'a private bench* method' => ['Private', 'Tally\\Tests\\Fixtures\\Loading\\Private\\PrivateBench::benchHelper(): a bench* method must be public and not static. Rename it if it is not a benchmark.'];
+		yield 'a static bench* method' => ['Static', 'Tally\\Tests\\Fixtures\\Loading\\Static\\StaticBench::benchmarks(): a bench* method must be public and not static. Rename it if it is not a benchmark.'];
+	}
+
+	/**
+	 * @throws InvalidBenchmarkException
+	 */
+	#[DataProvider('dataInvalid')]
+	public function testInvalid(string $directory, string $message): void
+	{
+		$this->expectException(InvalidBenchmarkException::class);
+		$this->expectExceptionMessage($message);
+		self::ids([__DIR__ . '/../../Fixtures/Loading/' . $directory]);
+	}
+
+	/**
+	 * Classes in other files and classes without bench* methods are not benchmarks.
+	 *
+	 * @throws InvalidBenchmarkException
+	 */
+	public function testNoBenchmarks(): void
+	{
+		$this->assertSame([], self::ids([__DIR__ . '/../../Fixtures/Loading/NoBenchmarks']));
+	}
+
+	/**
 	 * @param list<string> $paths
 	 * @return list<string>
 	 * @throws InvalidBenchmarkException
 	 */
 	private static function ids(array $paths): array
 	{
-		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter()));
+		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck())), new RelativePath());
 
-		return array_map(static fn (BenchmarkCase $case): string => $case->id->toString(), $loader->load($paths));
+		return array_map(static fn (BenchmarkCase $case): string => $case->id->toString(), $loader->load($paths, dirname(__DIR__, 3)));
 	}
 
 }

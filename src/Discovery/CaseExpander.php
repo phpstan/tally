@@ -20,6 +20,7 @@ use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Metrics;
 use Tally\Quantity\InvalidQuantityException;
+use Throwable;
 use function array_map;
 use function count;
 use function implode;
@@ -40,7 +41,7 @@ final class CaseExpander
 	/** The share each metric may differ by in a benchmark without a tolerance policy */
 	public const DEFAULT_TOLERANCE = 0.1;
 
-	public function __construct(private ExpectedAttributeRewriter $rewriter)
+	public function __construct(private ExpectedAttributeRewriter $rewriter, private AttributeFactory $attributes)
 	{
 	}
 
@@ -158,7 +159,7 @@ final class CaseExpander
 		if ($attributes === []) {
 			$attributes = $class->getAttributes(Warmup::class);
 		}
-		$calls = $attributes === [] ? 0 : $attributes[0]->newInstance()->calls;
+		$calls = $attributes === [] ? 0 : $this->attributes->create($attributes[0], $where)->calls;
 		if ($calls < 0) {
 			throw new InvalidBenchmarkException($where, '#[Warmup] needs zero or more calls.');
 		}
@@ -180,7 +181,7 @@ final class CaseExpander
 				throw new InvalidBenchmarkException($where, 'it has more than one tolerance policy: ' . implode(', ', $names) . '.');
 			}
 			if ($attributes !== []) {
-				return $attributes[0]->newInstance();
+				return $this->attributes->create($attributes[0], $where);
 			}
 		}
 
@@ -193,15 +194,12 @@ final class CaseExpander
 	private function expected(ReflectionMethod $method, string $where): ?Metrics
 	{
 		$attributes = $method->getAttributes(Expected::class);
-		if (count($attributes) > 1) {
-			throw new InvalidBenchmarkException($where, 'it has more than one #[Expected] attribute.');
-		}
 		if ($attributes === []) {
 			return null;
 		}
 
 		try {
-			return $attributes[0]->newInstance()->metrics();
+			return $this->attributes->create($attributes[0], $where)->metrics();
 		} catch (InvalidQuantityException $e) {
 			throw new InvalidBenchmarkException($where, $e->getMessage());
 		}
@@ -216,7 +214,7 @@ final class CaseExpander
 		$expected = [];
 		$names = [];
 		foreach ($method->getAttributes(ExpectedFor::class) as $attribute) {
-			$instance = $attribute->newInstance();
+			$instance = $this->attributes->create($attribute, $where);
 			if (in_array($instance->dataSet, $names, true)) {
 				throw new InvalidBenchmarkException($where, sprintf('#[ExpectedFor] names data set %s twice.', $instance->dataSet));
 			}
@@ -243,7 +241,7 @@ final class CaseExpander
 			return null;
 		}
 
-		$name = $attributes[0]->newInstance()->method;
+		$name = $this->attributes->create($attributes[0], $where)->method;
 		if (!$class->hasMethod($name)) {
 			throw new InvalidBenchmarkException($where, sprintf('data provider %s() does not exist.', $name));
 		}
@@ -251,7 +249,25 @@ final class CaseExpander
 		if (!$provider->isPublic() || !$provider->isStatic()) {
 			throw new InvalidBenchmarkException($where, sprintf('data provider %s() must be public and static.', $name));
 		}
-		$values = $provider->invoke(null);
+		if ($provider->getNumberOfParameters() > 0) {
+			throw new InvalidBenchmarkException($where, sprintf('data provider %s() cannot take arguments, Tally calls it without any.', $name));
+		}
+
+		try {
+			return [$name, $this->yieldedDataSets($provider->invoke(null), $name, $where)];
+		} catch (InvalidBenchmarkException $e) {
+			throw $e;
+		} catch (Throwable $e) {
+			throw new InvalidBenchmarkException($where, sprintf('data provider %s() threw %s: %s', $name, $e::class, $e->getMessage()));
+		}
+	}
+
+	/**
+	 * @return list<DataSet>
+	 * @throws InvalidBenchmarkException
+	 */
+	private function yieldedDataSets(mixed $values, string $name, string $where): array
+	{
 		if (!is_iterable($values)) {
 			throw new InvalidBenchmarkException($where, sprintf('data provider %s() must return an iterable.', $name));
 		}
@@ -276,7 +292,7 @@ final class CaseExpander
 			$dataSets[] = $dataSet;
 		}
 
-		return [$name, $dataSets];
+		return $dataSets;
 	}
 
 }

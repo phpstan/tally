@@ -111,6 +111,7 @@ final class ApplicationTest extends TestCase
 		yield 'configuration of a wrong type' => [['list', '--config=' . __DIR__ . '/../../Fixtures/Configuration/not-configuration.php'], 'Configuration file ' . __DIR__ . '/../../Fixtures/Configuration/not-configuration.php must return Tally\\Configuration.'];
 		yield 'invalid filter' => [['list', self::SUITE, '--filter=/[/'], 'Filter /[/ is not a valid regular expression.'];
 		yield 'invalid shard' => [['list', self::SUITE, '--shard=3/2'], 'Shard 3/2 does not exist, use 1/2 to 2/2.'];
+		yield 'a filter that matches nothing' => [['list', self::SUITE, '--filter=Sort'], 'No case matches --filter=Sort.'];
 	}
 
 	/**
@@ -133,6 +134,26 @@ final class ApplicationTest extends TestCase
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('', $output);
 		$this->assertSame("Tally\\Tests\\Fixtures\\Invalid\\InvalidBench::benchMissingProvider(): data provider missing() does not exist.\n", $errorOutput);
+	}
+
+	public function testNoBenchmarks(): void
+	{
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['list', 'tests/Fixtures/Loading/NoBenchmarks', 'tests/Fixtures/Loading/Static/../NoBenchmarks']);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame('', $output);
+		$this->assertSame(
+			"tests/Fixtures/Loading/NoBenchmarks, tests/Fixtures/Loading/Static/../NoBenchmarks: no benchmarks found. Benchmarks are the public, non-static bench* methods of classes in *Bench.php files.\n",
+			$errorOutput,
+		);
+	}
+
+	public function testListAShardWithoutCases(): void
+	{
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['list', self::SUITE . '/StringBench.php', '--shard=3/3']);
+
+		$this->assertSame(0, $exitCode, $errorOutput);
+		$this->assertSame('', $output);
 	}
 
 	public function testUnknownOption(): void

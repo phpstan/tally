@@ -24,6 +24,7 @@ bench:
 .PHONY: lint
 lint:
 	php vendor/bin/parallel-lint --colors bin/tally \
+		--exclude tests/Fixtures/Loading/Syntax \
 		bench build examples src tests tally.php
 
 .PHONY: cs-install

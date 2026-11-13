@@ -68,7 +68,7 @@ The counts depend on the PHP build and the system libraries. Numbers measured on
 
 ## Writing benchmarks
 
-A benchmark is a public, non-static method whose name starts with `bench`, in a class in a file whose name ends with `Bench.php`. Tally creates the class without constructor arguments.
+A benchmark is a public, non-static method whose name starts with `bench`, in a class in a file whose name ends with `Bench.php`. Tally creates the class without constructor arguments. A `bench*` method that is static or not public is an error, so is a path without any benchmarks.
 
 ```php
 use Tally\Attribute\DataProvider;
@@ -281,7 +281,7 @@ Every command takes the paths of the benchmarks as arguments: directories, searc
 | Option | |
 | --- | --- |
 | `--config=<file>` | Configuration file, `tally.php` in the working directory by default. |
-| `--filter=<filter>` | Only cases whose ID contains this text, or matches it as a regular expression like `/@size-10$/`. |
+| `--filter=<filter>` | Only cases whose ID contains this text, or matches it as a regular expression like `/@size-10$/`. A filter that matches no case is an error. |
 | `--shard=<shard>` | Only the cases of one shard, like `2/4`. See [sharding](#sharding). |
 
 Every command takes `--help`.

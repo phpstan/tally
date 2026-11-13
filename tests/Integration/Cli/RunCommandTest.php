@@ -81,12 +81,12 @@ final class RunCommandTest extends TestCase
 		$this->assertStringContainsString("Benchmarks passed: all 1 match their expectations\n", $output);
 	}
 
-	public function testNoCases(): void
+	public function testAShardWithoutCases(): void
 	{
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', '--filter=nothing', '--jobs=3', self::RUN]);
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', '--shard=5/5', self::RUN]);
 
 		$this->assertSame(0, $exitCode, $errorOutput);
-		$this->assertSame("Tally counts 0 cases under CodSpeed's CPU simulation, 3 at once.\n\nNo benchmarks to compare\n", $output);
+		$this->assertSame("This shard has no cases to count.\n", $output);
 	}
 
 	public function testFailsBeforeCountingWhenAnExpectationCannotBeFound(): void

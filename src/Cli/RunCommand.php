@@ -99,6 +99,11 @@ final class RunCommand implements Command
 
 		$configuration = $this->selectedCases->configuration($input);
 		$cases = $this->selectedCases->load($input, $configuration, $input->arguments());
+		if ($cases === []) {
+			$output->write("This shard has no cases to count.\n");
+
+			return Application::EXIT_SUCCESS;
+		}
 		// before counting, which takes minutes: an expectation tally cannot find fails now
 		$located = [];
 		foreach ($cases as $case) {
@@ -135,9 +140,7 @@ final class RunCommand implements Command
 			fn (array $case): CaseComparison => $this->compare($case[0], $case[1], $measurements[$case[0]->id->toString()] ?? null),
 			$located,
 		));
-		if ($cases !== []) {
-			$output->write("\n");
-		}
+		$output->write("\n");
 		$this->reportOutput->write($report, $cases, $measurements, $output, $this->environment, $this->workingDirectory, $input->option('output'));
 
 		return $report->fails() ? Application::EXIT_FAILURE : Application::EXIT_SUCCESS;

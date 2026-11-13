@@ -2,6 +2,7 @@
 
 namespace Tally\Cli;
 
+use Closure;
 use InvalidArgumentException;
 use Tally\BenchmarkCase;
 use Tally\Configuration;
@@ -10,6 +11,7 @@ use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Selection\CaseSelector;
 use Tally\Selection\FilterSelector;
 use Tally\Selection\ShardSelector;
+use function implode;
 use function is_file;
 use function sprintf;
 
@@ -20,6 +22,7 @@ final class SelectedCases
 {
 
 	public const DEFAULT_CONFIGURATION = 'tally.php';
+	private const NO_BENCHMARKS = 'no benchmarks found. Benchmarks are the public, non-static bench* methods of classes in *Bench.php files.';
 
 	public function __construct(private DirectorySuiteLoader $loader, private string $workingDirectory)
 	{
@@ -61,36 +64,40 @@ final class SelectedCases
 			throw new UsageException(sprintf('No benchmarks to load. Pass their paths, or list them in %s.', self::DEFAULT_CONFIGURATION));
 		}
 
-		$cases = $this->loader->load($paths);
+		$cases = $this->loader->load($paths, $this->workingDirectory);
+		if ($cases === []) {
+			throw new InvalidBenchmarkException(implode(', ', $paths), self::NO_BENCHMARKS);
+		}
 
-		foreach ($this->selectors($input) as $selector) {
-			$cases = $selector->select($cases);
+		$filter = $input->option('filter');
+		if ($filter !== null) {
+			$cases = $this->select(static fn (): CaseSelector => new FilterSelector($filter), $cases);
+			if ($cases === []) {
+				throw new UsageException(sprintf('No case matches --filter=%s.', $filter));
+			}
+		}
+		$shard = $input->option('shard');
+		if ($shard !== null) {
+			// a shard may have no cases, when there are more shards than cases
+			$cases = $this->select(static fn (): CaseSelector => ShardSelector::fromString($shard), $cases);
 		}
 
 		return $cases;
 	}
 
 	/**
-	 * @return list<CaseSelector> filters before shards, so that every shard of a filter has some cases
+	 * @param Closure(): CaseSelector $selector
+	 * @param list<BenchmarkCase> $cases
+	 * @return list<BenchmarkCase>
 	 * @throws UsageException
 	 */
-	private function selectors(Input $input): array
+	private function select(Closure $selector, array $cases): array
 	{
-		$selectors = [];
 		try {
-			$filter = $input->option('filter');
-			if ($filter !== null) {
-				$selectors[] = new FilterSelector($filter);
-			}
-			$shard = $input->option('shard');
-			if ($shard !== null) {
-				$selectors[] = ShardSelector::fromString($shard);
-			}
+			return $selector()->select($cases);
 		} catch (InvalidArgumentException $e) {
 			throw new UsageException($e->getMessage(), previous: $e);
 		}
-
-		return $selectors;
 	}
 
 	/**

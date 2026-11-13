@@ -10,8 +10,10 @@ use Tally\Attribute\DataProvider;
 use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
+use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
 use Tally\Discovery\InvalidBenchmarkException;
+use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\ScratchDirectory;
 use function class_exists;
@@ -63,7 +65,7 @@ final class CaseExpanderBench
 		}
 
 		$class = new ReflectionClass($name);
-		$expander = new CaseExpander(new ExpectedAttributeRewriter());
+		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()));
 		$hooks = $expander->hooks($class);
 		foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
 			if ($method->isStatic()) {
