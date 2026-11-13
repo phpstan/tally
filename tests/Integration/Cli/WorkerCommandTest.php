@@ -161,7 +161,26 @@ final class WorkerCommandTest extends TestCase
 		[$exitCode, , $errorOutput] = $this->worker(self::BENCH . '::benchMissing', [], $this->directory);
 
 		$this->assertSame(2, $exitCode);
-		$this->assertStringStartsWith('There is no case ' . self::BENCH . "::benchMissing.\n\n", $errorOutput);
+		$this->assertStringStartsWith('There is no case ' . self::BENCH . "::benchMissing.\nRun tally worker --help for its options.\n", $errorOutput);
+	}
+
+	public function testHelp(): void
+	{
+		[$exitCode, $output] = InProcessTally::run(__DIR__, [], ['worker', '--help']);
+
+		$this->assertSame(0, $exitCode);
+		$this->assertSame(
+			"Runs one case in this process, tally run starts it for every case\n\n"
+			. "Usage: tally worker [options] [<path>...]\n\n"
+			. "Options:\n"
+			. "  --config=<file>               Configuration file, tally.php in the working directory by default\n"
+			. "  --case=<id>                   The ID of the case to run\n"
+			. "  --scratch=<directory>         The scratch directory of the case, created when it does not exist\n"
+			. "  --result=<file>               Where to write the measurement as JSON\n"
+			. "  --instrument-hooks=<library>  CodSpeed's instrument-hooks library, which counts the case under CodSpeed's CPU simulation\n"
+			. "  --help                        Show this help\n",
+			$output,
+		);
 	}
 
 	/**
@@ -183,7 +202,7 @@ final class WorkerCommandTest extends TestCase
 		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, [], ['worker', ...array_values($arguments), self::WORKER]);
 
 		$this->assertSame(2, $exitCode);
-		$this->assertStringStartsWith(sprintf("Option --%s is required.\n\n", $option), $errorOutput);
+		$this->assertStringStartsWith(sprintf("Option --%s is required.\nRun tally worker --help for its options.\n", $option), $errorOutput);
 	}
 
 	/**

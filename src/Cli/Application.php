@@ -58,7 +58,7 @@ final class Application
 
 			return $command->execute($input, $this->output);
 		} catch (UsageException $e) {
-			$this->output->writeError($e->getMessage() . "\n\n" . $this->commandHelp($command, $options));
+			$this->output->writeError(sprintf("%s\nRun tally %s --help for its options.\n", $e->getMessage(), $command->name()));
 
 			return self::EXIT_ERROR;
 		} catch (InvalidBenchmarkException | ExpectationException $e) {

@@ -161,7 +161,7 @@ final class ApplicationTest extends TestCase
 		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, [], ['list', '--colour']);
 
 		$this->assertSame(2, $exitCode);
-		$this->assertSame("Unknown option --colour.\n\n" . self::LIST_HELP, $errorOutput);
+		$this->assertSame("Unknown option --colour.\nRun tally list --help for its options.\n", $errorOutput);
 	}
 
 	public function testMissingOptionValue(): void
@@ -188,12 +188,64 @@ final class ApplicationTest extends TestCase
 		$this->assertSame(self::HELP, $output);
 	}
 
-	public function testCommandHelp(): void
+	/**
+	 * @return iterable<string, array{string, string}>
+	 */
+	public static function dataCommandHelp(): iterable
 	{
-		[$exitCode, $output] = InProcessTally::run(__DIR__, [], ['list', '--help']);
+		$selection = <<<'OPTIONS'
+			  --filter=<filter>     Only cases whose ID contains this text, or matches it as a regular expression like /@size-10$/
+			  --shard=<shard>       Only the cases of one shard, like 2/4, balanced by expected instructions
+			OPTIONS;
+
+		yield 'list' => ['list', self::LIST_HELP];
+		yield 'run' => ['run', <<<HELP
+			Counts the cases under CodSpeed and compares them with the expected numbers
+
+			Usage: tally run [options] [<path>...]
+
+			Options:
+			  --config=<file>       Configuration file, tally.php in the working directory by default
+			{$selection}
+			  --jobs=<n>            How many cases run at once, the number of CPUs by default
+			  --output=<directory>  Keep the results there, for tally compare and tally accept
+			  --help                Show this help
+
+			HELP];
+		yield 'compare' => ['compare', <<<'HELP'
+			Compares the results of tally run --output with the expected numbers again
+
+			Usage: tally compare [options] <results> [<path>...]
+
+			Options:
+			  --config=<file>    Configuration file, tally.php in the working directory by default
+			  --filter=<filter>  Only cases whose ID contains this text, or matches it as a regular expression like /@size-10$/
+			  --shard=<shard>    Only the cases of one shard, like 2/4, balanced by expected instructions
+			  --table            Also print every case with its metrics and status
+			  --help             Show this help
+
+			HELP];
+		yield 'accept' => ['accept', <<<'HELP'
+			Makes the results of tally run --output the expected numbers of the changed cases
+
+			Usage: tally accept [options] <results> [<path>...]
+
+			Options:
+			  --config=<file>    Configuration file, tally.php in the working directory by default
+			  --filter=<filter>  Only cases whose ID contains this text, or matches it as a regular expression like /@size-10$/
+			  --shard=<shard>    Only the cases of one shard, like 2/4, balanced by expected instructions
+			  --help             Show this help
+
+			HELP];
+	}
+
+	#[DataProvider('dataCommandHelp')]
+	public function testCommandHelp(string $command, string $help): void
+	{
+		[$exitCode, $output] = InProcessTally::run(__DIR__, [], [$command, '--help']);
 
 		$this->assertSame(0, $exitCode);
-		$this->assertSame(self::LIST_HELP, $output);
+		$this->assertSame($help, $output);
 	}
 
 	public function testBinary(): void

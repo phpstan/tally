@@ -161,7 +161,7 @@ final class CompareAndAcceptCommandTest extends TestCase
 	}
 
 	/**
-	 * @return iterable<string, array{list<string>, string}>
+	 * @return iterable<string, array{non-empty-list<string>, string}>
 	 */
 	public static function dataUsageError(): iterable
 	{
@@ -176,7 +176,7 @@ final class CompareAndAcceptCommandTest extends TestCase
 	}
 
 	/**
-	 * @param list<string> $arguments
+	 * @param non-empty-list<string> $arguments
 	 */
 	#[DataProvider('dataUsageError')]
 	public function testUsageError(array $arguments, string $message): void
@@ -185,7 +185,7 @@ final class CompareAndAcceptCommandTest extends TestCase
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('', $output);
-		$this->assertStringStartsWith($message . "\n\n", $errorOutput);
+		$this->assertSame($message . "\nRun tally " . $arguments[0] . " --help for its options.\n", $errorOutput);
 	}
 
 	/**
