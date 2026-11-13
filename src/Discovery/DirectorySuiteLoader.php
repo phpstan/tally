@@ -51,12 +51,13 @@ final class DirectorySuiteLoader
 			if (!in_array($class->getFileName(), $files, true) || !$class->isInstantiable()) {
 				continue;
 			}
+			$hooks = $this->expander->hooks($class);
 			foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
 				if ($method->isStatic() || !str_starts_with($method->getName(), 'bench')) {
 					continue;
 				}
 
-				$cases = [...$cases, ...$this->expander->expand($class, $method)];
+				$cases = [...$cases, ...$this->expander->expand($class, $method, $hooks)];
 			}
 		}
 

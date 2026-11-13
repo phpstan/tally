@@ -2,19 +2,20 @@
 
 namespace Tally\Tests\Fixtures\Build;
 
-use Tally\Attribute\AfterMethods;
-use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\After;
+use Tally\Attribute\Before;
 use Tally\Attribute\DataProvider;
 
-#[BeforeMethods('setUp', 'prepare')]
 final class UsageBench
 {
 
+	#[Before]
 	public function setUp(): void
 	{
 	}
 
-	public function prepare(): void
+	#[Before]
+	private function prepare(): void
 	{
 	}
 
@@ -28,12 +29,12 @@ final class UsageBench
 	}
 
 	#[DataProvider('sizes')]
-	#[AfterMethods('tearDown')]
 	public function benchSized(int $size): void
 	{
 	}
 
-	public function tearDown(): void
+	#[After]
+	private function tearDown(): void
 	{
 	}
 

@@ -13,18 +13,16 @@ use ShipMonk\PHPStan\DeadCode\Graph\ClassMethodUsage;
 use ShipMonk\PHPStan\DeadCode\Graph\UsageOrigin;
 use ShipMonk\PHPStan\DeadCode\Provider\MemberUsageProvider;
 use ShipMonk\PHPStan\DeadCode\Provider\VirtualUsageData;
-use Tally\Attribute\AfterMethods;
-use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\After;
+use Tally\Attribute\Before;
 use Tally\Attribute\DataProvider;
-use function array_filter;
-use function array_values;
 use function is_string;
 use function str_ends_with;
 use function str_starts_with;
 
 /**
  * Tells the dead code detector about the methods Tally calls through reflection: the benchmark
- * methods of *Bench classes, their data providers, and their before and after methods.
+ * methods of *Bench classes, their data providers, and their #[Before] and #[After] methods.
  */
 final class BenchmarkUsageProvider implements MemberUsageProvider
 {
@@ -45,12 +43,13 @@ final class BenchmarkUsageProvider implements MemberUsageProvider
 			return [];
 		}
 
-		$used = $this->hookMethods($class->getAttributes());
+		$used = [];
 		foreach ($class->getMethods() as $method) {
-			if ($method->isPublic() && !$method->isStatic() && str_starts_with($method->getName(), 'bench')) {
+			$isBenchmark = $method->isPublic() && !$method->isStatic() && str_starts_with($method->getName(), 'bench');
+			if ($isBenchmark || $method->getAttributes(Before::class) !== [] || $method->getAttributes(After::class) !== []) {
 				$used[] = $method->getName();
 			}
-			$used = [...$used, ...$this->hookMethods($method->getAttributes()), ...$this->arguments($method->getAttributes(DataProvider::class))];
+			$used = [...$used, ...$this->arguments($method->getAttributes(DataProvider::class))];
 		}
 
 		$usages = [];
@@ -62,18 +61,6 @@ final class BenchmarkUsageProvider implements MemberUsageProvider
 		}
 
 		return $usages;
-	}
-
-	/**
-	 * @param list<ReflectionAttribute|FakeReflectionAttribute> $attributes
-	 * @return list<string>
-	 */
-	private function hookMethods(array $attributes): array
-	{
-		return $this->arguments(array_values(array_filter(
-			$attributes,
-			static fn (ReflectionAttribute|FakeReflectionAttribute $attribute): bool => $attribute->getName() === BeforeMethods::class || $attribute->getName() === AfterMethods::class,
-		)));
 	}
 
 	/**

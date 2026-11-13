@@ -3,7 +3,7 @@
 namespace Tally\Examples;
 
 use JsonException;
-use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\Before;
 use Tally\Attribute\Expected;
 use Tally\ScratchDirectory;
 use function file_get_contents;
@@ -14,10 +14,9 @@ use function range;
 use const JSON_THROW_ON_ERROR;
 
 /**
- * Before methods prepare what the benchmark needs, outside of counting. A ScratchDirectory
- * parameter gets a directory of the case's own, removed after the run.
+ * A #[Before] method prepares what the benchmark needs, outside of counting. A ScratchDirectory
+ * parameter gets an empty directory of the case's own.
  */
-#[BeforeMethods('writeFile')]
 final class FileBench
 {
 
@@ -26,6 +25,7 @@ final class FileBench
 	/**
 	 * @throws JsonException
 	 */
+	#[Before]
 	public function writeFile(ScratchDirectory $scratch): void
 	{
 		file_put_contents($scratch->path() . self::FILE, json_encode(range(1, 1_000), JSON_THROW_ON_ERROR));

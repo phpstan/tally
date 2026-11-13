@@ -2,7 +2,8 @@
 
 namespace Tally\Tests\Fixtures\Invalid;
 
-use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\After;
+use Tally\Attribute\Before;
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\DurationTolerance;
 use Tally\Attribute\Expected;
@@ -40,10 +41,6 @@ final class InvalidBench
 	public static function notIterable(): int
 	{
 		return 1;
-	}
-
-	private function hidden(): void
-	{
 	}
 
 	public static function withSource(): iterable
@@ -99,8 +96,13 @@ final class InvalidBench
 	{
 	}
 
-	#[BeforeMethods('missing')]
-	public function benchMissingBeforeMethod(): void
+	#[Before]
+	public function benchBefore(): void
+	{
+	}
+
+	#[After]
+	public function benchAfter(): void
 	{
 	}
 
@@ -137,12 +139,6 @@ final class InvalidBench
 	#[Warmup(-1)]
 	public function benchNegativeWarmup(): void
 	{
-	}
-
-	#[BeforeMethods('hidden')]
-	public function benchPrivateBeforeMethod(): void
-	{
-		$this->hidden();
 	}
 
 }

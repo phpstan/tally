@@ -34,7 +34,7 @@ Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simul
 - [In CI](#in-ci)
 - [Contributing a benchmark](#contributing-a-benchmark)
 - [Storing expectations elsewhere](#storing-expectations-elsewhere)
-- [How cases are counted](#how-cases-are-counted)
+- [Lifecycle of a case](#lifecycle-of-a-case)
 
 ## Installation
 
@@ -132,7 +132,56 @@ A benchmark method takes the arguments of its data set, and also these, by type,
 
   Paused code still runs under the simulation, only its cost is not collected. Memory allocated while paused does not count either.
 
-- `Tally\ScratchDirectory` is a directory of the case's own, removed after the run. Before and after methods get the same one.
+- `Tally\ScratchDirectory` is an empty directory of the case's own, for files the benchmark reads or writes. `path()` returns it. Hooks of the case get the same directory, so a `#[Before]` method can write a file the benchmark reads:
+
+  ```php
+  #[Before]
+  public function writeFile(ScratchDirectory $scratch): void
+  {
+  	file_put_contents($scratch->path() . '/numbers.json', json_encode(range(1, 1_000)));
+  }
+
+  public function benchDecode(ScratchDirectory $scratch): void
+  {
+  	json_decode(file_get_contents($scratch->path() . '/numbers.json'), true);
+  }
+  ```
+
+  The directory is the same in both processes that run the case, see [lifecycle](#lifecycle-of-a-case), and Tally removes it when `tally run` finishes.
+
+### Hooks
+
+A method with `#[Before]` runs before every case of every benchmark in the class, and a method with `#[After]` after it, also when the benchmark throws. Neither is counted. Hooks run on the same object as the benchmark, so a `#[Before]` method can prepare properties the benchmark uses. Several hooks run in the order they are declared. They may be private.
+
+A hook takes the case's data set arguments, from the first one, as many as it declares, and `Meter` and `ScratchDirectory` by type:
+
+```php
+/** @var array<int, int> */
+private array $index;
+
+#[Before]
+private function buildIndex(int $size): void
+{
+	$this->index = array_flip(range(1, $size));
+}
+
+/**
+ * @return iterable<string, array{int}>
+ */
+public static function sizes(): iterable
+{
+	yield 'size-10' => [10];
+	yield 'size-1000' => [1000];
+}
+
+#[DataProvider('sizes')]
+public function benchLookup(int $size): bool
+{
+	return isset($this->index[$size]);
+}
+```
+
+To give two benchmarks different hooks, put them in different classes.
 
 What a benchmark returns is ignored.
 
@@ -147,8 +196,8 @@ All attributes are in the `Tally\Attribute` namespace.
 | `#[Expected(instructions: '…', cycles: '…', memory: '…')]` | method | The expected numbers of a method without a data provider. |
 | `#[ExpectedFor('data set', instructions: '…', cycles: '…', memory: '…')]` | method | The expected numbers of one data set. Repeat it for each data set. The name must be a string literal, so `tally accept` can find it. |
 | `#[DataProvider('method')]` | method | A public static method that returns an iterable of argument lists, keyed by the data set name, or of `Tally\DataSet` objects. |
-| `#[BeforeMethods('method', …)]` | class, method | Public methods called before the benchmark, outside of counting. They take the data set's arguments from the first one, as many as they declare, and `Meter` and `ScratchDirectory`. On the class, they run before those on the method. |
-| `#[AfterMethods('method', …)]` | class, method | Like `BeforeMethods`, called after the benchmark, also when it fails. |
+| `#[Before]` | method | Runs the method before every case of the class, not counted. See [hooks](#hooks). |
+| `#[After]` | method | Runs the method after every case of the class, also when it throws, not counted. |
 | `#[Warmup(calls)]` | class, method | Calls the benchmark this many times before counting, so the counted call does not include autoloading or filling caches. |
 | `#[RelativeTolerance(share)]` | class, method | Each metric may differ from its expected value by this share, such as `0.05` for ±5 %. |
 | `#[DurationTolerance(tolerances: […], instructionsPerMillisecond: …, cyclesPerMillisecond: …, memory: …)]` | class, method | Allows a larger share the quicker the benchmark is. See below. |
@@ -295,7 +344,17 @@ return Configuration::create()
 
 ## In CI
 
-The counts depend on the PHP build, so pin the runner image.
+The counts depend on everything that runs the benchmark:
+
+- the PHP version, including the patch release,
+- how PHP was built, which extensions are loaded, and the PHP settings, such as whether opcache and JIT are on,
+- the system libraries, such as glibc, which come with the runner's operating system image.
+
+Expected numbers measured in one environment only fit that environment. So:
+
+- use a fixed runner image, like `ubuntu-24.04`, not `ubuntu-latest`, which moves to a new Ubuntu release from time to time,
+- keep the PHP setup the same: version, extensions, and `ini-values`,
+- expect to accept new numbers for every benchmark when you change any of these. `setup-php` installs the latest patch release of a PHP version, so a new PHP release can change the numbers too, usually of many cases at once.
 
 ```yaml
 jobs:
@@ -430,16 +489,24 @@ An `ExpectationSource` has four methods:
 
 [examples/Scripts](examples/Scripts) is the whole example.
 
-## How cases are counted
+## Lifecycle of a case
 
-`tally run` starts each case in two processes: first natively, which fails quickly when the case is broken, then under `codspeed run`. In the counted process, Tally:
+`tally run` loads the benchmarks, then runs each case in two processes of its own: first natively, which fails quickly when the case is broken, then under `codspeed run`, which counts it. Several cases run at once, see `--jobs`.
 
-1. loads the benchmarks and finds the case,
-2. calls the before methods and the warm-up calls, not counted,
-3. counts a warm-up span, because the first counted span costs about twice as much as later ones, and throws it away,
-4. counts an empty call through the same path as the benchmark, the baseline,
-5. counts the benchmark,
-6. calls the after methods, not counted.
+Every process loads the whole suite, so **data providers run in every process**: in `tally run` itself, and twice for each case. Every `tally` command runs them too. Keep them cheap and do expensive preparation in a `#[Before]` method, which runs only for the case that needs it.
+
+In each of the two processes of a case, Tally:
+
+1. loads the benchmarks and calls every data provider, not counted,
+2. creates the benchmark class, once,
+3. calls the `#[Before]` methods, not counted,
+4. calls the benchmark as many times as `#[Warmup]` says, not counted,
+5. counts a warm-up span, because the first counted span costs about twice as much as later ones, and throws it away,
+6. counts an empty call through the same path as the benchmark, the baseline,
+7. counts one call of the benchmark,
+8. calls the `#[After]` methods, not counted.
+
+The native process runs the same steps, so hooks and warm-up calls run twice per case, once in each process. The scratch directory is shared between the two, so a `#[Before]` method that writes a file finds it already there in the second process.
 
 Instructions and cycles come from CodSpeed's profile of the benchmark's span. Memory is the peak above the memory used when counting started, minus that of the baseline.
 

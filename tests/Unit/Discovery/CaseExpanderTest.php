@@ -65,7 +65,7 @@ final class CaseExpanderTest extends TestCase
 			[null, ['instructions' => 100, 'cycles' => 110, 'memory' => 0], ['instructions' => 1000, 'cycles' => 1100, 'memory' => 0]],
 			array_map(static fn (BenchmarkCase $case): ?array => $case->expectations->read()?->toArray(), $cases),
 		);
-		// the class's before methods run first
+		// in declaration order, private ones too
 		$this->assertSame(array_fill(0, 3, ['setUp', 'prepare']), array_map(static fn (BenchmarkCase $case): array => $case->beforeMethods, $cases));
 		$this->assertSame(array_fill(0, 3, ['tearDown']), array_map(static fn (BenchmarkCase $case): array => $case->afterMethods, $cases));
 	}
@@ -129,8 +129,8 @@ final class CaseExpanderTest extends TestCase
 		yield ['benchStaleDataSet', '::benchStaleDataSet(): #[ExpectedFor] names data set b, which plain() does not yield.'];
 		yield ['benchExpectedWithDataProvider', '::benchExpectedWithDataProvider(): #[Expected] is for a method without a data provider, use #[ExpectedFor] for each data set.'];
 		yield ['benchInvalidQuantity', '::benchInvalidQuantity(): "1.2X" is not a quantity'];
-		yield ['benchMissingBeforeMethod', '::benchMissingBeforeMethod(): before method missing() does not exist.'];
-		yield ['benchPrivateBeforeMethod', '::benchPrivateBeforeMethod(): before method hidden() must be public.'];
+		yield ['benchBefore', '::benchBefore(): a benchmark method cannot be a #[Before] method, give the hook a name that does not start with bench.'];
+		yield ['benchAfter', '::benchAfter(): a benchmark method cannot be a #[After] method, give the hook a name that does not start with bench.'];
 		yield ['benchNotIterable', '::benchNotIterable(): data provider notIterable() must return an iterable.'];
 		yield ['benchTwoTolerances', '::benchTwoTolerances(): it has more than one tolerance policy: Tally\Attribute\RelativeTolerance, Tally\Attribute\DurationTolerance.'];
 		yield ['benchTwoExpected', '::benchTwoExpected(): it has more than one #[Expected] attribute.'];
@@ -170,8 +170,9 @@ final class CaseExpanderTest extends TestCase
 	private static function expand(string $class, string $method): array
 	{
 		$reflection = new ReflectionClass($class);
+		$expander = new CaseExpander(new ExpectedAttributeRewriter());
 
-		return (new CaseExpander(new ExpectedAttributeRewriter()))->expand($reflection, $reflection->getMethod($method));
+		return $expander->expand($reflection, $reflection->getMethod($method), $expander->hooks($reflection));
 	}
 
 }

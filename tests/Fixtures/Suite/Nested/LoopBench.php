@@ -2,12 +2,11 @@
 
 namespace Tally\Tests\Fixtures\Suite\Nested;
 
-use Tally\Attribute\AfterMethods;
-use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\After;
+use Tally\Attribute\Before;
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\ExpectedFor;
 
-#[BeforeMethods('setUp')]
 final class LoopBench
 {
 
@@ -21,24 +20,25 @@ final class LoopBench
 		yield 'size-100' => [100];
 	}
 
+	#[Before]
 	public function setUp(): void
 	{
 	}
 
+	#[After]
 	public function tearDown(): void
 	{
 	}
 
 	#[DataProvider('sizes')]
-	#[BeforeMethods('prepare')]
-	#[AfterMethods('tearDown')]
 	#[ExpectedFor('size-10', instructions: '100', cycles: '110', memory: '0B')]
 	#[ExpectedFor('size-100', instructions: '1000', cycles: '1100', memory: '0B')]
 	public function benchSum(int $size): void
 	{
 	}
 
-	public function prepare(int $size): void
+	#[Before]
+	private function prepare(int $size): void
 	{
 	}
 

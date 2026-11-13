@@ -5,8 +5,8 @@ namespace Tally\Discovery;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
-use Tally\Attribute\AfterMethods;
-use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\After;
+use Tally\Attribute\Before;
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\Expected;
 use Tally\Attribute\ExpectedFor;
@@ -45,15 +45,45 @@ final class CaseExpander
 	}
 
 	/**
+	 * The #[Before] and #[After] methods of the class, in declaration order. They are the same for
+	 * every benchmark of the class, so they are found once per class, not once per benchmark.
+	 *
 	 * @param ReflectionClass<object> $class
+	 * @return array{before: list<string>, after: list<string>}
+	 */
+	public function hooks(ReflectionClass $class): array
+	{
+		$hooks = ['before' => [], 'after' => []];
+		foreach ($class->getMethods() as $method) {
+			if ($method->getAttributes(Before::class) !== []) {
+				$hooks['before'][] = $method->getName();
+			}
+			if ($method->getAttributes(After::class) === []) {
+				continue;
+			}
+
+			$hooks['after'][] = $method->getName();
+		}
+
+		return $hooks;
+	}
+
+	/**
+	 * @param ReflectionClass<object> $class
+	 * @param array{before: list<string>, after: list<string>} $hooks what hooks() returns for the class
 	 * @return list<BenchmarkCase> in the order the data provider yields them
 	 * @throws InvalidBenchmarkException
 	 */
-	public function expand(ReflectionClass $class, ReflectionMethod $method): array
+	public function expand(ReflectionClass $class, ReflectionMethod $method, array $hooks): array
 	{
 		$where = $class->getName() . '::' . $method->getName() . '()';
-		$beforeMethods = $this->hookMethods($class, $method, BeforeMethods::class, 'before', $where);
-		$afterMethods = $this->hookMethods($class, $method, AfterMethods::class, 'after', $where);
+		foreach ([Before::class => 'Before', After::class => 'After'] as $hook => $name) {
+			if ($method->getAttributes($hook) !== []) {
+				throw new InvalidBenchmarkException($where, sprintf('a benchmark method cannot be a #[%s] method, give the hook a name that does not start with bench.', $name));
+			}
+		}
+		$beforeMethods = $hooks['before'];
+		$afterMethods = $hooks['after'];
 		$warmup = $this->warmup($class, $method, $where);
 		$tolerance = $this->tolerance($class, $method, $where);
 		$expected = $this->expected($method, $where);
@@ -116,30 +146,6 @@ final class CaseExpander
 		}
 
 		return $cases;
-	}
-
-	/**
-	 * @param ReflectionClass<object> $class
-	 * @param class-string<BeforeMethods|AfterMethods> $attribute
-	 * @return list<string>
-	 * @throws InvalidBenchmarkException
-	 */
-	private function hookMethods(ReflectionClass $class, ReflectionMethod $method, string $attribute, string $kind, string $where): array
-	{
-		$names = [];
-		foreach ([...$class->getAttributes($attribute), ...$method->getAttributes($attribute)] as $reflectionAttribute) {
-			foreach ($reflectionAttribute->newInstance()->methods as $name) {
-				if (!$class->hasMethod($name)) {
-					throw new InvalidBenchmarkException($where, sprintf('%s method %s() does not exist.', $kind, $name));
-				}
-				if (!$class->getMethod($name)->isPublic()) {
-					throw new InvalidBenchmarkException($where, sprintf('%s method %s() must be public.', $kind, $name));
-				}
-				$names[] = $name;
-			}
-		}
-
-		return $names;
 	}
 
 	/**

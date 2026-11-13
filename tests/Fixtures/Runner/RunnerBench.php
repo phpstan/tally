@@ -3,6 +3,8 @@
 namespace Tally\Tests\Fixtures\Runner;
 
 use RuntimeException;
+use Tally\Attribute\After;
+use Tally\Attribute\Before;
 use Tally\Meter;
 use Tally\ScratchDirectory;
 
@@ -16,13 +18,16 @@ final class RunnerBench
 		Journal::$entries[] = 'construct';
 	}
 
+	#[Before]
 	public function boot(ScratchDirectory $scratch, string $name): void
 	{
 		$this->booted = 'booted ' . $name;
 		Journal::$entries[] = 'boot ' . $name . ' in ' . $scratch->path();
 	}
 
-	public function also(): void
+	/** Private, the runner calls hooks of any visibility */
+	#[Before]
+	private function also(): void
 	{
 		Journal::$entries[] = 'also';
 	}
@@ -56,6 +61,7 @@ final class RunnerBench
 		$meter->pause();
 	}
 
+	#[After]
 	public function tearDown(string $name): void
 	{
 		Journal::$entries[] = 'tear down ' . $name;

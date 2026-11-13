@@ -5,7 +5,7 @@ namespace Tally\Bench\Discovery;
 use LogicException;
 use ReflectionClass;
 use ReflectionMethod;
-use Tally\Attribute\BeforeMethods;
+use Tally\Attribute\Before;
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
@@ -23,7 +23,6 @@ use function sprintf;
  * the cases of each benchmark method are expanded once per case of the run.
  */
 #[Warmup(1)]
-#[BeforeMethods('declareClass')]
 final class CaseExpanderBench
 {
 
@@ -37,6 +36,7 @@ final class CaseExpanderBench
 		}
 	}
 
+	#[Before]
 	public function declareClass(int $methods, int $dataSets, ScratchDirectory $scratch): void
 	{
 		$source = new SuiteSource();
@@ -64,12 +64,13 @@ final class CaseExpanderBench
 
 		$class = new ReflectionClass($name);
 		$expander = new CaseExpander(new ExpectedAttributeRewriter());
+		$hooks = $expander->hooks($class);
 		foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
 			if ($method->isStatic()) {
 				continue;
 			}
 
-			$expander->expand($class, $method);
+			$expander->expand($class, $method, $hooks);
 		}
 	}
 
