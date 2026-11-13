@@ -86,6 +86,29 @@ final class ToleranceTest extends TestCase
 		$this->assertEqualsWithDelta(0.5, $tolerance->allowedChange(Metric::Cycles, 100), 1e-9);
 	}
 
+	public function testDurationToleranceUsesOnlyTheRangesTheDurationReaches(): void
+	{
+		// a slower range allowing a larger share, so that counting a range it does not reach would show
+		$tolerance = new DurationTolerance([0 => 0.1, 100 => 0.5], 1, 1, 0.1);
+
+		// 50 ms: 10 % of 100 ms
+		$this->assertEqualsWithDelta(0.2, $tolerance->allowedChange(Metric::Instructions, 50), 1e-9);
+		// exactly 100 ms is in the second range
+		$this->assertEqualsWithDelta(0.5, $tolerance->allowedChange(Metric::Instructions, 100), 1e-9);
+	}
+
+	public function testDurationToleranceRoundsTheMillisecondsOfTheQuickestRange(): void
+	{
+		$this->assertSame(
+			'instructions and cycles by the time they take at 1 instructions or 1 cycles per ms: ±3 ms below 10 ms, ±10 % from 10 ms, each at least what the range below allows; ±10 % memory',
+			(new DurationTolerance([0 => 0.25, 10 => 0.1], 1, 1, 0.1))->describe(),
+		);
+		$this->assertSame(
+			'instructions and cycles by the time they take at 1 instructions or 1 cycles per ms: ±2 ms below 10 ms, ±10 % from 10 ms, each at least what the range below allows; ±10 % memory',
+			(new DurationTolerance([0 => 0.24, 10 => 0.1], 1, 1, 0.1))->describe(),
+		);
+	}
+
 	public function testDurationToleranceDescribesThePHPStansTable(): void
 	{
 		$this->assertSame(

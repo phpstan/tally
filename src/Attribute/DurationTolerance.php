@@ -9,6 +9,7 @@ use Tally\Comparison\Percent;
 use Tally\Comparison\TolerancePolicy;
 use Tally\Metric;
 use Tally\Quantity\QuantityFormat;
+use function array_filter;
 use function array_key_first;
 use function array_keys;
 use function array_reverse;
@@ -83,10 +84,8 @@ final class DurationTolerance implements TolerancePolicy
 
 		$expectedMilliseconds = $expected / $perMillisecond;
 		$allowedMilliseconds = 0.0;
-		foreach ($this->ranges() as [$start, $tolerance, $end]) {
-			if ($start > $expectedMilliseconds) {
-				break;
-			}
+		$reached = array_filter($this->ranges(), static fn (array $range): bool => $range[0] <= $expectedMilliseconds);
+		foreach ($reached as [$start, $tolerance, $end]) {
 			// the quickest range is allowed its margin at its upper end, the others at least that
 			$milliseconds = $end === null ? $expectedMilliseconds : ($start === 0 ? $end : min($expectedMilliseconds, $end));
 			$allowedMilliseconds = max($allowedMilliseconds, $tolerance * $milliseconds);
