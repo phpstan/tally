@@ -185,6 +185,15 @@ final class RunCommandTest extends TestCase
 		$this->assertSame(0, proc_close($check));
 	}
 
+	public function testAnnotationsPointToFilesInTheWorkspaceFromASubdirectory(): void
+	{
+		$environment = ['GITHUB_ACTIONS' => 'true', 'GITHUB_WORKSPACE' => (string) realpath(__DIR__ . '/../../..')] + $this->environment();
+
+		[, $output] = InProcessTally::run(__DIR__, $environment, ['run', '--filter=benchSlower', self::RUN]);
+
+		$this->assertStringContainsString('::error file=tests/Fixtures/Run/RunBench.php,line=16,title=', $output);
+	}
+
 	public function testReportsAJobSummaryThatCannotBeWritten(): void
 	{
 		$environment = ['GITHUB_ACTIONS' => 'true', 'GITHUB_STEP_SUMMARY' => '/nonexistent/summary.md'] + $this->environment();

@@ -471,7 +471,7 @@ jobs:
           path: tmp/tally-results
 ```
 
-In GitHub Actions, Tally also writes the report to the job summary and annotates the benchmarks that are slower, faster, new, or not measured. The report's accept command downloads the `tally-*` artifacts of the run:
+In GitHub Actions, Tally also writes the report to the job summary and annotates the benchmarks that are slower, faster, new, or not measured, with paths relative to `GITHUB_WORKSPACE`, so Tally can run in a subdirectory of the repository. The report's accept command downloads the `tally-*` artifacts of the run:
 
 ```bash
 gh run download 123456789 -R owner/repo -p 'tally-*' -D tmp/tally

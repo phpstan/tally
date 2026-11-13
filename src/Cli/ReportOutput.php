@@ -47,7 +47,7 @@ final class ReportOutput
 	 * @param list<BenchmarkCase> $cases the cases of the report
 	 * @param array<string, Measurement> $measurements by case ID
 	 * @param array<string, string> $environment
-	 * @param string $workingDirectory annotations and patches point to files relative to it
+	 * @param string $workingDirectory patches point to files relative to it, and annotations outside GitHub Actions' workspace
 	 * @param string|null $resultsDirectory where the results are, null when they were not kept
 	 */
 	public function write(Report $report, array $cases, array $measurements, Output $output, array $environment, string $workingDirectory, ?string $resultsDirectory): void
@@ -62,7 +62,8 @@ final class ReportOutput
 			return;
 		}
 
-		$output->write($this->annotations->render($report, $workingDirectory));
+		// annotations point to files relative to the repository, also when tally runs in a subdirectory of it
+		$output->write($this->annotations->render($report, $environment['GITHUB_WORKSPACE'] ?? $workingDirectory));
 		$summary = $environment['GITHUB_STEP_SUMMARY'] ?? null;
 		if ($summary === null || @file_put_contents($summary, $this->markdown->render($report, $reproduce, $accept, $newExpectations), FILE_APPEND) !== false) {
 			return;

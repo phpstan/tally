@@ -4,7 +4,8 @@ namespace Tally;
 
 /**
  * Turns counting off and on inside a benchmark method, for work that belongs to the setup but
- * cannot move to a before method. A benchmark gets it by declaring a parameter of this type.
+ * cannot move to a before method. A benchmark class gets it by taking a parameter of this type in
+ * its constructor.
  *
  * Paused code still runs under the simulation, only its cost is not collected, and the simulated
  * caches keep their contents, so counting after resume() does not start cold. Memory allocated
