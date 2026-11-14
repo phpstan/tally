@@ -20,6 +20,7 @@ final class ConfigurationTest extends TestCase
 		$this->assertSame('±2 % instructions, ±5 % cycles but at least ±2,000, ±5 % memory', $configuration->tolerance()->describe());
 		$this->assertSame('±10 % of each metric', $configuration->growthTolerance()->describe());
 		$this->assertFalse($configuration->namedArguments());
+		$this->assertSame(['PATH', 'HOME', 'TMPDIR', 'LANG', 'LC_ALL', 'PHPRC', 'PHP_INI_SCAN_DIR'], $configuration->environmentVariables());
 	}
 
 	public function testWithersKeepTheOriginal(): void
@@ -34,6 +35,7 @@ final class ConfigurationTest extends TestCase
 		$this->assertSame('±30 % of each metric', $original->withTolerance(new RelativeTolerance(0.3))->tolerance()->describe());
 		$this->assertSame('±40 % of each metric', $original->withGrowthTolerance(new RelativeTolerance(0.4))->growthTolerance()->describe());
 		$this->assertTrue($original->withNamedArguments(true)->namedArguments());
+		$this->assertSame(['PATH', 'CI'], $original->withEnvironmentVariables(['PATH', 'CI'])->environmentVariables());
 		$this->assertEquals(Configuration::create(), $original);
 	}
 
