@@ -49,7 +49,7 @@ $(CODSPEED)/tally_hooks-%.so: build/build-tally-hooks.sh $(wildcard ext/tally_ho
 lint:
 	php vendor/bin/parallel-lint --colors bin/tally \
 		--exclude tests/Fixtures/Loading/Syntax \
-		bench build examples src tests tally.php
+		bench build e2e examples src tests tally.php
 
 .PHONY: cs-install
 cs-install:

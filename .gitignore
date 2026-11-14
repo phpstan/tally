@@ -1,6 +1,8 @@
 /build-cs
 /composer.lock
 /vendor
+/e2e/bashunit
+/.bashunit
 /.amp/portals/*
 /codspeed
 /codspeed/*/.key
