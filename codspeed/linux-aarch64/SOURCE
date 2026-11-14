@@ -1,0 +1,10 @@
+Built by build/build-codspeed.sh of https://github.com/phpstan/tally from this source:
+
+CodSpeed's Valgrind, GPL-3.0-or-later (LICENSE-valgrind), with Capstone, BSD-3-Clause and
+NCSA (LICENSE-capstone, LICENSE-capstone-llvm), in valgrind and libexec/:
+https://github.com/CodSpeedHQ/valgrind-codspeed.git 3.26.0-0codspeed13
+https://github.com/CodSpeedHQ/valgrind-codspeed/tree/346abce500c33cb5e1b43fafb5520929bed8497e
+https://github.com/capstone-engine/capstone/tree/022575848782a4801fd150fdbc927effcbca0864
+
+Tally's tally_hooks extension, MIT, with Valgrind's valgrind.h and callgrind.h, BSD-style, in
+tally_hooks-<PHP version>[-zts].so: ext/tally_hooks of the same commit of Tally.
