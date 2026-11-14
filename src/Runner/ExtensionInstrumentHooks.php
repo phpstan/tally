@@ -7,6 +7,7 @@ use function in_array;
 use function Tally\Hooks\dump;
 use function Tally\Hooks\instrumented;
 use function Tally\Hooks\start_instrumentation;
+use function Tally\Hooks\stop_instrumentation;
 use function Tally\Hooks\toggle_collect;
 
 /**
@@ -42,6 +43,12 @@ final class ExtensionInstrumentHooks implements InstrumentHooks
 	public function startInstrumentation(): void
 	{
 		start_instrumentation();
+	}
+
+	#[Override]
+	public function stopInstrumentation(): void
+	{
+		stop_instrumentation();
 	}
 
 	#[Override]

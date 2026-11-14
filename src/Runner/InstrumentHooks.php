@@ -9,6 +9,9 @@ interface InstrumentHooks
 	/** Starts simulating the process with empty caches; it collects counts only while collecting is on */
 	public function startInstrumentation(): void;
 
+	/** Stops simulating the process, which then runs at Valgrind's quickest */
+	public function stopInstrumentation(): void;
+
 	/** Turns collecting the counts on or off, keeping the simulated caches */
 	public function toggleCollect(): void;
 

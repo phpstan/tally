@@ -24,6 +24,12 @@ final class RecordingInstrumentHooks implements InstrumentHooks
 	}
 
 	#[Override]
+	public function stopInstrumentation(): void
+	{
+		$this->calls[] = 'stop';
+	}
+
+	#[Override]
 	public function toggleCollect(): void
 	{
 		$this->calls[] = 'toggle';

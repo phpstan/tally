@@ -12,6 +12,9 @@ interface Counter
 	/** Called once for each case before its warm-up calls, so that they warm up what the counter's tool simulates */
 	public function prepare(): void;
 
+	/** Called once for each case after its last span, also when the benchmark throws */
+	public function finish(): void;
+
 	public function start(): void;
 
 	public function pause(): void;

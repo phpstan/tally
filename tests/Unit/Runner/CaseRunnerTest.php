@@ -67,6 +67,7 @@ final class CaseRunnerTest extends TestCase
 			'excluded',
 			'counter resume',
 			'counter stop ' . RunnerBench::class . '::benchName@x',
+			'counter finish',
 			'tear down x',
 		], Journal::$entries);
 	}
@@ -88,6 +89,7 @@ final class CaseRunnerTest extends TestCase
 			'excluded',
 			'counter resume',
 			'counter stop ' . RunnerBench::class . '::benchName@y',
+			'counter finish',
 		], Journal::$entries);
 	}
 
@@ -138,6 +140,7 @@ final class CaseRunnerTest extends TestCase
 			'counter stop ' . RunnerBench::class . '::benchThrows@z#baseline',
 			'counter start',
 			'bench throws',
+			'counter finish',
 			'tear down z',
 		], Journal::$entries);
 	}
