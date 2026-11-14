@@ -14,7 +14,7 @@
 #include "php.h"
 #include "ext/standard/info.h"
 
-#define TALLY_HOOKS_VERSION "1.1.0"
+#define TALLY_HOOKS_VERSION "1.2.0"
 #define TALLY_HOOKS_NAMESPACE "Tally\\Hooks"
 
 #ifdef TALLY_HOOKS_RECORDING
@@ -25,6 +25,7 @@ static smart_str recorded;
 
 # define TALLY_INSTRUMENTED() (getenv("TALLY_HOOKS_OUTSIDE") == NULL)
 # define TALLY_START_INSTRUMENTATION() smart_str_appends(&recorded, "instrument\n")
+# define TALLY_STOP_INSTRUMENTATION() smart_str_appends(&recorded, "stop\n")
 # define TALLY_TOGGLE_COLLECT() smart_str_appends(&recorded, "toggle\n")
 # define TALLY_DUMP(name) do { \
 		smart_str_appends(&recorded, "dump "); \
@@ -36,6 +37,7 @@ static smart_str recorded;
 
 # define TALLY_INSTRUMENTED() (RUNNING_ON_VALGRIND > 0)
 # define TALLY_START_INSTRUMENTATION() CALLGRIND_START_INSTRUMENTATION
+# define TALLY_STOP_INSTRUMENTATION() CALLGRIND_STOP_INSTRUMENTATION
 # define TALLY_TOGGLE_COLLECT() CALLGRIND_TOGGLE_COLLECT
 # define TALLY_DUMP(name) CALLGRIND_DUMP_STATS_AT(name)
 #endif
@@ -64,6 +66,14 @@ PHP_FUNCTION(tally_hooks_start_instrumentation)
 	ZEND_PARSE_PARAMETERS_NONE();
 
 	TALLY_START_INSTRUMENTATION();
+}
+
+/* Stops simulating the process, which then runs at Valgrind's quickest */
+PHP_FUNCTION(tally_hooks_stop_instrumentation)
+{
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	TALLY_STOP_INSTRUMENTATION();
 }
 
 /* Turns collecting the counts off or on, keeping the simulated caches */
@@ -107,6 +117,7 @@ PHP_FUNCTION(tally_hooks_recorded_calls)
 static const zend_function_entry tally_hooks_functions[] = {
 	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, instrumented, ZEND_FN(tally_hooks_instrumented), arginfo_bool)
 	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, start_instrumentation, ZEND_FN(tally_hooks_start_instrumentation), arginfo_void)
+	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, stop_instrumentation, ZEND_FN(tally_hooks_stop_instrumentation), arginfo_void)
 	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, toggle_collect, ZEND_FN(tally_hooks_toggle_collect), arginfo_void)
 	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, dump, ZEND_FN(tally_hooks_dump), arginfo_dump)
 #ifdef TALLY_HOOKS_RECORDING

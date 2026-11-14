@@ -70,7 +70,7 @@ final class WorkerCommandTest extends TestCase
 
 		$this->assertSame(0, $exitCode, $errorOutput);
 		$this->assertSame(
-			sprintf("instrument\ntoggle\ntoggle\ndump %1\$s::benchAllocate#warmup\ntoggle\ntoggle\ndump %1\$s::benchAllocate#baseline\ntoggle\ntoggle\ndump %1\$s::benchAllocate\n", self::BENCH),
+			sprintf("instrument\ntoggle\ntoggle\ndump %1\$s::benchAllocate#warmup\ntoggle\ntoggle\ndump %1\$s::benchAllocate#baseline\ntoggle\ntoggle\ndump %1\$s::benchAllocate\nstop\n", self::BENCH),
 			recorded_calls(),
 		);
 		$this->assertSame(['memory'], array_keys($this->writtenResult()->metrics->toArray()));

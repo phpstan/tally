@@ -11,7 +11,8 @@ use Override;
  * Callgrind empties its simulated caches when it starts the instrumentation, so the counter starts
  * it once, before the warm-up calls, and only turns collecting on and off for each span. The caches
  * stay warm from one span to the next, and the cycles of a small benchmark do not depend on which
- * cache lines the code between the spans happens to touch.
+ * cache lines the code between the spans happens to touch. It stops the instrumentation after the
+ * last span, so the after methods and the end of the process run at Valgrind's quickest.
  */
 final class CodSpeedCounter implements Counter
 {
@@ -24,6 +25,12 @@ final class CodSpeedCounter implements Counter
 	public function prepare(): void
 	{
 		$this->hooks->startInstrumentation();
+	}
+
+	#[Override]
+	public function finish(): void
+	{
+		$this->hooks->stopInstrumentation();
 	}
 
 	#[Override]

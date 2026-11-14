@@ -24,7 +24,8 @@ use function sprintf;
  * CPU simulation the warm-up calls fill the simulated caches. The first counted span still costs
  * more than later ones, because PHP does work once on the first call of the counting path. So the
  * baseline is counted twice, and only the second one, named after the case with #baseline, is
- * subtracted.
+ * subtracted. The counter is finished after the benchmark's span, also when it throws, so the
+ * after methods and the end of the process do not run under the simulation.
  *
  * The baseline is a separate part of the profile. It goes
  * through the same steps as the counted call: the return from starting the counter, a closure
@@ -75,15 +76,19 @@ final class CaseRunner
 				$this->callHook($meter, $object, $class->getMethod($name), $case);
 			}
 			$counter->prepare();
-			for ($i = 0; $i < $case->warmup; $i++) {
-				$this->span($meter, $this->uncounted, $call, $arguments, $benchmark->getName());
+			try {
+				for ($i = 0; $i < $case->warmup; $i++) {
+					$this->span($meter, $this->uncounted, $call, $arguments, $benchmark->getName());
+				}
+
+				$baseline = $this->baseline(...);
+				$this->span($meter, $counter, $baseline, $arguments, $id . self::WARMUP_SUFFIX);
+				$baselineMemory = $this->span($meter, $counter, $baseline, $arguments, $id . self::BASELINE_SUFFIX);
+
+				return $this->span($meter, $counter, $call, $arguments, $id)->minus($baselineMemory);
+			} finally {
+				$counter->finish();
 			}
-
-			$baseline = $this->baseline(...);
-			$this->span($meter, $counter, $baseline, $arguments, $id . self::WARMUP_SUFFIX);
-			$baselineMemory = $this->span($meter, $counter, $baseline, $arguments, $id . self::BASELINE_SUFFIX);
-
-			return $this->span($meter, $counter, $call, $arguments, $id)->minus($baselineMemory);
 		} finally {
 			foreach ($case->afterMethods as $name) {
 				$this->callHook($meter, $object, $class->getMethod($name), $case);

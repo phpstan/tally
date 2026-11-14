@@ -35,8 +35,9 @@ final class ExtensionInstrumentHooksTest extends TestCase
 		$hooks->toggleCollect();
 		$hooks->toggleCollect();
 		$hooks->dump('App\FooBench::benchFoo@a');
+		$hooks->stopInstrumentation();
 
-		$this->assertSame(implode("\n", ['instrument', 'toggle', 'toggle', 'dump App\FooBench::benchFoo@a']) . "\n", recorded_calls());
+		$this->assertSame(implode("\n", ['instrument', 'toggle', 'toggle', 'dump App\FooBench::benchFoo@a', 'stop']) . "\n", recorded_calls());
 	}
 
 	/**

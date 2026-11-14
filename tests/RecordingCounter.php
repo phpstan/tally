@@ -24,6 +24,12 @@ final class RecordingCounter implements Counter
 	}
 
 	#[Override]
+	public function finish(): void
+	{
+		$this->calls[] = 'finish';
+	}
+
+	#[Override]
 	public function start(): void
 	{
 		$this->calls[] = 'start';

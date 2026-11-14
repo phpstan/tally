@@ -15,6 +15,10 @@ function start_instrumentation(): void
 {
 }
 
+function stop_instrumentation(): void
+{
+}
+
 function toggle_collect(): void
 {
 }

@@ -581,9 +581,10 @@ In each of the two processes of a case, Tally:
 6. counts a warm-up span, because the first counted span costs more than later ones, and throws it away,
 7. counts an empty call through the same path as the benchmark, the baseline,
 8. counts one call of the benchmark,
-9. calls the `#[After]` methods, not counted.
+9. stops the simulation, also when the benchmark throws,
+10. calls the `#[After]` methods, not counted.
 
-The simulation starts once, and only collecting the counts is turned on for each span, so the simulated caches stay warm from one span to the next. `codspeed run` starts it for each benchmark, which empties the caches, so the cycles of a benchmark of a few thousand instructions depend on which cache lines the code just before it happens to touch. Tally counts the same instructions as CodSpeed, and fewer cycles for small benchmarks.
+The simulation runs from step 4 to step 9, and only collecting the counts is turned on for each span, so the simulated caches stay warm from one span to the next. `codspeed run` starts it for each benchmark, which empties the caches, so the cycles of a benchmark of a few thousand instructions depend on which cache lines the code just before it happens to touch. Tally counts the same instructions as CodSpeed, and fewer cycles for small benchmarks.
 
 The native process runs the same steps without the simulation, so hooks and warm-up calls run twice per case, once in each process. The scratch directory is shared between the two, so a `#[Before]` method that writes a file finds it already there in the second process.
 

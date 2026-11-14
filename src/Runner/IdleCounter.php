@@ -17,6 +17,11 @@ final class IdleCounter implements Counter
 	}
 
 	#[Override]
+	public function finish(): void
+	{
+	}
+
+	#[Override]
 	public function start(): void
 	{
 	}

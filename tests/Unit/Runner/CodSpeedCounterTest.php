@@ -9,7 +9,7 @@ use Tally\Tests\RecordingInstrumentHooks;
 final class CodSpeedCounterTest extends TestCase
 {
 
-	public function testInstrumentsOnceAndCollectsOnlyInTheSpans(): void
+	public function testInstrumentsFromPreparingToFinishingAndCollectsOnlyInTheSpans(): void
 	{
 		$hooks = new RecordingInstrumentHooks();
 		$counter = new CodSpeedCounter($hooks);
@@ -21,6 +21,7 @@ final class CodSpeedCounterTest extends TestCase
 		$counter->pause();
 		$counter->resume();
 		$counter->stop('App\FooBench::benchFoo@a');
+		$counter->finish();
 
 		$this->assertSame([
 			'instrument',
@@ -32,6 +33,7 @@ final class CodSpeedCounterTest extends TestCase
 			'toggle',
 			'toggle',
 			'dump App\FooBench::benchFoo@a',
+			'stop',
 		], $hooks->calls);
 	}
 
