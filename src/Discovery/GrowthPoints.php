@@ -4,9 +4,9 @@ namespace Tally\Discovery;
 
 use ReflectionMethod;
 use Tally\CaseId;
-use Tally\Complexity\ComplexityClass;
 use Tally\Complexity\GrowthPoint;
 use Tally\DataSet;
+use Tally\Expectation\ComplexityAttribute;
 use Tally\Expression\Evaluator;
 use Tally\Expression\Expression;
 use Tally\Expression\ExpressionException;
@@ -44,8 +44,9 @@ final class GrowthPoints
 	 * @return list<GrowthPoint> in the order of the data sets
 	 * @throws InvalidBenchmarkException
 	 */
-	public function points(string $className, ReflectionMethod $method, ComplexityClass $complexity, string $name, array $dataSets, string $where): array
+	public function points(string $className, ReflectionMethod $method, ComplexityAttribute $attribute, string $name, array $dataSets, string $where): array
 	{
+		$complexity = $attribute->complexity;
 		$size = $this->parse($complexity->size(), $name . ' size', $where);
 		$formula = $this->parse($complexity->formula(), $name . ' formula', $where);
 		$this->checkTypes($method, $size, $formula, $name, $where);
@@ -71,7 +72,7 @@ final class GrowthPoints
 		$baseId = new CaseId($className, $method->getName(), $baseName);
 
 		return array_map(
-			fn (DataSet $dataSet, float $n): GrowthPoint => new GrowthPoint($complexity->describe(), $baseId, $this->cost($formula, $n, $dataSet->name, $name, $where) / $baseCost),
+			fn (DataSet $dataSet, float $n): GrowthPoint => new GrowthPoint($attribute, $baseId, $n, $this->cost($formula, $n, $dataSet->name, $name, $where) / $baseCost),
 			$dataSets,
 			array_values($sizes),
 		);

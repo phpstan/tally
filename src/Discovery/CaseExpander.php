@@ -20,6 +20,7 @@ use Tally\Configuration;
 use Tally\DataSet;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\AttributeIndex;
+use Tally\Expectation\ComplexityAttribute;
 use Tally\Expectation\ExpectationSource;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Metrics;
@@ -160,7 +161,14 @@ final class CaseExpander
 		return array_map(
 			static fn (BenchmarkCase $case, GrowthPoint $growth): BenchmarkCase => $case->withGrowth($growth),
 			$cases,
-			$this->growthPoints->points($class->getName(), $method, $complexity[0], $complexity[1], $dataSets, $where),
+			$this->growthPoints->points(
+				$class->getName(),
+				$method,
+				new ComplexityAttribute($this->rewriter, $file, $attributes, $declaringClass, $method->getName(), $complexity[0]),
+				$complexity[1],
+				$dataSets,
+				$where,
+			),
 		);
 	}
 

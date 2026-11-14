@@ -3,11 +3,14 @@
 namespace Tally\Tests\Unit\Expectation;
 
 use PHPUnit\Framework\TestCase;
+use Tally\Attribute\Linear;
+use Tally\Attribute\Quadratic;
 use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\CodeEdit;
+use Tally\Expectation\ComplexityAttribute;
 use Tally\Expectation\ExpectationChanges;
 use Tally\Expectation\ExpectationSource;
 use Tally\Expectation\ExpectedAttributeRewriter;
@@ -29,6 +32,7 @@ final class ExpectationChangesTest extends TestCase
 				[self::case('B::benchB', new InMemoryExpectations(null, '/b.php')), Metrics::fromArray(['instructions' => 2])],
 				[self::case('A::benchC', new InMemoryExpectations(null, '/a.php')), Metrics::fromArray(['instructions' => 3])],
 			],
+			[],
 			['/a.php' => "<?php\n", '/b.php' => "<?php // b\n", '/unused.php' => ''],
 		);
 
@@ -54,6 +58,7 @@ final class ExpectationChangesTest extends TestCase
 				[self::case('App\SortBench::benchLarge@large', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchLarge', 'large', null, false)), Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0])],
 				[self::case('App\SortBench::benchSort', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchSort', null, null, false)), Metrics::fromArray(['instructions' => 2, 'cycles' => 2, 'memory' => 0])],
 			],
+			[],
 			['/SortBench.php' => $code, '/GoneBench.php' => false],
 		);
 
@@ -88,6 +93,7 @@ final class ExpectationChangesTest extends TestCase
 				[self::case('App\SortBench::benchB', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchB', null, null, false)), $metrics],
 				[self::case('App\SortBench::benchC', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchC', null, null, false)), $metrics],
 			],
+			[],
 			['/SortBench.php' => $code],
 		);
 
@@ -106,6 +112,31 @@ final class ExpectationChangesTest extends TestCase
 		$this->assertSame([], $plan->failures);
 	}
 
+	public function testAComplexityClassAndExpectationsInOneFileAreOneChange(): void
+	{
+		$code = "<?php\nnamespace App;\nuse Tally\\Attribute\\Linear;\nclass SortBench {\n\t#[Linear('numbers')]\n\tpublic function benchGrow() {}\n\tpublic function benchNew() {}\n}\n";
+		$rewriter = new ExpectedAttributeRewriter();
+		$index = $rewriter->index($code);
+
+		$plan = (new ExpectationChanges())->plan(
+			[[self::case('App\SortBench::benchNew', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchNew', null, null, false)), Metrics::fromArray(['instructions' => 1, 'cycles' => 2, 'memory' => 0])]],
+			[[CaseId::fromString('App\SortBench::benchGrow'), new ComplexityAttribute($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchGrow', new Linear('numbers')), new Quadratic('numbers')]],
+			['/SortBench.php' => $code],
+		);
+
+		$this->assertSame(
+			[[
+				'/SortBench.php',
+				$code,
+				"<?php\nnamespace App;\nuse Tally\\Attribute\\Expected;\nuse Tally\\Attribute\\Quadratic;\nclass SortBench {\n\t#[Quadratic('numbers')]\n\tpublic function benchGrow() {}\n"
+				. "\t#[Expected(instructions: '1', cycles: '2', memory: '0B')]\n\tpublic function benchNew() {}\n}\n",
+				['App\SortBench::benchNew', 'App\SortBench::benchGrow'],
+			]],
+			self::files($plan->files),
+		);
+		$this->assertSame([], $plan->failures);
+	}
+
 	public function testEditsAtOneOffsetGoInTheNaturalOrderOfTheirTextAndInsertionsBeforeReplacements(): void
 	{
 		$plan = (new ExpectationChanges())->plan(
@@ -114,6 +145,7 @@ final class ExpectationChangesTest extends TestCase
 				[self::case('A::bench2', new FixedEdits('/a.php', [new CodeEdit(1, 0, '<2>')])), Metrics::none()],
 				[self::case('A::bench1', new FixedEdits('/a.php', [new CodeEdit(1, 0, '<10>'), new CodeEdit(3, 0, '<3>')])), Metrics::none()],
 			],
+			[],
 			['/a.php' => 'abcd'],
 		);
 
@@ -130,6 +162,7 @@ final class ExpectationChangesTest extends TestCase
 				[self::case('A::benchC', new FixedEdits('/a.php', [new CodeEdit(1, 2, 'X'), new CodeEdit(3, 1, 'W')])), Metrics::none()],
 				[self::case('A::benchD', new FixedEdits('/a.php', [new CodeEdit(2, 1, 'V')])), Metrics::none()],
 			],
+			[],
 			['/a.php' => 'abcd'],
 		);
 
@@ -139,7 +172,7 @@ final class ExpectationChangesTest extends TestCase
 
 	public function testAFileThatWasNotReadCannotBeRewritten(): void
 	{
-		$plan = (new ExpectationChanges())->plan([[self::case('A::bench', new InMemoryExpectations(null, '/a.php')), Metrics::none()]], []);
+		$plan = (new ExpectationChanges())->plan([[self::case('A::bench', new InMemoryExpectations(null, '/a.php')), Metrics::none()]], [], []);
 
 		$this->assertSame([], $plan->files);
 		$this->assertSame(['A::bench' => 'Cannot read /a.php.'], $plan->failures);
@@ -147,7 +180,7 @@ final class ExpectationChangesTest extends TestCase
 
 	public function testNothingToChange(): void
 	{
-		$plan = (new ExpectationChanges())->plan([], ['/a.php' => '']);
+		$plan = (new ExpectationChanges())->plan([], [], ['/a.php' => '']);
 
 		$this->assertSame([], $plan->files);
 		$this->assertSame([], $plan->failures);

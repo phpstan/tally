@@ -3,6 +3,8 @@
 namespace Tally\Expectation;
 
 use Tally\BenchmarkCase;
+use Tally\CaseId;
+use Tally\Complexity\ComplexityClass;
 use Tally\Metrics;
 use function array_diff_key;
 use function array_keys;
@@ -12,25 +14,33 @@ use function substr;
 use function usort;
 
 /**
- * Plans the new code of the files that keep the expectations of the accepted cases. The edits of
- * all cases of a file are applied together, in one pass over its code. ExpectationFiles reads and
- * writes the files.
+ * Plans the new code of the files that keep the expectations of the accepted cases, and the
+ * complexity classes of the accepted benchmark methods. The edits of all of them in a file are
+ * applied together, in one pass over its code. ExpectationFiles reads and writes the files.
  */
 final class ExpectationChanges
 {
 
 	/**
 	 * @param list<array{BenchmarkCase, Metrics}> $accepted the cases with their measured metrics
+	 * @param list<array{CaseId, ComplexityAttribute, ComplexityClass}> $complexities the benchmark methods with the classes that replace theirs
 	 * @param array<string, string|false> $code the code of the files by path, false for a file that cannot be read
 	 */
-	public function plan(array $accepted, array $code): ChangePlan
+	public function plan(array $accepted, array $complexities, array $code): ChangePlan
 	{
 		/** @var array<string, array{string, array<string, list<CodeEdit>>}> $editsByFile the code and the edits by case */
 		$editsByFile = [];
-		$failures = [];
+		$changes = [];
 		foreach ($accepted as [$case, $measured]) {
-			$id = $case->id->toString();
-			$file = $case->expectations->file();
+			$changes[] = [$case->id, $case->expectations->file(), static fn (string $code): array => $case->expectations->edits($code, $measured)];
+		}
+		foreach ($complexities as [$id, $attribute, $replacement]) {
+			$changes[] = [$id, $attribute->file(), static fn (string $code): array => $attribute->edits($code, $replacement)];
+		}
+
+		$failures = [];
+		foreach ($changes as [$caseId, $file, $edits]) {
+			$id = $caseId->toString();
 			$before = $code[$file] ?? false;
 			if ($before === false) {
 				$failures[$id] = sprintf('Cannot read %s.', $file);
@@ -38,7 +48,7 @@ final class ExpectationChanges
 			}
 
 			try {
-				$edits = $case->expectations->edits($before, $measured);
+				$edits = $edits($before);
 			} catch (ExpectationException $e) {
 				$failures[$id] = $e->getMessage();
 				continue;
