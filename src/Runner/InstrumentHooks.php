@@ -2,7 +2,7 @@
 
 namespace Tally\Runner;
 
-/** The calls into CodSpeed's instrument-hooks library that CodSpeedCounter makes. */
+/** The calls into Callgrind that CodSpeedCounter makes, through the tally_hooks extension. */
 interface InstrumentHooks
 {
 

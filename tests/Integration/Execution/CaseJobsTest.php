@@ -123,7 +123,7 @@ final class CaseJobsTest extends TestCase
 
 	private function settings(string $workDirectory): WorkerSettings
 	{
-		return new WorkerSettings([], [], '/opt/codspeed/valgrind', '/opt/codspeed/libinstrument_hooks.so', $workDirectory, 60, 1800);
+		return new WorkerSettings([], [], '/opt/codspeed/valgrind', '/opt/codspeed/tally_hooks-8.5.so', $workDirectory, 60, 1800);
 	}
 
 	private static function memory(int $bytes): Measurement

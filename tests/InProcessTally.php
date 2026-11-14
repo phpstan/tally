@@ -25,7 +25,7 @@ final class InProcessTally
 	 */
 	public static function run(string $workingDirectory, array $environment, array $arguments): array
 	{
-		return self::runWithCodSpeed(InstrumentHooksFixture::codspeed(), $workingDirectory, $environment, $arguments);
+		return self::runWithCodSpeed(ValgrindFixture::codspeed(), $workingDirectory, $environment, $arguments);
 	}
 
 	/**

@@ -38,8 +38,9 @@ parameters:
 			throwTypeCovariance: true
 	tmpDir: tmp
 
-	stubFiles:
-		- build/stubs/FFI.stub
+	# the functions of the tally_hooks extension, which PHPStan does not load
+	scanFiles:
+		- build/stubs/TallyHooks.stub
 
 	paths:
 		- bin/tally

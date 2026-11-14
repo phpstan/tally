@@ -209,7 +209,7 @@ final class RunCommandTest extends TestCase
 		$this->assertSame('', $output);
 		$this->assertSame(
 			"Tally counts with CodSpeed's Valgrind, but has no build of it for linux-riscv64 in /nonexistent/codspeed.\n"
-			. "Releases of Tally include builds for linux-x86_64 and linux-aarch64. In a clone of Tally, build it with build/build-codspeed.sh.\n",
+			. "Releases of Tally include builds for linux-x86_64 and linux-aarch64. In a clone of Tally, build it with make codspeed.\n",
 			$errorOutput,
 		);
 	}
@@ -248,6 +248,8 @@ final class RunCommandTest extends TestCase
 	{
 		return [
 			'PATH' => (string) getenv('PATH'),
+			// the recording build of tally_hooks, which the workers load like the tests
+			'PHP_INI_SCAN_DIR' => (string) getenv('PHP_INI_SCAN_DIR'),
 			'TALLY_FAKE_COUNTS' => json_encode([
 				self::BENCH . '::benchOk' => [1100, 1650, 100, 150],
 				self::BENCH . '::benchSlower' => [2100, 3150, 100, 150],
