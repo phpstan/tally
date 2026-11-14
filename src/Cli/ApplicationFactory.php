@@ -14,6 +14,8 @@ use Tally\Execution\CaseJobs;
 use Tally\Execution\CaseOutcome;
 use Tally\Execution\CodSpeedInstallation;
 use Tally\Execution\DirectoryRemover;
+use Tally\Execution\StrippedIni;
+use Tally\Execution\StrippedIniFile;
 use Tally\Execution\WorkerCommandLine;
 use Tally\Expectation\ExpectationChanges;
 use Tally\Expectation\ExpectationFiles;
@@ -65,10 +67,11 @@ final class ApplicationFactory
 	 * @param bool $colors whether to color the standard output
 	 * @param bool $errorColors whether to color the error output
 	 * @param string $phpBinary runs the workers
+	 * @param list<string> $iniFiles the ini files the PHP binary loaded, in the order it loaded them
 	 * @param string $tallyBinary the bin/tally the workers run
 	 * @param string $codspeed the builds of CodSpeed's Valgrind and tally_hooks for this platform
 	 */
-	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, bool $errorColors, string $phpBinary, string $tallyBinary, string $codspeed): Application
+	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, bool $errorColors, string $phpBinary, array $iniFiles, string $tallyBinary, string $codspeed): Application
 	{
 		$relativePath = new RelativePath();
 		$closestName = new ClosestName();
@@ -109,6 +112,7 @@ final class ApplicationFactory
 					$selectedCases,
 					new CodSpeedInstallation($codspeed),
 					new CaseJobs(new WorkerCommandLine($phpBinary, $tallyBinary), new CaseOutcome(), new CallgrindProfile(), $json),
+					new StrippedIniFile(new StrippedIni(), $iniFiles),
 					new ProcessPool(new ProcessKiller(new ProcessTable())),
 					$comparator,
 					new ProgressFormat(),

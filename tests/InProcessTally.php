@@ -4,9 +4,13 @@ namespace Tally\Tests;
 
 use PHPUnit\Framework\Assert;
 use Tally\Cli\ApplicationFactory;
+use function explode;
 use function fopen;
+use function php_ini_loaded_file;
+use function php_ini_scanned_files;
 use function rewind;
 use function stream_get_contents;
+use function trim;
 use const PHP_BINARY;
 
 /**
@@ -41,8 +45,19 @@ final class InProcessTally
 		Assert::assertNotFalse($output);
 		Assert::assertNotFalse($errorOutput);
 
+		// like bin/tally, the ini files of this process
+		$iniFiles = [];
+		foreach ([(string) php_ini_loaded_file(), ...explode(',', (string) php_ini_scanned_files())] as $iniFile) {
+			$iniFile = trim($iniFile);
+			if ($iniFile === '') {
+				continue;
+			}
+
+			$iniFiles[] = $iniFile;
+		}
+
 		$exitCode = (new ApplicationFactory())
-			->create($output, $errorOutput, $workingDirectory, $environment, false, false, PHP_BINARY, self::BINARY, $codspeed)
+			->create($output, $errorOutput, $workingDirectory, $environment, false, false, PHP_BINARY, $iniFiles, self::BINARY, $codspeed)
 			->run(['tally', ...$arguments]);
 
 		rewind($output);

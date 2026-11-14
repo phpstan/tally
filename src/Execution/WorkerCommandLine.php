@@ -55,6 +55,7 @@ final class WorkerCommandLine
 	{
 		return [
 			$this->phpBinary,
+			...$this->phpIni($settings),
 			...$this->ini($settings->iniEntries),
 			...$this->worker($settings, $case, $scratch, $result, []),
 		];
@@ -73,6 +74,7 @@ final class WorkerCommandLine
 			...self::VALGRIND_OPTIONS,
 			'--callgrind-out-file=' . $profileFolder . '/%p.out',
 			$this->phpBinary,
+			...$this->phpIni($settings),
 			...$this->ini([
 				...self::COUNTED_INI_ENTRIES,
 				...($settings->extension === null ? [] : ['extension=' . $settings->extension]),
@@ -80,6 +82,14 @@ final class WorkerCommandLine
 			]),
 			...$this->worker($settings, $case, $scratch, $result, ['--counted']),
 		];
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private function phpIni(WorkerSettings $settings): array
+	{
+		return $settings->phpIni === null ? [] : ['-c', $settings->phpIni];
 	}
 
 	/**

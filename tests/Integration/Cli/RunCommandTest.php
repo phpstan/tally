@@ -21,12 +21,14 @@ use function getenv;
 use function getmypid;
 use function json_encode;
 use function ksort;
+use function php_ini_loaded_file;
 use function proc_close;
 use function proc_open;
 use function realpath;
 use function sprintf;
 use function str_repeat;
 use function sys_get_temp_dir;
+use function var_export;
 use const JSON_THROW_ON_ERROR;
 
 final class RunCommandTest extends TestCase
@@ -304,6 +306,28 @@ final class RunCommandTest extends TestCase
 	public function testTheCasesGetOnlyTheEnvironmentVariablesOfTheConfiguration(array $config, string $seen): void
 	{
 		[$exitCode, $output] = InProcessTally::run(__DIR__, ['TALLY_EXAMPLE' => 'kept'] + $this->environment(), ['run', ...$config, __DIR__ . '/../../Fixtures/Environment']);
+
+		$this->assertSame(1, $exitCode);
+		$this->assertStringContainsString("\n    RuntimeException: " . $seen . "\n", $output);
+	}
+
+	/**
+	 * @return iterable<string, array{string, string}>
+	 */
+	public static function dataStrippedExtensions(): iterable
+	{
+		yield 'an extension an ini file loads' => [
+			'tally.php',
+			sprintf('tally_hooks is not loaded, the php.ini is %s, PHP scans no files.', var_export(sys_get_temp_dir() . '/tally-' . getmypid() . '/php.ini', true)),
+		];
+		yield 'none' => ['none.php', sprintf('tally_hooks is loaded, the php.ini is %s, PHP scans files.', var_export(php_ini_loaded_file(), true))];
+	}
+
+	#[DataProvider('dataStrippedExtensions')]
+	public function testTheCasesRunWithoutTheStrippedExtensions(string $config, string $seen): void
+	{
+		$fixture = __DIR__ . '/../../Fixtures/StrippedExtensions';
+		[$exitCode, $output] = InProcessTally::run(__DIR__, $this->environment(), ['run', '--config=' . $fixture . '/' . $config, $fixture]);
 
 		$this->assertSame(1, $exitCode);
 		$this->assertStringContainsString("\n    RuntimeException: " . $seen . "\n", $output);
