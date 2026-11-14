@@ -571,11 +571,11 @@ An `ExpectationSource` has four methods:
 
 `tally run` loads the benchmarks, then runs each case in two processes of its own: first natively, which fails quickly when the case is broken, then under CodSpeed's Valgrind, which counts it. Several cases run at once, see `--jobs`.
 
-Every process loads the whole suite, so **data providers run in every process**: in `tally run` itself, and twice for each case. Every `tally` command runs them too. Keep them cheap and do expensive preparation in a `#[Before]` method, which runs only for the case that needs it.
+`tally run` loads the whole suite, and each process of a case loads only the file of the case's class, so **the data providers of a file run twice for each of its cases**, and once in `tally run`. Every `tally` command runs them too. Keep them cheap and do expensive preparation in a `#[Before]` method, which runs only for the case that needs it. A benchmark class finds the other classes it uses through the autoloader, not because another `*Bench.php` file declared them.
 
 In each of the two processes of a case, Tally:
 
-1. loads the benchmarks and calls every data provider, not counted,
+1. loads the file of the case's class and calls the data providers of its benchmarks, not counted,
 2. creates the benchmark class, once, with its `Meter` and `ScratchDirectory`,
 3. calls the `#[Before]` methods, not counted,
 4. starts CodSpeed's CPU simulation, with empty caches,

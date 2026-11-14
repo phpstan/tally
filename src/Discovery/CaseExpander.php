@@ -186,7 +186,7 @@ final class CaseExpander
 			$this->resolver->resolveHook($class->getMethod($hook), $arguments);
 		}
 
-		return new BenchmarkCase(new CaseId($class->getName(), $method->getName(), $dataSet), $arguments, $warmup, $hooks['before'], $hooks['after'], $expectations, $tolerance, null);
+		return new BenchmarkCase(new CaseId($class->getName(), $method->getName(), $dataSet), (string) $class->getFileName(), $arguments, $warmup, $hooks['before'], $hooks['after'], $expectations, $tolerance, null);
 	}
 
 	/**

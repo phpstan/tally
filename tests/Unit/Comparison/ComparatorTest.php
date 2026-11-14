@@ -208,10 +208,10 @@ final class ComparatorTest extends TestCase
 	public function testCompareCaseComparesByExpectationsOrByGrowth(): void
 	{
 		$expectations = new InMemoryExpectations(Metrics::fromArray(['instructions' => 100]), '/bench/ABench.php');
-		$small = new BenchmarkCase(CaseId::fromString('A::bench@small'), [], 0, [], [], $expectations, new RelativeTolerance(0.1), new GrowthPoint('O(n)', CaseId::fromString('A::bench@small'), 1.0));
+		$small = new BenchmarkCase(CaseId::fromString('A::bench@small'), '/benchmarks/FooBench.php', [], 0, [], [], $expectations, new RelativeTolerance(0.1), new GrowthPoint('O(n)', CaseId::fromString('A::bench@small'), 1.0));
 		$large = $small->withGrowth(new GrowthPoint('O(n)', CaseId::fromString('A::bench@small'), 3.0));
-		$large = new BenchmarkCase(CaseId::fromString('A::bench@large'), [], 0, [], [], $expectations, new RelativeTolerance(0.1), $large->growth);
-		$plain = new BenchmarkCase(CaseId::fromString('A::plain'), [], 0, [], [], $expectations, new RelativeTolerance(0.1), null);
+		$large = new BenchmarkCase(CaseId::fromString('A::bench@large'), '/benchmarks/FooBench.php', [], 0, [], [], $expectations, new RelativeTolerance(0.1), $large->growth);
+		$plain = new BenchmarkCase(CaseId::fromString('A::plain'), '/benchmarks/FooBench.php', [], 0, [], [], $expectations, new RelativeTolerance(0.1), null);
 		$measurements = [
 			'A::bench@small' => Measurement::measured(CaseId::fromString('A::bench@small'), Metrics::fromArray(['instructions' => 100])),
 			'A::bench@large' => Measurement::measured(CaseId::fromString('A::bench@large'), Metrics::fromArray(['instructions' => 400])),

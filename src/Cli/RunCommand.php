@@ -118,7 +118,7 @@ final class RunCommand implements Command
 		$workDirectory = sys_get_temp_dir() . '/tally-' . getmypid();
 		$settings = new WorkerSettings(
 			$configuration->iniEntries(),
-			$this->suiteArguments($input),
+			$this->suiteOptions($input),
 			$valgrind,
 			$extension,
 			$workDirectory,
@@ -164,7 +164,7 @@ final class RunCommand implements Command
 	{
 		$jobsOfCases = [];
 		foreach ($cases as $case) {
-			$jobsOfCases[] = new Job($case, $this->caseJobs->steps($settings, $case[0]->id));
+			$jobsOfCases[] = new Job($case, $this->caseJobs->steps($settings, $case[0]));
 		}
 
 		$measurements = [];
@@ -233,31 +233,20 @@ final class RunCommand implements Command
 	}
 
 	/**
-	 * The options and paths with which the workers load the same cases, with absolute paths, so
-	 * they do not depend on the working directory.
+	 * The options with which the workers load the configuration, with an absolute path, so they do
+	 * not depend on the working directory.
 	 *
 	 * @return list<string>
 	 */
-	private function suiteArguments(Input $input): array
+	private function suiteOptions(Input $input): array
 	{
-		$arguments = [];
 		$config = $input->option('config');
-		if ($config !== null) {
-			$arguments[] = '--config=' . $this->absolute($config);
+		if ($config === null) {
+			return [];
 		}
-		$paths = $input->arguments();
-		if ($paths === []) {
-			return $arguments;
-		}
+		$realPath = realpath($config);
 
-		return [...$arguments, '--', ...array_map($this->absolute(...), $paths)];
-	}
-
-	private function absolute(string $path): string
-	{
-		$realPath = realpath($path);
-
-		return $realPath === false ? $path : $realPath;
+		return ['--config=' . ($realPath === false ? $config : $realPath)];
 	}
 
 }

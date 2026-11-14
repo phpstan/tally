@@ -3,9 +3,12 @@
 namespace Tally\Tests\Unit\Execution;
 
 use PHPUnit\Framework\TestCase;
+use Tally\Attribute\RelativeTolerance;
+use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Execution\WorkerCommandLine;
 use Tally\Execution\WorkerSettings;
+use Tally\Tests\InMemoryExpectations;
 use function array_slice;
 
 final class WorkerCommandLineTest extends TestCase
@@ -26,8 +29,8 @@ final class WorkerCommandLineTest extends TestCase
 			'--result=/work/native.json',
 			'--config=tally.php',
 			'--',
-			'benchmarks',
-		], self::commandLine()->native(self::settings('/opt/codspeed/tally_hooks-8.5.so'), self::id(), '/work/scratch', '/work/native.json'));
+			'/project/benchmarks/FooBench.php',
+		], self::commandLine()->native(self::settings('/opt/codspeed/tally_hooks-8.5.so'), self::case(), '/work/scratch', '/work/native.json'));
 	}
 
 	public function testCountedRunsTheWorkerUnderCallgrindWithTheCachesOfCodSpeed(): void
@@ -68,8 +71,8 @@ final class WorkerCommandLineTest extends TestCase
 			'--counted',
 			'--config=tally.php',
 			'--',
-			'benchmarks',
-		], self::commandLine()->counted(self::settings('/opt/codspeed/tally_hooks-8.5.so'), self::id(), '/work/scratch', '/work/counted.json', '/work/profile'));
+			'/project/benchmarks/FooBench.php',
+		], self::commandLine()->counted(self::settings('/opt/codspeed/tally_hooks-8.5.so'), self::case(), '/work/scratch', '/work/counted.json', '/work/profile'));
 	}
 
 	private static function commandLine(): WorkerCommandLine
@@ -81,7 +84,7 @@ final class WorkerCommandLineTest extends TestCase
 	{
 		$this->assertSame(
 			['-d', 'zend.max_allowed_stack_size=-1', '-d', 'memory_limit=-1', '-d', 'opcache.enable_cli=1', 'vendor/bin/tally'],
-			array_slice(self::commandLine()->counted(self::settings(null), self::id(), '/work/scratch', '/work/counted.json', '/work/profile'), 19, 7),
+			array_slice(self::commandLine()->counted(self::settings(null), self::case(), '/work/scratch', '/work/counted.json', '/work/profile'), 19, 7),
 		);
 	}
 
@@ -89,7 +92,7 @@ final class WorkerCommandLineTest extends TestCase
 	{
 		return new WorkerSettings(
 			['memory_limit=-1', 'opcache.enable_cli=1'],
-			['--config=tally.php', '--', 'benchmarks'],
+			['--config=tally.php'],
 			'/opt/codspeed/valgrind',
 			$extension,
 			'/work',
@@ -98,9 +101,19 @@ final class WorkerCommandLineTest extends TestCase
 		);
 	}
 
-	private static function id(): CaseId
+	private static function case(): BenchmarkCase
 	{
-		return new CaseId('App\FooBench', 'benchFoo', "it's");
+		return new BenchmarkCase(
+			new CaseId('App\FooBench', 'benchFoo', "it's"),
+			'/project/benchmarks/FooBench.php',
+			[],
+			0,
+			[],
+			[],
+			new InMemoryExpectations(null, '/project/benchmarks/FooBench.php'),
+			new RelativeTolerance(0.1),
+			null,
+		);
 	}
 
 }

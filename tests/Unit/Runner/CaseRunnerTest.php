@@ -97,7 +97,7 @@ final class CaseRunnerTest extends TestCase
 	{
 		$memory = new FakeMemory(1_000_000);
 		Journal::$memory = $memory;
-		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 3, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
+		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), '/benchmarks/FooBench.php', [], 3, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
 
 		$metrics = (new CaseRunner(new ConstructorArguments(), new ArgumentResolver(), $memory, new IdleCounter()))->run($case, new ScratchDirectory('/scratch'), new JournalCounter());
 
@@ -112,7 +112,7 @@ final class CaseRunnerTest extends TestCase
 	{
 		$memory = new FakeMemory(1_000_000);
 		Journal::$memory = $memory;
-		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), [], 0, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
+		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchAllocate', null), '/benchmarks/FooBench.php', [], 0, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
 
 		$metrics = (new CaseRunner(new ConstructorArguments(), new ArgumentResolver(), $memory, new IdleCounter()))->run($case, new ScratchDirectory('/scratch'), new AllocatingCounter($memory, 56));
 
@@ -186,7 +186,7 @@ final class CaseRunnerTest extends TestCase
 
 	public function testArgumentsThatDoNotFitFail(): void
 	{
-		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchName', 'too-many'), ['x', 'y'], 0, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
+		$case = new BenchmarkCase(new CaseId(RunnerBench::class, 'benchName', 'too-many'), '/benchmarks/FooBench.php', ['x', 'y'], 0, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
 
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage(RunnerBench::class . '::benchName(): the data set has 2 arguments, but the method takes 1.');
@@ -199,7 +199,7 @@ final class CaseRunnerTest extends TestCase
 	 */
 	public function testAMissingClassFails(): void
 	{
-		$case = new BenchmarkCase(new CaseId('App\MissingBench', 'benchFoo', null), [], 0, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
+		$case = new BenchmarkCase(new CaseId('App\MissingBench', 'benchFoo', null), '/benchmarks/FooBench.php', [], 0, [], [], new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
 
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage('App\MissingBench::benchFoo: class App\MissingBench does not exist.');
@@ -218,7 +218,7 @@ final class CaseRunnerTest extends TestCase
 	 */
 	private static function case(string $method, string $name, int $warmup, array $before, array $after): BenchmarkCase
 	{
-		return new BenchmarkCase(new CaseId(RunnerBench::class, $method, $name), [$name], $warmup, $before, $after, new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
+		return new BenchmarkCase(new CaseId(RunnerBench::class, $method, $name), '/benchmarks/FooBench.php', [$name], $warmup, $before, $after, new InMemoryExpectations(null, '/benchmarks/InMemoryBench.php'), new RelativeTolerance(0.1), null);
 	}
 
 }

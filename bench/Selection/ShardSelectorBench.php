@@ -15,7 +15,7 @@ use Tally\Selection\ShardSelector;
 use function sprintf;
 
 /**
- * Every shard of a CI run, and every worker it starts, selects its cases from the whole suite.
+ * Every shard of a CI run selects its cases from the whole suite.
  */
 #[Warmup(1)]
 final class ShardSelectorBench
@@ -55,6 +55,7 @@ final class ShardSelectorBench
 			$method = sprintf('benchMethod%d', $i);
 			$cases[] = new BenchmarkCase(
 				new CaseId($class, $method, null),
+				SuiteSource::FILE,
 				[],
 				0,
 				[],

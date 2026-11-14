@@ -7,6 +7,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tally\Execution\DirectoryRemover;
 use Tally\Measurement;
+use Tally\Metric;
 use Tally\Result\InvalidResultException;
 use Tally\Result\MeasurementJson;
 use Tally\Result\ResultsDirectory;
@@ -114,6 +115,26 @@ final class RunCommandTest extends TestCase
 		$this->assertSame(0, $exitCode, $errorOutput);
 		$this->assertStringContainsString('Tally counts 1 case under', $output);
 		$this->assertStringContainsString("Benchmarks passed: all 1 match their expectations\n", $output);
+	}
+
+	/**
+	 * @throws InvalidResultException
+	 */
+	public function testTheWorkersLoadOnlyTheFileOfTheirCase(): void
+	{
+		$id = 'Tally\\Tests\\Fixtures\\Isolation\\IsolatedBench::benchOk';
+		$environment = $this->environment();
+		$environment['TALLY_FAKE_COUNTS'] = json_encode([$id => [1100, 1650, 100, 150]], JSON_THROW_ON_ERROR);
+		[, , $errorOutput] = InProcessTally::run(__DIR__, $environment, ['run', '--config=' . self::RUN . '/tally.php', '--filter=IsolatedBench', '--output=' . $this->output . '-isolation', __DIR__ . '/../../Fixtures/Isolation']);
+
+		$results = array_map(
+			// the memory depends on the PHP build
+			static fn (Measurement $measurement): int|string|null => $measurement->failure ?? $measurement->metrics->get(Metric::Instructions),
+			(new ResultsDirectory(new MeasurementJson()))->read($this->output . '-isolation'),
+		);
+		(new DirectoryRemover())->remove($this->output . '-isolation');
+		$this->assertSame('', $errorOutput);
+		$this->assertSame([$id => 1000], $results);
 	}
 
 	public function testAShardWithoutCases(): void
