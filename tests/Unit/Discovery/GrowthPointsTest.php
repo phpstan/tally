@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Tally\BenchmarkCase;
+use Tally\Configuration;
 use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
@@ -132,7 +133,7 @@ final class GrowthPointsTest extends TestCase
 		$class = new ReflectionClass(ComplexityBench::class);
 		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints());
 
-		return $expander->expand($class, $class->getMethod($method), $expander->hooks($class));
+		return $expander->expand($class, $class->getMethod($method), $expander->hooks($class), Configuration::create());
 	}
 
 }

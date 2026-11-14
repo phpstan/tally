@@ -5,6 +5,7 @@ namespace Tally\Tests\Integration\Discovery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tally\BenchmarkCase;
+use Tally\Configuration;
 use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
@@ -140,7 +141,7 @@ final class DirectorySuiteLoaderTest extends TestCase
 	{
 		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints()), new ConstructorArguments(), new RelativePath());
 
-		return array_map(static fn (BenchmarkCase $case): string => $case->id->toString(), $loader->load($paths, dirname(__DIR__, 3)));
+		return array_map(static fn (BenchmarkCase $case): string => $case->id->toString(), $loader->load($paths, dirname(__DIR__, 3), Configuration::create()));
 	}
 
 }

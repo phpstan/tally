@@ -5,7 +5,9 @@ namespace Tally\Tests\Unit\Discovery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
+use Tally\Configuration;
 use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
@@ -14,6 +16,7 @@ use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
+use Tally\Metrics;
 use Tally\Tests\Expressions;
 use Tally\Tests\Fixtures\HookArguments\HookArgumentsBench;
 use Tally\Tests\Fixtures\Invalid\InvalidBench;
@@ -26,6 +29,8 @@ use Tally\Tests\Fixtures\Tolerance\ToleranceBench;
 use Tally\Tests\InMemoryExpectations;
 use function array_fill;
 use function array_map;
+use function file_get_contents;
+use function str_replace;
 
 final class CaseExpanderTest extends TestCase
 {
@@ -36,7 +41,7 @@ final class CaseExpanderTest extends TestCase
 	 */
 	public function testMethodWithoutDataProvider(): void
 	{
-		$case = self::expandOne(StringBench::class, 'benchSprintf');
+		$case = self::expandOne(StringBench::class, 'benchSprintf', Configuration::create());
 
 		$this->assertSame(StringBench::class . '::benchSprintf', $case->id->toString());
 		$this->assertSame([], $case->arguments);
@@ -51,7 +56,7 @@ final class CaseExpanderTest extends TestCase
 	 */
 	public function testWarmupAndNoExpectations(): void
 	{
-		$case = self::expandOne(StringBench::class, 'benchConcat');
+		$case = self::expandOne(StringBench::class, 'benchConcat', Configuration::create());
 
 		$this->assertSame(2, $case->warmup);
 		$this->assertNull($case->expectations->read());
@@ -62,7 +67,7 @@ final class CaseExpanderTest extends TestCase
 	 */
 	public function testDataProviderKeepsItsOrder(): void
 	{
-		$cases = self::expand(LoopBench::class, 'benchSum');
+		$cases = self::expand(LoopBench::class, 'benchSum', Configuration::create());
 
 		$this->assertSame(['size-1000', 'size-10', 'size-100'], array_map(static fn (BenchmarkCase $case): ?string => $case->id->dataSet, $cases));
 		$this->assertSame([[1000], [10], [100]], array_map(static fn (BenchmarkCase $case): array => $case->arguments, $cases));
@@ -80,7 +85,7 @@ final class CaseExpanderTest extends TestCase
 	 */
 	public function testDataSetsOfAList(): void
 	{
-		$cases = self::expand(IndexedBench::class, 'benchIndexed');
+		$cases = self::expand(IndexedBench::class, 'benchIndexed', Configuration::create());
 
 		$this->assertSame(['#0', '#1'], array_map(static fn (BenchmarkCase $case): ?string => $case->id->dataSet, $cases));
 		$this->assertSame([[1], [2]], array_map(static fn (BenchmarkCase $case): array => $case->arguments, $cases));
@@ -91,7 +96,7 @@ final class CaseExpanderTest extends TestCase
 	 */
 	public function testDataSetWithItsOwnExpectations(): void
 	{
-		$cases = self::expand(FilesBench::class, 'benchFile');
+		$cases = self::expand(FilesBench::class, 'benchFile', Configuration::create());
 
 		$this->assertSame(['b.php', 'a.php'], array_map(static fn (BenchmarkCase $case): ?string => $case->id->dataSet, $cases));
 		$this->assertSame([['/b.php'], ['/a.php']], array_map(static fn (BenchmarkCase $case): array => $case->arguments, $cases));
@@ -107,7 +112,7 @@ final class CaseExpanderTest extends TestCase
 		yield 'on the method' => [ToleranceBench::class, 'benchOwn', '±5 % of each metric'];
 		yield 'on the class' => [ToleranceBench::class, 'benchOfTheClass', '±20 % of each metric'];
 		yield 'a custom one' => [ToleranceBench::class, 'benchCustom', 'no difference'];
-		yield 'the default' => [DefaultBench::class, 'benchDefault', '±10 % of each metric'];
+		yield 'that of the configuration' => [DefaultBench::class, 'benchDefault', '±30 % of each metric'];
 	}
 
 	/**
@@ -117,7 +122,32 @@ final class CaseExpanderTest extends TestCase
 	#[DataProvider('dataTolerance')]
 	public function testTolerance(string $class, string $method, string $description): void
 	{
-		$this->assertSame($description, self::expandOne($class, $method)->tolerance->describe());
+		$configuration = Configuration::create()->withTolerance(new RelativeTolerance(0.3));
+
+		$this->assertSame($description, self::expandOne($class, $method, $configuration)->tolerance->describe());
+	}
+
+	/**
+	 * @throws InvalidBenchmarkException
+	 * @throws ExpectationException
+	 */
+	public function testTheConfigurationChoosesHowTheDataSetIsWritten(): void
+	{
+		$code = (string) file_get_contents(__DIR__ . '/../../Fixtures/Suite/Nested/LoopBench.php');
+		$metrics = Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0]);
+		$positional = self::expand(LoopBench::class, 'benchSum', Configuration::create());
+		$named = self::expand(LoopBench::class, 'benchSum', Configuration::create()->withNamedArguments(true));
+		self::assertCount(3, $positional);
+		self::assertCount(3, $named);
+
+		$this->assertSame(
+			str_replace("#[ExpectedFor('size-10', instructions: '100', cycles: '110', memory: '0B')]", "#[ExpectedFor('size-10', instructions: '7', cycles: '8', memory: '0B')]", $code),
+			$positional[1]->expectations->rewrite($code, $metrics),
+		);
+		$this->assertSame(
+			str_replace("#[ExpectedFor('size-10', instructions: '100', cycles: '110', memory: '0B')]", "#[ExpectedFor(dataSet: 'size-10', instructions: '7', cycles: '8', memory: '0B')]", $code),
+			$named[1]->expectations->rewrite($code, $metrics),
+		);
 	}
 
 	/**
@@ -162,7 +192,7 @@ final class CaseExpanderTest extends TestCase
 	{
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage(InvalidBench::class . $message);
-		self::expand(InvalidBench::class, $method);
+		self::expand(InvalidBench::class, $method, Configuration::create());
 	}
 
 	/**
@@ -172,16 +202,16 @@ final class CaseExpanderTest extends TestCase
 	{
 		$this->expectException(InvalidBenchmarkException::class);
 		$this->expectExceptionMessage(HookArgumentsBench::class . '::prepare(): the data set has 1 argument, but parameter $name needs one too.');
-		self::expand(HookArgumentsBench::class, 'benchSize');
+		self::expand(HookArgumentsBench::class, 'benchSize', Configuration::create());
 	}
 
 	/**
 	 * @param class-string $class
 	 * @throws InvalidBenchmarkException
 	 */
-	private static function expandOne(string $class, string $method): BenchmarkCase
+	private static function expandOne(string $class, string $method, Configuration $configuration): BenchmarkCase
 	{
-		$cases = self::expand($class, $method);
+		$cases = self::expand($class, $method, $configuration);
 		self::assertCount(1, $cases);
 
 		return $cases[0];
@@ -192,12 +222,12 @@ final class CaseExpanderTest extends TestCase
 	 * @return list<BenchmarkCase>
 	 * @throws InvalidBenchmarkException
 	 */
-	private static function expand(string $class, string $method): array
+	private static function expand(string $class, string $method, Configuration $configuration): array
 	{
 		$reflection = new ReflectionClass($class);
 		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints());
 
-		return $expander->expand($reflection, $reflection->getMethod($method), $expander->hooks($reflection));
+		return $expander->expand($reflection, $reflection->getMethod($method), $expander->hooks($reflection), $configuration);
 	}
 
 }

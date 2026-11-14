@@ -66,7 +66,7 @@ final class ExpectedAttributeRewriterBench
 	#[ExpectedFor('size-100', instructions: '16.85M', cycles: '20.53M', memory: '1.007MiB')]
 	public function benchRewrite(string $code, string $class, string $dataSet, Metrics $measured): void
 	{
-		(new ExpectedAttributeRewriter())->rewrite($code, $class, SuiteSource::SIZED_METHOD, $dataSet, $measured);
+		(new ExpectedAttributeRewriter())->rewrite($code, $class, SuiteSource::SIZED_METHOD, $dataSet, $measured, false);
 	}
 
 }

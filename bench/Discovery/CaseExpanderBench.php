@@ -10,6 +10,7 @@ use Tally\Attribute\DataProvider;
 use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
+use Tally\Configuration;
 use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
@@ -53,10 +54,13 @@ final class CaseExpanderBench
 
 	private CaseExpander $expander;
 
+	private Configuration $configuration;
+
 	public function __construct(private ScratchDirectory $scratch)
 	{
 		$functions = new FunctionLibrary([new Log(), new SquareRoot(), new Exponential(), new Factorial()]);
 		$errors = new ExpressionErrors(new ClosestName());
+		$this->configuration = Configuration::create();
 		$this->expander = new CaseExpander(
 			new ExpectedAttributeRewriter(),
 			new AttributeFactory(new ValueTypeCheck()),
@@ -98,7 +102,7 @@ final class CaseExpanderBench
 				continue;
 			}
 
-			$this->expander->expand($class, $method, $hooks);
+			$this->expander->expand($class, $method, $hooks, $this->configuration);
 		}
 	}
 

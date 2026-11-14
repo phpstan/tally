@@ -32,6 +32,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 			'benchSort',
 			null,
 			Metrics::fromArray(['instructions' => 2000, 'cycles' => 2200, 'memory' => 1024]),
+			false,
 		);
 
 		// OtherBench::benchSort has the same method name and keeps its attribute
@@ -52,7 +53,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	{
 		$code = self::read(self::SORT_BENCH);
 
-		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, SortBench::class, 'benchSizes', 'large', Metrics::fromArray(['instructions' => 20_000, 'cycles' => 22_000, 'memory' => 2048]));
+		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, SortBench::class, 'benchSizes', 'large', Metrics::fromArray(['instructions' => 20_000, 'cycles' => 22_000, 'memory' => 2048]), false);
 
 		$this->assertSame(
 			str_replace("#[ExpectedFor(dataSet: 'large', instructions: '10.00K', cycles: '12.00K', memory: '0B')]", "#[ExpectedFor('large', instructions: '20.00K', cycles: '22.00K', memory: '2.000KiB')]", $code),
@@ -67,10 +68,25 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	{
 		$code = self::read(self::SORT_BENCH);
 
-		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, SortBench::class, 'benchWithoutExpectations', null, Metrics::fromArray(['instructions' => 5, 'cycles' => 6, 'memory' => 0]));
+		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, SortBench::class, 'benchWithoutExpectations', null, Metrics::fromArray(['instructions' => 5, 'cycles' => 6, 'memory' => 0]), false);
 
 		$this->assertSame(
 			str_replace("\t#[Warmup(1)]\n", "\t#[Warmup(1)]\n\t#[Expected(instructions: '5', cycles: '6', memory: '0B')]\n", $code),
+			$rewritten,
+		);
+	}
+
+	/**
+	 * @throws ExpectationException
+	 */
+	public function testRewriteWritesTheDataSetAsANamedArgumentWhenAsked(): void
+	{
+		$code = self::read(self::SORT_BENCH);
+
+		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, SortBench::class, 'benchSizes', 'large', Metrics::fromArray(['instructions' => 20_000, 'cycles' => 22_000, 'memory' => 2048]), true);
+
+		$this->assertSame(
+			str_replace("#[ExpectedFor(dataSet: 'large', instructions: '10.00K', cycles: '12.00K', memory: '0B')]", "#[ExpectedFor(dataSet: 'large', instructions: '20.00K', cycles: '22.00K', memory: '2.000KiB')]", $code),
 			$rewritten,
 		);
 	}
@@ -82,7 +98,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	{
 		$code = self::read(self::SORT_BENCH);
 
-		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, SortBench::class, 'benchSizes', "it's new", Metrics::fromArray(['instructions' => 1, 'cycles' => 2, 'memory' => 0]));
+		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, SortBench::class, 'benchSizes', "it's new", Metrics::fromArray(['instructions' => 1, 'cycles' => 2, 'memory' => 0]), false);
 
 		$this->assertSame(
 			str_replace(
@@ -101,7 +117,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	{
 		$code = self::read(__DIR__ . '/../../Fixtures/Rewriter/NoImportBench.php');
 
-		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, 'Tally\\Tests\\Fixtures\\Rewriter\\NoImportBench', 'benchSprintf', null, Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0]));
+		$rewritten = (new ExpectedAttributeRewriter())->rewrite($code, 'Tally\\Tests\\Fixtures\\Rewriter\\NoImportBench', 'benchSprintf', null, Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0]), false);
 
 		$this->assertSame(
 			str_replace(
@@ -120,8 +136,8 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	{
 		$rewriter = new ExpectedAttributeRewriter();
 		$class = 'Tally\\Tests\\Fixtures\\Rewriter\\NoImportBench';
-		$code = $rewriter->rewrite(self::read(__DIR__ . '/../../Fixtures/Rewriter/NoImportBench.php'), $class, 'benchSprintf', null, Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0]));
-		$code = $rewriter->rewrite($code, $class, 'benchSprintf', null, Metrics::fromArray(['instructions' => 2, 'cycles' => 2, 'memory' => 0]));
+		$code = $rewriter->rewrite(self::read(__DIR__ . '/../../Fixtures/Rewriter/NoImportBench.php'), $class, 'benchSprintf', null, Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0]), false);
+		$code = $rewriter->rewrite($code, $class, 'benchSprintf', null, Metrics::fromArray(['instructions' => 2, 'cycles' => 2, 'memory' => 0]), false);
 
 		$this->assertSame(1, substr_count($code, 'use Tally\\Attribute\\Expected;'));
 		$this->assertSame(1, substr_count($code, "#[Expected(instructions: '2', cycles: '2', memory: '0B')]"));
@@ -225,7 +241,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	#[DataProvider('dataRewriteCode')]
 	public function testRewriteCode(string $class, string $code, string $expected): void
 	{
-		$this->assertSame($expected, (new ExpectedAttributeRewriter())->rewrite($code, $class, 'bench', null, Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0])));
+		$this->assertSame($expected, (new ExpectedAttributeRewriter())->rewrite($code, $class, 'bench', null, Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0]), false));
 	}
 
 	/**
@@ -277,7 +293,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 
 		$this->expectException(ExpectationException::class);
 		$this->expectExceptionMessage('#[ExpectedFor] on line 5: write the data set as a string literal, so tally accept can find the attribute.');
-		(new ExpectedAttributeRewriter())->rewrite($code, 'App\\FooBench', 'bench', 'large', Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0]));
+		(new ExpectedAttributeRewriter())->rewrite($code, 'App\\FooBench', 'bench', 'large', Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0]), false);
 	}
 
 	/**
@@ -289,7 +305,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 
 		$this->assertSame(
 			"<?php\nnamespace App;\nuse Tally\\Attribute\\Expected;\nuse Tally\\Attribute\\ExpectedFor;\nclass FooBench {\n\t#[ExpectedFor(self::LARGE, '1', '1', '0B')]\n\tpublic function benchOther() {}\n\t#[Expected(instructions: '7', cycles: '8', memory: '0B')]\n\tpublic function bench() {}\n}\n",
-			(new ExpectedAttributeRewriter())->rewrite($code, 'App\\FooBench', 'bench', null, Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0])),
+			(new ExpectedAttributeRewriter())->rewrite($code, 'App\\FooBench', 'bench', null, Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0]), false),
 		);
 		$this->assertSame(8, (new ExpectedAttributeRewriter())->locate($code, 'App\\FooBench', 'bench', null));
 	}
@@ -313,7 +329,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	{
 		$this->expectException(InvalidArgumentException::class);
 		$this->expectExceptionMessage($message);
-		(new ExpectedAttributeRewriter())->rewrite(self::read(self::SORT_BENCH), SortBench::class, 'benchSort', null, Metrics::fromArray($metrics));
+		(new ExpectedAttributeRewriter())->rewrite(self::read(self::SORT_BENCH), SortBench::class, 'benchSort', null, Metrics::fromArray($metrics), false);
 	}
 
 	/**
@@ -345,7 +361,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	#[DataProvider('dataRewriteDataSetCode')]
 	public function testRewriteDataSetCode(string $code, string $expected): void
 	{
-		$this->assertSame($expected, (new ExpectedAttributeRewriter())->rewrite($code, 'App\\FooBench', 'bench', 'a', Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0])));
+		$this->assertSame($expected, (new ExpectedAttributeRewriter())->rewrite($code, 'App\\FooBench', 'bench', 'a', Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0]), false));
 	}
 
 	/**
@@ -355,7 +371,7 @@ final class ExpectedAttributeRewriterTest extends TestCase
 	{
 		$this->assertSame(
 			"<?php\nclass FooBench {\n\t#[\\Tally\\Attribute\\ExpectedFor('a', instructions: '7', cycles: '8', memory: '0B')]\n\tpublic function bench() {}\n}\n",
-			(new ExpectedAttributeRewriter())->rewrite("<?php\nclass FooBench {\n\tpublic function bench() {}\n}\n", 'FooBench', 'bench', 'a', Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0])),
+			(new ExpectedAttributeRewriter())->rewrite("<?php\nclass FooBench {\n\tpublic function bench() {}\n}\n", 'FooBench', 'bench', 'a', Metrics::fromArray(['instructions' => 7, 'cycles' => 8, 'memory' => 0]), false),
 		);
 	}
 

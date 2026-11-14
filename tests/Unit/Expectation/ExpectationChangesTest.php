@@ -48,8 +48,8 @@ final class ExpectationChangesTest extends TestCase
 		$plan = (new ExpectationChanges())->plan(
 			[
 				[self::case('App\GoneBench::benchGone', new InMemoryExpectations(null, '/GoneBench.php')), Metrics::fromArray(['instructions' => 3])],
-				[self::case('App\SortBench::benchLarge@large', new AttributeExpectations($rewriter, '/SortBench.php', 'App\SortBench', 'benchLarge', 'large', null)), Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0])],
-				[self::case('App\SortBench::benchSort', new AttributeExpectations($rewriter, '/SortBench.php', 'App\SortBench', 'benchSort', null, null)), Metrics::fromArray(['instructions' => 2, 'cycles' => 2, 'memory' => 0])],
+				[self::case('App\SortBench::benchLarge@large', new AttributeExpectations($rewriter, '/SortBench.php', 'App\SortBench', 'benchLarge', 'large', null, false)), Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0])],
+				[self::case('App\SortBench::benchSort', new AttributeExpectations($rewriter, '/SortBench.php', 'App\SortBench', 'benchSort', null, null, false)), Metrics::fromArray(['instructions' => 2, 'cycles' => 2, 'memory' => 0])],
 			],
 			['/SortBench.php' => $code, '/GoneBench.php' => false],
 		);

@@ -2,12 +2,17 @@
 
 namespace Tally;
 
+use Tally\Attribute\MetricTolerance;
+use Tally\Comparison\TolerancePolicy;
+
 /**
  * What a tally.php configuration file returns:
  *
  *     return Configuration::create()
  *         ->withPaths([__DIR__ . '/benchmarks'])
  *         ->withIniEntries(['memory_limit=-1']);
+ *
+ * Every value Tally uses when a benchmark or the command line does not give one is chosen here.
  *
  * @api
  */
@@ -28,14 +33,26 @@ final class Configuration
 		private array $paths,
 		private array $iniEntries,
 		private int $nativeTimeLimitSeconds,
-		private int $countedTimeLimitSeconds
+		private int $countedTimeLimitSeconds,
+		private TolerancePolicy $tolerance,
+		private bool $namedArguments
 	)
 	{
 	}
 
 	public static function create(): self
 	{
-		return new self([], [], self::NATIVE_TIME_LIMIT_SECONDS, self::COUNTED_TIME_LIMIT_SECONDS);
+		return new self(
+			[],
+			[],
+			self::NATIVE_TIME_LIMIT_SECONDS,
+			self::COUNTED_TIME_LIMIT_SECONDS,
+			// The same code counts the same instructions to a few dozen, so 2 % is a real change. The
+			// cycles of a benchmark of a few thousand instructions move by a few cache misses when
+			// unrelated code changes, up to about 1,300 cycles in PHPStan's benchmarks.
+			new MetricTolerance(instructions: 0.02, cycles: 0.05, memory: 0.05, cyclesAtLeast: 2000),
+			false,
+		);
 	}
 
 	/**
@@ -76,6 +93,29 @@ final class Configuration
 	}
 
 	/**
+	 * The tolerance of the benchmarks without a tolerance policy of their method or class.
+	 */
+	public function withTolerance(TolerancePolicy $tolerance): self
+	{
+		$configuration = clone $this;
+		$configuration->tolerance = $tolerance;
+
+		return $configuration;
+	}
+
+	/**
+	 * Whether tally accept and the patch of new expectations write the data set of #[ExpectedFor] as
+	 * the named argument dataSet: '…' instead of the first argument.
+	 */
+	public function withNamedArguments(bool $namedArguments): self
+	{
+		$configuration = clone $this;
+		$configuration->namedArguments = $namedArguments;
+
+		return $configuration;
+	}
+
+	/**
 	 * @return list<string>
 	 */
 	public function paths(): array
@@ -99,6 +139,16 @@ final class Configuration
 	public function countedTimeLimitSeconds(): int
 	{
 		return $this->countedTimeLimitSeconds;
+	}
+
+	public function tolerance(): TolerancePolicy
+	{
+		return $this->tolerance;
+	}
+
+	public function namedArguments(): bool
+	{
+		return $this->namedArguments;
 	}
 
 }
