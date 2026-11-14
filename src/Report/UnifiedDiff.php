@@ -11,6 +11,7 @@ use function min;
 use function preg_split;
 use function sprintf;
 use function str_ends_with;
+use const PHP_INT_MAX;
 use const PREG_SPLIT_NO_EMPTY;
 
 /**
@@ -36,8 +37,19 @@ final class UnifiedDiff
 
 		$operations = $this->operations($this->lines($before), $this->lines($after));
 		$diff = sprintf("--- a/%s\n+++ b/%1\$s\n", $path);
+		$oldBefore = 0;
+		$newBefore = 0;
+		$position = 0;
 		foreach ($this->hunks($operations) as [$start, $end]) {
-			$diff .= $this->hunk($operations, $start, $end);
+			foreach (array_slice($operations, $position, $start - $position) as [$kind]) {
+				$oldBefore += $kind === '+' ? 0 : 1;
+				$newBefore += $kind === '-' ? 0 : 1;
+			}
+			[$hunk, $oldCount, $newCount] = $this->hunk($operations, $start, $end, $oldBefore, $newBefore);
+			$diff .= $hunk;
+			$oldBefore += $oldCount;
+			$newBefore += $newCount;
+			$position = $end + 1;
 		}
 
 		return $diff;
@@ -88,9 +100,9 @@ final class UnifiedDiff
 	}
 
 	/**
-	 * The shortest edit script of the changed middle, from the number of lines to remove and add
-	 * to turn each suffix of the old lines into each suffix of the new ones. Removed lines come
-	 * before added ones, like in GNU diff.
+	 * The shortest edit script of the changed middle. From the start, a common line is kept, and
+	 * of removing and adding a line, the one that leaves fewer edits for the rest, removing on a
+	 * tie, so removed lines come before added ones, like in GNU diff.
 	 *
 	 * @param list<string> $old
 	 * @param list<string> $new
@@ -98,24 +110,8 @@ final class UnifiedDiff
 	 */
 	private function middle(array $old, array $new): array
 	{
-		/** @var array<int, array<int, int>> $edits */
-		$edits = [];
-		for ($i = count($old); $i >= 0; $i--) {
-			$row = [];
-			for ($j = count($new); $j >= 0; $j--) {
-				if ($i === count($old)) {
-					$row[$j] = count($new) - $j;
-				} elseif ($j === count($new)) {
-					$row[$j] = count($old) - $i;
-				} elseif ($this->at($old, $i) === $this->at($new, $j)) {
-					$row[$j] = $this->at($this->at($edits, $i + 1), $j + 1);
-				} else {
-					$row[$j] = 1 + min($this->at($this->at($edits, $i + 1), $j), $this->at($row, $j + 1));
-				}
-			}
-			$edits[$i] = $row;
-		}
-
+		$reach = $this->reach($old, $new);
+		$edits = count($reach) - 1;
 		$operations = [];
 		$i = 0;
 		$j = 0;
@@ -124,16 +120,79 @@ final class UnifiedDiff
 				$operations[] = [' ', $this->at($old, $i)];
 				$i++;
 				$j++;
-			} elseif ($i < count($old) && ($j === count($new) || $this->at($this->at($edits, $i + 1), $j) <= $this->at($this->at($edits, $i), $j + 1))) {
+				continue;
+			}
+
+			// the rest after removing the line, on diagonal i + 1 - j, takes one edit less, or one more
+			if ($i < count($old) && ($j === count($new) || ($this->at($reach, $edits - 1)[$i + 1 - $j] ?? PHP_INT_MAX) <= $i + 1)) {
 				$operations[] = ['-', $this->at($old, $i)];
 				$i++;
 			} else {
 				$operations[] = ['+', $this->at($new, $j)];
 				$j++;
 			}
+			$edits--;
 		}
 
 		return $operations;
+	}
+
+	/**
+	 * Myers' search from the end: for each number of edits d, the first old line from which the
+	 * rest of each diagonal k = i - j takes at most d edits. From a line i on diagonal k, the rest
+	 * takes at most d edits exactly from that line on, because the edits do not grow toward the
+	 * end of a diagonal. The search ends at d edits for everything, so it takes O((N + M) * d)
+	 * time and O(d²) memory, nothing for the common lines.
+	 *
+	 * @param list<string> $old
+	 * @param list<string> $new
+	 * @return non-empty-list<array<int, int>> by the number of edits, the first old line by diagonal
+	 */
+	private function reach(array $old, array $new): array
+	{
+		$end = count($old) - count($new);
+		$reach = [];
+		for ($edits = 0;; $edits++) {
+			$row = [];
+			for ($k = $end - $edits; $k <= $end + $edits; $k += 2) {
+				$i = $edits === 0 ? count($old) : $this->closest($this->at($reach, $edits - 1), $k);
+				if ($i === null) {
+					continue;
+				}
+
+				$j = $i - $k;
+				while ($i > 0 && $j > 0 && $this->at($old, $i - 1) === $this->at($new, $j - 1)) {
+					$i--;
+					$j--;
+				}
+				$row[$k] = $i;
+				if ($k === 0 && $i === 0) {
+					return [...$reach, $row];
+				}
+			}
+			$reach[] = $row;
+		}
+	}
+
+	/**
+	 * The first line of diagonal k one edit more reaches: by removing the line before the one diagonal
+	 * k + 1 reaches, or by adding the line before the one diagonal k - 1 reaches.
+	 *
+	 * @param array<int, int> $previous the lines one edit less reaches
+	 */
+	private function closest(array $previous, int $k): ?int
+	{
+		$candidates = [];
+		$removing = $previous[$k + 1] ?? 0;
+		if ($removing > 0) {
+			$candidates[] = $removing - 1;
+		}
+		$adding = $previous[$k - 1] ?? null;
+		if ($adding !== null && $adding - $k >= 0) {
+			$candidates[] = $adding;
+		}
+
+		return $candidates === [] ? null : min($candidates);
 	}
 
 	/**
@@ -170,16 +229,12 @@ final class UnifiedDiff
 
 	/**
 	 * @param list<array{' '|'-'|'+', string}> $operations
+	 * @param int $oldBefore the old lines before the hunk
+	 * @param int $newBefore the new lines before the hunk
+	 * @return array{string, int, int} the hunk, and its old and new lines
 	 */
-	private function hunk(array $operations, int $start, int $end): string
+	private function hunk(array $operations, int $start, int $end, int $oldBefore, int $newBefore): array
 	{
-		$oldBefore = 0;
-		$newBefore = 0;
-		foreach (array_slice($operations, 0, $start) as [$kind]) {
-			$oldBefore += $kind === '+' ? 0 : 1;
-			$newBefore += $kind === '-' ? 0 : 1;
-		}
-
 		$oldCount = 0;
 		$newCount = 0;
 		$lines = [];
@@ -189,7 +244,11 @@ final class UnifiedDiff
 			$lines[] = $kind . $line . (str_ends_with($line, "\n") ? '' : "\n\\ No newline at end of file\n");
 		}
 
-		return sprintf('@@ -%s +%s @@', $this->range($oldBefore, $oldCount), $this->range($newBefore, $newCount)) . "\n" . implode('', $lines);
+		return [
+			sprintf('@@ -%s +%s @@', $this->range($oldBefore, $oldCount), $this->range($newBefore, $newCount)) . "\n" . implode('', $lines),
+			$oldCount,
+			$newCount,
+		];
 	}
 
 	/** Like GNU diff: an empty range starts at the line before it, a range of one line has no count */

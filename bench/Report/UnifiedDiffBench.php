@@ -13,8 +13,8 @@ use function range;
 use function sprintf;
 
 /**
- * tally run prints the expectations of new cases as a patch. The diff compares every line between
- * the first and the last change with every other, so its cost grows with the distance between them.
+ * tally run prints the expectations of new cases as a patch. The diff's search takes time for each
+ * changed line, so changes far apart in a long file must cost no more than changes close together.
  */
 #[Warmup(1)]
 final class UnifiedDiffBench
