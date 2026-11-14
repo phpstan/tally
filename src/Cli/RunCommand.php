@@ -142,7 +142,7 @@ final class RunCommand implements Command
 			$located,
 		));
 		$output->write("\n");
-		$this->reportOutput->write($report, $cases, $measurements, $output, $this->environment, $this->workingDirectory, $input->option('output'));
+		$this->reportOutput->write($report, $cases, $measurements, $output, $this->environment, $this->workingDirectory, $input->option('output'), $input->option('shard') !== null);
 
 		return $report->fails() ? Application::EXIT_FAILURE : Application::EXIT_SUCCESS;
 	}

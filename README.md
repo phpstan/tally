@@ -463,7 +463,7 @@ vendor/bin/tally accept tmp/tally
           path: tmp/tally-results
 ```
 
-Each shard reports its own cases. To see them together, download all artifacts into one directory and run `tally compare`.
+Each shard reports its own cases in the log, without annotations and job summary. To see them together, download all artifacts into one directory and run `tally compare`, which writes the annotations and the job summary.
 
 ## Contributing a benchmark
 

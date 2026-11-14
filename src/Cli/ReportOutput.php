@@ -21,7 +21,7 @@ use const FILE_APPEND;
 /**
  * Writes the report of tally run and tally compare: the errors of the cases that were not
  * measured, and the summary. In GitHub Actions also the annotations, and the markdown report
- * into the job summary.
+ * into the job summary, but not for a shard, whose results tally compare reports with the others.
  */
 final class ReportOutput
 {
@@ -49,8 +49,9 @@ final class ReportOutput
 	 * @param array<string, string> $environment
 	 * @param string $workingDirectory patches point to files relative to it, and annotations outside GitHub Actions' workspace
 	 * @param string|null $resultsDirectory where the results are, null when they were not kept
+	 * @param bool $shard whether the report is of one shard, which writes no annotations and no job summary
 	 */
-	public function write(Report $report, array $cases, array $measurements, Output $output, array $environment, string $workingDirectory, ?string $resultsDirectory): void
+	public function write(Report $report, array $cases, array $measurements, Output $output, array $environment, string $workingDirectory, ?string $resultsDirectory, bool $shard): void
 	{
 		$reproduce = $this->commands->reproduce($report->worst());
 		$accept = $this->commands->accept($environment, $resultsDirectory);
@@ -58,7 +59,7 @@ final class ReportOutput
 
 		$output->write($this->console->summary($report, $reproduce, $accept, $newExpectations, $output->colors));
 
-		if (($environment['GITHUB_ACTIONS'] ?? null) !== 'true') {
+		if ($shard || ($environment['GITHUB_ACTIONS'] ?? null) !== 'true') {
 			return;
 		}
 

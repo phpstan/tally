@@ -50,6 +50,17 @@ final class CompareAndAcceptCommandTest extends TestCase
 		$this->assertStringContainsString("Accept the new numbers\n  vendor/bin/tally accept '" . self::RESULTS . "'\n", $output);
 	}
 
+	public function testWritesTheAnnotationsAndJobSummaryOfAShardInGitHubActions(): void
+	{
+		$summary = $this->directory . '/summary.md';
+		file_put_contents($summary, '');
+
+		[, $output] = InProcessTally::run(__DIR__, ['GITHUB_ACTIONS' => 'true', 'GITHUB_STEP_SUMMARY' => $summary], ['compare', '--shard=1/1', self::RESULTS, self::COMPARE]);
+
+		$this->assertStringContainsString("\n::error file=", $output);
+		$this->assertStringStartsWith("## Benchmarks failed: 1 slower, 1 not measured, 1 unchanged\n", (string) file_get_contents($summary));
+	}
+
 	public function testReadsTheBenchmarksFromTheConfiguration(): void
 	{
 		[$exitCode, $output] = InProcessTally::run(__DIR__, [], ['compare', '--config=' . self::COMPARE . '/tally.php', self::RESULTS]);
