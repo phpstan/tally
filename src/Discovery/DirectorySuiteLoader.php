@@ -13,10 +13,11 @@ use Tally\CaseId;
 use Tally\Configuration;
 use Tally\Report\RelativePath;
 use Throwable;
+use function array_fill_keys;
 use function array_filter;
 use function array_map;
+use function array_merge;
 use function get_declared_classes;
-use function in_array;
 use function is_file;
 use function iterator_to_array;
 use function realpath;
@@ -50,13 +51,14 @@ final class DirectorySuiteLoader
 			$this->require($file, $this->relativePath->of($file, $workingDirectory));
 		}
 
-		$cases = [];
+		$expanded = [];
+		$isLoaded = array_fill_keys($files, true);
 		$classNames = get_declared_classes();
 		// the order PHP declared them in depends on what was autoloaded before, so the first invalid benchmark would too
 		sort($classNames);
 		foreach ($classNames as $className) {
 			$class = new ReflectionClass($className);
-			if (!in_array($class->getFileName(), $files, true) || !$class->isInstantiable()) {
+			if (!isset($isLoaded[(string) $class->getFileName()]) || !$class->isInstantiable()) {
 				continue;
 			}
 			$this->constructor->check($class);
@@ -69,10 +71,11 @@ final class DirectorySuiteLoader
 					throw new InvalidBenchmarkException($className . '::' . $method->getName() . '()', 'a bench* method must be public and not static. Rename it if it is not a benchmark.');
 				}
 
-				$cases = [...$cases, ...$this->expander->expand($class, $method, $hooks, $configuration)];
+				$expanded[] = $this->expander->expand($class, $method, $hooks, $configuration);
 			}
 		}
 
+		$cases = array_merge(...$expanded);
 		usort($cases, static fn (BenchmarkCase $a, BenchmarkCase $b): int => CaseId::compare($a->id, $b->id));
 
 		return $cases;
