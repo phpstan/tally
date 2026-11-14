@@ -4,5 +4,4 @@
 /e2e/bashunit
 /.bashunit
 /.amp/portals/*
-/codspeed
 /codspeed/*/.key
