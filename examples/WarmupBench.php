@@ -14,7 +14,7 @@ use function preg_match;
 final class WarmupBench
 {
 
-	#[Expected(instructions: '73.16K', cycles: '236.6K', memory: '48B')]
+	#[Expected(instructions: '74.63K', cycles: '256.1K', memory: '48B')]
 	public function benchCold(): int|false
 	{
 		return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.cold$~', 'tally@example.cold');
