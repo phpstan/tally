@@ -9,6 +9,7 @@ use Tally\Execution\DirectoryRemover;
 use Tally\Runner\CodSpeedException;
 use Tally\Tests\InstrumentHooksFixture;
 use function chmod;
+use function clearstatcache;
 use function copy;
 use function fileperms;
 use function getmypid;
@@ -47,6 +48,8 @@ final class CodSpeedInstallationTest extends TestCase
 
 		try {
 			(new CodSpeedInstallation($build))->locate(self::EXTENSIONS);
+			// PHP 8.2 keeps the permissions it read before the chmod
+			clearstatcache();
 
 			$this->assertSame(0755, fileperms($build . '/valgrind') & 0777);
 			$this->assertSame(0755, fileperms($build . '/libexec/callgrind-amd64-linux') & 0777);

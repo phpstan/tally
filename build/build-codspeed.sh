@@ -60,7 +60,8 @@ install -m 0755 callgrind/callgrind-*-linux "$output/libexec/"
 install -m 0644 coregrind/vgpreload_core-*-linux.so default.supp "$output/libexec/"
 install -m 0644 "$work/libinstrument_hooks.so" "$output/libinstrument_hooks.so"
 strip "$output/valgrind" "$output/libexec/callgrind-"*-linux "$output/libexec/vgpreload_core-"*-linux.so "$output/libinstrument_hooks.so"
-"$output/valgrind" --version >"$output/VERSION"
+# the launcher starts a tool even for --version, from VALGRIND_LIB, not where it would be installed
+VALGRIND_LIB="$output/libexec" "$output/valgrind" --tool=callgrind --version >"$output/VERSION"
 
 # what the licenses ask of a binary distribution: their texts, and where the source is
 install -m 0644 COPYING "$output/LICENSE-valgrind"
