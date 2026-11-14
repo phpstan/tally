@@ -42,9 +42,9 @@ final class UnifiedDiffBench
 	}
 
 	#[DataProvider('changes')]
-	#[ExpectedFor('first-and-last-line-changed', instructions: '2.186B', cycles: '2.341B', memory: '39.59MiB')]
+	#[ExpectedFor('first-and-last-line-changed', instructions: '6.776M', cycles: '7.125M', memory: '405.8KiB')]
 	#[ExpectedFor('middle-line-changed', instructions: '5.292M', cycles: '5.540M', memory: '375.6KiB')]
-	#[ExpectedFor('new-expectations-200', instructions: '787.4M', cycles: '848.6M', memory: '20.46MiB')]
+	#[ExpectedFor('new-expectations-200', instructions: '71.04M', cycles: '73.48M', memory: '1.816MiB')]
 	public function benchRender(string $before, string $after): void
 	{
 		(new UnifiedDiff())->render('bench/SuiteBench.php', $before, $after);

@@ -3,6 +3,7 @@
 namespace Tally\Bench\Expectation;
 
 use Tally\Attribute\DataProvider;
+use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
 use Tally\Expectation\AttributeIndex;
@@ -32,6 +33,8 @@ final class ExpectedAttributeRewriterBench
 	}
 
 	#[DataProvider('files')]
+	#[ExpectedFor('size-10', instructions: '2.007M', cycles: '2.209M', memory: '135.9KiB')]
+	#[ExpectedFor('size-100', instructions: '17.36M', cycles: '19.11M', memory: '1.093MiB')]
 	public function benchIndex(string $code): void
 	{
 		(new ExpectedAttributeRewriter())->index($code);
@@ -58,6 +61,8 @@ final class ExpectedAttributeRewriterBench
 	 * @throws MethodNotFoundException
 	 */
 	#[DataProvider('indexes')]
+	#[ExpectedFor('size-10', instructions: '47.67K', cycles: '65.38K', memory: '1.445KiB')]
+	#[ExpectedFor('size-100', instructions: '80.65K', cycles: '103.6K', memory: '1.445KiB')]
 	public function benchEdits(AttributeIndex $index, string $class, string $dataSet, Metrics $measured): void
 	{
 		(new ExpectedAttributeRewriter())->edits($index, $class, SuiteSource::SIZED_METHOD, $dataSet, $measured, false);
