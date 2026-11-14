@@ -217,6 +217,8 @@ new MetricTolerance(instructions: 0.02, cycles: 0.05, memory: 0.05, cyclesAtLeas
 
 The same code counts the same instructions to a few dozen from run to run, so ±2 % of instructions is a real change. The cycles also depend on which data the simulated caches hold: when unrelated code changes, a benchmark of a few thousand instructions can gain or lose a dozen cache misses, more than a thousand cycles. So the cycles may differ by ±5 %, but at least by 2,000 cycles. Change the default with [`withTolerance()`](#configuration).
 
+A benchmark with a [complexity class](#complexity) and no policy of its own gets ±10 % instead, from [`withGrowthTolerance()`](#configuration): the code around the part that grows makes the instructions differ from what the formula predicts by a few percent.
+
 Without `#[Warmup]`, the counted call is the first one. The difference can be large:
 
 ```php
@@ -285,14 +287,14 @@ Tally counts 3 cases under CodSpeed's CPU simulation, 16 at once.
 .SS                                                                 3 / 3 (100%)
 
 Benchmarks failed: 2 slower, 1 unchanged
-Allowed difference: instructions grow at most as O(n) from the smallest data set, ±2 % instructions, ±5 % cycles but at least ±2,000, ±5 % memory
+Allowed difference: instructions grow at most as O(n) from the smallest data set, ±10 % of each metric
 
 Slower than expected
 These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, loosen the complexity class.
 
   Benchmark                            Metric         Expected   Measured     Change   Allowed
-  App\PairsBench::benchPairs@size-20   instructions     93.44K     178.7K    +91.2 %      ±2 %
-  App\PairsBench::benchPairs@size-40   instructions     186.9K     699.7K   +274.4 %      ±2 %
+  App\PairsBench::benchPairs@size-20   instructions     93.44K     178.7K    +91.2 %     ±10 %
+  App\PairsBench::benchPairs@size-40   instructions     186.9K     699.7K   +274.4 %     ±10 %
 
 Reproduce locally
   vendor/bin/tally run --filter='App\PairsBench::benchPairs@size-40'
@@ -427,6 +429,7 @@ Every value Tally uses when a benchmark or the command line does not give one is
 | `withIniEntries(list<string>)` | PHP settings the cases run with, passed as `-d`. |
 | `withTimeLimits(native, counted)` | Seconds a case may run natively, before it is counted, and under the simulation, which is about 50 times slower. 60 and 1800 by default. A case that runs longer is killed and reported as not measured. |
 | `withTolerance(TolerancePolicy)` | The tolerance of benchmarks without a policy on their method or class: any of the tolerance attributes, or your own `TolerancePolicy`. [`MetricTolerance`](#attributes) with ±2 % instructions, ±5 % cycles but at least 2,000, and ±5 % memory by default. |
+| `withGrowthTolerance(TolerancePolicy)` | The tolerance of benchmarks with a complexity class and without a policy on their method or class. `RelativeTolerance(0.1)` by default. |
 | `withNamedArguments(bool)` | Whether `tally accept` and the patch of new expectations write `#[ExpectedFor(dataSet: 'size-10', …)]` instead of `#[ExpectedFor('size-10', …)]`. Off by default. |
 
 ## In CI

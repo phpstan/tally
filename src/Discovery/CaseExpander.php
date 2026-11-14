@@ -89,10 +89,10 @@ final class CaseExpander
 			}
 		}
 		$warmup = $this->warmup($class, $method, $where);
-		$tolerance = $this->tolerance($class, $method, $where, $configuration->tolerance());
 		$expected = $this->expected($method, $where);
 		$expectedFor = $this->expectedFor($method, $where);
 		$complexity = $this->complexity($method, $where);
+		$tolerance = $this->tolerance($class, $method, $where, $complexity === null ? $configuration->tolerance() : $configuration->growthTolerance());
 		$file = (string) $method->getDeclaringClass()->getFileName();
 		$declaringClass = $method->getDeclaringClass()->getName();
 

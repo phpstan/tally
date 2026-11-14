@@ -4,11 +4,11 @@ namespace Tally\Bench\Report;
 
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\ExpectedFor;
+use Tally\Attribute\RelativeTolerance;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
 use Tally\CaseId;
 use Tally\Comparison\Comparator;
-use Tally\Configuration;
 use Tally\Expectation\SourceLocation;
 use Tally\Measurement;
 use Tally\Metric;
@@ -61,7 +61,7 @@ final class ConsoleReportBench
 	{
 		$source = new SuiteSource();
 		$comparator = new Comparator();
-		$tolerance = Configuration::create()->tolerance();
+		$tolerance = new RelativeTolerance(0.1);
 		$comparisons = [];
 		for ($i = 1; $i <= $cases; $i++) {
 			$id = new CaseId($source->className(1, 1), sprintf('benchMethod%d', $i), null);

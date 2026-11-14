@@ -4,11 +4,11 @@ namespace Tally\Bench\Selection;
 
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\ExpectedFor;
+use Tally\Attribute\RelativeTolerance;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
-use Tally\Configuration;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Selection\ShardSelector;
@@ -60,7 +60,7 @@ final class ShardSelectorBench
 				[],
 				[],
 				new AttributeExpectations($rewriter, SuiteSource::FILE, $class, $method, null, $i % 10 === 0 ? null : $source->measured($i * 7_919 % 1_000), false),
-				Configuration::create()->tolerance(),
+				new RelativeTolerance(0.1),
 				null,
 			);
 		}
