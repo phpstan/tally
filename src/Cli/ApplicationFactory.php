@@ -70,9 +70,10 @@ final class ApplicationFactory
 	 * @param string $phpBinary runs the workers
 	 * @param list<string> $iniFiles the ini files the PHP binary loaded, in the order it loaded them
 	 * @param string $tallyBinary the bin/tally the workers run
+	 * @param string $program how the user ran Tally, argv[0], which the commands in the report run
 	 * @param string $codspeed the builds of CodSpeed's Valgrind and tally_hooks for this platform
 	 */
-	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, bool $errorColors, string $phpBinary, array $iniFiles, string $tallyBinary, string $codspeed): Application
+	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, bool $errorColors, string $phpBinary, array $iniFiles, string $tallyBinary, string $program, string $codspeed): Application
 	{
 		$relativePath = new RelativePath();
 		$closestName = new ClosestName();
@@ -99,7 +100,7 @@ final class ApplicationFactory
 			new ConsoleReport(new TextTable(), $rows),
 			new MarkdownReport($rows),
 			new GitHubAnnotations($rows, $relativePath),
-			new ReportCommands(),
+			new ReportCommands($relativePath->of($program, $workingDirectory)),
 			$expectationFiles,
 			$expectationChanges,
 			new ExpectationsPatch(new UnifiedDiff(), $relativePath),

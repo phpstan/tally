@@ -57,5 +57,8 @@ use Tally\Cli\ApplicationFactory;
 		$iniFiles[] = $iniFile;
 	}
 
-	exit((new ApplicationFactory())->create(STDOUT, STDERR, $workingDirectory, $environment, $colors, $errorColors, PHP_BINARY, $iniFiles, __FILE__, $codspeed)->run($arguments));
+	// the commands in the report run Tally the way the user did, such as tools/tally/vendor/bin/tally
+	$program = $arguments[0] ?? 'vendor/bin/tally';
+
+	exit((new ApplicationFactory())->create(STDOUT, STDERR, $workingDirectory, $environment, $colors, $errorColors, PHP_BINARY, $iniFiles, __FILE__, $program, $codspeed)->run($arguments));
 })();

@@ -4,6 +4,7 @@ namespace Tally\Report;
 
 use Tally\Comparison\CaseComparison;
 use function escapeshellarg;
+use function preg_match;
 use function sprintf;
 
 /**
@@ -13,17 +14,26 @@ use function sprintf;
 final class ReportCommands
 {
 
-	public const BINARY = 'vendor/bin/tally';
-
 	/** Where the accept commands download or write the results */
 	public const RESULTS_DIRECTORY = 'tmp/tally';
 
 	/** The artifacts of a GitHub Actions run that hold the results */
 	public const ARTIFACT_PATTERN = 'tally-*';
 
+	/** The program as the commands write it, quoted only when the shell would split it */
+	private string $program;
+
+	/**
+	 * @param string $program how the user ran Tally, such as vendor/bin/tally or tools/tally/vendor/bin/tally
+	 */
+	public function __construct(string $program)
+	{
+		$this->program = preg_match('~^[\w./-]+$~', $program) === 1 ? $program : escapeshellarg($program);
+	}
+
 	public function reproduce(?CaseComparison $worst): string
 	{
-		return $worst === null ? '' : sprintf('%s run --filter=%s', self::BINARY, escapeshellarg($worst->id->toString()));
+		return $worst === null ? '' : sprintf('%s run --filter=%s', $this->program, escapeshellarg($worst->id->toString()));
 	}
 
 	/**
@@ -41,14 +51,14 @@ final class ReportCommands
 				$repository,
 				self::ARTIFACT_PATTERN,
 				self::RESULTS_DIRECTORY,
-				self::BINARY,
+				$this->program,
 			);
 		}
 		if ($resultsDirectory !== null) {
-			return sprintf('%s accept %s', self::BINARY, escapeshellarg($resultsDirectory));
+			return sprintf('%s accept %s', $this->program, escapeshellarg($resultsDirectory));
 		}
 
-		return sprintf("%s run --output=%s\n%1\$s accept %2\$s", self::BINARY, self::RESULTS_DIRECTORY);
+		return sprintf("%s run --output=%s\n%1\$s accept %2\$s", $this->program, self::RESULTS_DIRECTORY);
 	}
 
 }

@@ -6,6 +6,7 @@ use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tally\Tests\InProcessTally;
+use Tally\Tests\ValgrindFixture;
 use function chmod;
 use function file_get_contents;
 use function file_put_contents;
@@ -48,6 +49,14 @@ final class CompareAndAcceptCommandTest extends TestCase
 		$this->assertStringStartsWith("Benchmarks failed: 1 slower, 1 not measured, 1 unchanged\n", $output);
 		$this->assertStringContainsString("Not measured\nThese benchmarks failed, timed out, or did not run. Their errors are below.\n\n  " . self::BENCH . "::benchMissing\n    It did not run.\n\n", $output);
 		$this->assertStringContainsString("Accept the new numbers\n  vendor/bin/tally accept '" . self::RESULTS . "'\n", $output);
+	}
+
+	public function testSuggestsCommandsThatRunTallyTheWayTheUserDid(): void
+	{
+		[, $output] = InProcessTally::runAs(__DIR__ . '/tools/tally/vendor/bin/tally', ValgrindFixture::codspeed(), __DIR__, [], ['compare', self::RESULTS, self::COMPARE]);
+
+		$this->assertStringContainsString("Reproduce locally\n  tools/tally/vendor/bin/tally run --filter='" . self::BENCH . "::benchSlower'\n", $output);
+		$this->assertStringContainsString("Accept the new numbers\n  tools/tally/vendor/bin/tally accept '" . self::RESULTS . "'\n", $output);
 	}
 
 	public function testWritesTheAnnotationsAndJobSummaryOfAShardInGitHubActions(): void
