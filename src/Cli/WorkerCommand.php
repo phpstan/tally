@@ -13,11 +13,14 @@ use Tally\Runner\FailureDescription;
 use Tally\Runner\IdleCounter;
 use Tally\ScratchDirectory;
 use Throwable;
+use function array_uintersect;
 use function file_put_contents;
 use function get_loaded_extensions;
+use function implode;
 use function is_dir;
 use function mkdir;
 use function sprintf;
+use function strcasecmp;
 
 /**
  * Runs one case in this process and writes its measurement. tally run starts a worker natively,
@@ -74,9 +77,10 @@ final class WorkerCommand implements Command
 		$id = $this->required($input, 'case');
 		$scratch = $this->required($input, 'scratch');
 		$resultFile = $this->required($input, 'result');
-		$case = $this->find($this->selectedCases->load($input, $this->selectedCases->configuration($input), $input->arguments()), $id);
+		$configuration = $this->selectedCases->configuration($input);
+		$case = $this->find($this->selectedCases->load($input, $configuration, $input->arguments()), $id);
 
-		$measurement = $this->run($case, $scratch, $input->flag('counted'));
+		$measurement = $this->run($case, $scratch, $input->flag('counted'), $configuration->strippedExtensions());
 		if (@file_put_contents($resultFile, $this->json->encode($measurement)) === false) {
 			$output->error(sprintf('Cannot write %s.', $resultFile));
 
@@ -86,8 +90,21 @@ final class WorkerCommand implements Command
 		return $measurement->failure === null ? Application::EXIT_SUCCESS : Application::EXIT_FAILURE;
 	}
 
-	private function run(BenchmarkCase $case, string $scratch, bool $counted): Measurement
+	/**
+	 * @param list<string> $strippedExtensions
+	 */
+	private function run(BenchmarkCase $case, string $scratch, bool $counted, array $strippedExtensions): Measurement
 	{
+		$loaded = array_uintersect($strippedExtensions, get_loaded_extensions(), strcasecmp(...));
+		if ($loaded !== []) {
+			return Measurement::failed($case->id, sprintf(
+				"PHP loads extensions that the cases run without: %s.\n"
+				. 'tally run comments out the lines of the ini files that load them, so this PHP loads them some other way, such as built in. '
+				. 'Leave them out of Configuration::withStrippedExtensions() to count with them.',
+				implode(', ', $loaded),
+			));
+		}
+
 		try {
 			if (!is_dir($scratch)) {
 				mkdir($scratch, 0777, true);

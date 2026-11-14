@@ -432,13 +432,14 @@ Every value Tally uses when a benchmark or the command line does not give one is
 | `withGrowthTolerance(TolerancePolicy)` | The tolerance of benchmarks with a complexity class and without a policy on their method or class. `RelativeTolerance(0.1)` by default. |
 | `withNamedArguments(bool)` | Whether `tally accept` and the patch of new expectations write `#[ExpectedFor(dataSet: 'size-10', …)]` instead of `#[ExpectedFor('size-10', …)]`. Off by default. |
 | `withEnvironmentVariables(list<string>)` | The environment variables the cases run with; `tally run` leaves out the others. The environment is on the stack of the counted process, so a variable that differs from run to run, such as the branch name in CI, moves its memory layout, and with it the counts of benchmarks whose allocations depend on it. `PATH`, `HOME`, `TMPDIR`, `LANG`, `LC_ALL`, `PHPRC`, and `PHP_INI_SCAN_DIR` by default; list them too when you add one. |
+| `withStrippedExtensions(list<string>)` | The extensions the cases run without, even when PHP's ini files load them. PHP often loads them enabled, which multiplies the counts: Xdebug in its default develop mode and PCOV with `pcov.enabled=1` count a loop of method calls 6.5 and 3.4 times over. A setting cannot unload an extension, and the cases do not get the `-d` options of `tally run`. When an ini file loads one, `tally run` starts the cases with a php.ini made of PHP's ini files with those lines commented out. A case fails when PHP loads one some other way, such as built in. `xdebug`, `pcov`, `uopz`, `blackfire`, `tideways`, `tideways_xhprof`, `xhprof`, `spx`, `excimer`, `memprof`, and `opentelemetry` by default; leave out one that your benchmarks need. |
 
 ## In CI
 
 The counts depend on everything that runs the benchmark:
 
 - the PHP version, including the patch release,
-- how PHP was built, which extensions are loaded, and the PHP settings, such as whether opcache and JIT are on,
+- how PHP was built, which extensions are loaded, and the PHP settings, such as whether opcache and JIT are on; the cases run without debuggers and profilers, see [`withStrippedExtensions()`](#configuration),
 - the system libraries, such as glibc, which come with the runner's operating system image,
 - the environment variables the cases keep, see [`withEnvironmentVariables()`](#configuration).
 

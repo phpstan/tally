@@ -10,6 +10,7 @@ use Tally\Comparison\Comparator;
 use Tally\Execution\CaseJobs;
 use Tally\Execution\CodSpeedInstallation;
 use Tally\Execution\DirectoryRemover;
+use Tally\Execution\StrippedIniFile;
 use Tally\Execution\WorkerSettings;
 use Tally\Expectation\SourceLocation;
 use Tally\Measurement;
@@ -50,6 +51,7 @@ final class RunCommand implements Command
 		private SelectedCases $selectedCases,
 		private CodSpeedInstallation $installation,
 		private CaseJobs $caseJobs,
+		private StrippedIniFile $strippedIni,
 		private ProcessPool $pool,
 		private Comparator $comparator,
 		private ProgressFormat $progress,
@@ -116,15 +118,6 @@ final class RunCommand implements Command
 			$located[] = [$case, $case->expectations->location()];
 		}
 		$workDirectory = sys_get_temp_dir() . '/tally-' . getmypid();
-		$settings = new WorkerSettings(
-			$configuration->iniEntries(),
-			$this->suiteOptions($input),
-			$valgrind,
-			$extension,
-			$workDirectory,
-			$configuration->nativeTimeLimitSeconds(),
-			$configuration->countedTimeLimitSeconds(),
-		);
 
 		$output->write(sprintf(
 			"Tally counts %d %s under CodSpeed's CPU simulation, %d at once.\n\n",
@@ -133,7 +126,24 @@ final class RunCommand implements Command
 			$jobs,
 		));
 		try {
+			$phpIni = $this->strippedIni->write($configuration->strippedExtensions(), $workDirectory);
+			$settings = new WorkerSettings(
+				$configuration->iniEntries(),
+				$phpIni,
+				$this->suiteOptions($input),
+				$valgrind,
+				$extension,
+				$workDirectory,
+				$configuration->nativeTimeLimitSeconds(),
+				$configuration->countedTimeLimitSeconds(),
+			);
 			$environment = [...array_intersect_key($this->environment, array_flip($configuration->environmentVariables())), 'VALGRIND_LIB' => $valgrindTools];
+			if ($phpIni !== null) {
+				// The php.ini has the contents of the files PHP would scan. In a directory that does not
+				// exist, PHP scans none; proc_open leaves out a variable whose value is empty, and PHP
+				// would scan its own directory.
+				$environment['PHP_INI_SCAN_DIR'] = $workDirectory . '/no-ini-files';
+			}
 			$measurements = $this->measure($located, $settings, $environment, $jobs, $input->option('output'), $output);
 		} catch (RuntimeException $e) {
 			$output->error($e->getMessage());

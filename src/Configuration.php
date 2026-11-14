@@ -30,6 +30,7 @@ final class Configuration
 	 * @param list<string> $paths
 	 * @param list<string> $iniEntries
 	 * @param list<string> $environmentVariables
+	 * @param list<string> $strippedExtensions
 	 */
 	private function __construct(
 		private array $paths,
@@ -39,7 +40,8 @@ final class Configuration
 		private TolerancePolicy $tolerance,
 		private TolerancePolicy $growthTolerance,
 		private bool $namedArguments,
-		private array $environmentVariables
+		private array $environmentVariables,
+		private array $strippedExtensions
 	)
 	{
 	}
@@ -62,6 +64,9 @@ final class Configuration
 			// what PHP, a shell, and the locale need; the rest, such as the branch name in CI, would
 			// move the memory layout of the counted process, and with it the counts of some benchmarks
 			['PATH', 'HOME', 'TMPDIR', 'LANG', 'LC_ALL', 'PHPRC', 'PHP_INI_SCAN_DIR'],
+			// debuggers, coverage, profilers, and tracers, which hook into running PHP code and
+			// multiply the counts when they are enabled
+			['xdebug', 'pcov', 'uopz', 'blackfire', 'tideways', 'tideways_xhprof', 'xhprof', 'spx', 'excimer', 'memprof', 'opentelemetry'],
 		);
 	}
 
@@ -154,6 +159,22 @@ final class Configuration
 	}
 
 	/**
+	 * The extensions the processes that run the cases start without, even when the ini files of PHP
+	 * load them: tally run comments out the lines that load them. PHP often loads them enabled,
+	 * such as Xdebug in its default develop mode, which multiplies the counts, and the settings
+	 * that switch them off for tally run, such as -d or XDEBUG_MODE, do not reach the cases.
+	 *
+	 * @param list<string> $names
+	 */
+	public function withStrippedExtensions(array $names): self
+	{
+		$configuration = clone $this;
+		$configuration->strippedExtensions = $names;
+
+		return $configuration;
+	}
+
+	/**
 	 * @return list<string>
 	 */
 	public function paths(): array
@@ -200,6 +221,14 @@ final class Configuration
 	public function environmentVariables(): array
 	{
 		return $this->environmentVariables;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public function strippedExtensions(): array
+	{
+		return $this->strippedExtensions;
 	}
 
 }

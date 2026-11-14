@@ -30,7 +30,7 @@ final class WorkerCommandLineTest extends TestCase
 			'--config=tally.php',
 			'--',
 			'/project/benchmarks/FooBench.php',
-		], self::commandLine()->native(self::settings('/opt/codspeed/tally_hooks-8.5.so'), self::case(), '/work/scratch', '/work/native.json'));
+		], self::commandLine()->native(self::settings('/opt/codspeed/tally_hooks-8.5.so', null), self::case(), '/work/scratch', '/work/native.json'));
 	}
 
 	public function testCountedRunsTheWorkerUnderCallgrindWithTheCachesOfCodSpeed(): void
@@ -72,7 +72,7 @@ final class WorkerCommandLineTest extends TestCase
 			'--config=tally.php',
 			'--',
 			'/project/benchmarks/FooBench.php',
-		], self::commandLine()->counted(self::settings('/opt/codspeed/tally_hooks-8.5.so'), self::case(), '/work/scratch', '/work/counted.json', '/work/profile'));
+		], self::commandLine()->counted(self::settings('/opt/codspeed/tally_hooks-8.5.so', null), self::case(), '/work/scratch', '/work/counted.json', '/work/profile'));
 	}
 
 	private static function commandLine(): WorkerCommandLine
@@ -84,14 +84,29 @@ final class WorkerCommandLineTest extends TestCase
 	{
 		$this->assertSame(
 			['-d', 'zend.max_allowed_stack_size=-1', '-d', 'memory_limit=-1', '-d', 'opcache.enable_cli=1', 'vendor/bin/tally'],
-			array_slice(self::commandLine()->counted(self::settings(null), self::case(), '/work/scratch', '/work/counted.json', '/work/profile'), 19, 7),
+			array_slice(self::commandLine()->counted(self::settings(null, null), self::case(), '/work/scratch', '/work/counted.json', '/work/profile'), 19, 7),
 		);
 	}
 
-	private static function settings(?string $extension): WorkerSettings
+	public function testBothRunsStartWithThePhpIniWithoutTheStrippedExtensions(): void
+	{
+		$settings = self::settings(null, '/work/php.ini');
+
+		$this->assertSame(
+			['/usr/bin/php', '-c', '/work/php.ini', '-d', 'memory_limit=-1'],
+			array_slice(self::commandLine()->native($settings, self::case(), '/work/scratch', '/work/native.json'), 0, 5),
+		);
+		$this->assertSame(
+			['/usr/bin/php', '-c', '/work/php.ini', '-d', 'zend.max_allowed_stack_size=-1'],
+			array_slice(self::commandLine()->counted($settings, self::case(), '/work/scratch', '/work/counted.json', '/work/profile'), 18, 5),
+		);
+	}
+
+	private static function settings(?string $extension, ?string $phpIni): WorkerSettings
 	{
 		return new WorkerSettings(
 			['memory_limit=-1', 'opcache.enable_cli=1'],
+			$phpIni,
 			['--config=tally.php'],
 			'/opt/codspeed/valgrind',
 			$extension,

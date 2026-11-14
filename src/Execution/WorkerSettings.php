@@ -10,6 +10,8 @@ final class WorkerSettings
 
 	/**
 	 * @param list<string> $iniEntries PHP settings of the workers, like memory_limit=-1
+	 * @param string|null $phpIni the php.ini the workers start with instead of PHP's own, null for
+	 *     PHP's own
 	 * @param list<string> $suiteOptions the options with which the workers load the benchmark file of their case
 	 * @param string $valgrind the launcher of CodSpeed's Valgrind
 	 * @param string|null $extension the tally_hooks extension the counted worker loads, null when PHP
@@ -18,6 +20,7 @@ final class WorkerSettings
 	 */
 	public function __construct(
 		public readonly array $iniEntries,
+		public readonly ?string $phpIni,
 		public readonly array $suiteOptions,
 		public readonly string $valgrind,
 		public readonly ?string $extension,

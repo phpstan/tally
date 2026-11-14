@@ -21,6 +21,7 @@ final class ConfigurationTest extends TestCase
 		$this->assertSame('±10 % of each metric', $configuration->growthTolerance()->describe());
 		$this->assertFalse($configuration->namedArguments());
 		$this->assertSame(['PATH', 'HOME', 'TMPDIR', 'LANG', 'LC_ALL', 'PHPRC', 'PHP_INI_SCAN_DIR'], $configuration->environmentVariables());
+		$this->assertSame(['xdebug', 'pcov', 'uopz', 'blackfire', 'tideways', 'tideways_xhprof', 'xhprof', 'spx', 'excimer', 'memprof', 'opentelemetry'], $configuration->strippedExtensions());
 	}
 
 	public function testWithersKeepTheOriginal(): void
@@ -36,6 +37,7 @@ final class ConfigurationTest extends TestCase
 		$this->assertSame('±40 % of each metric', $original->withGrowthTolerance(new RelativeTolerance(0.4))->growthTolerance()->describe());
 		$this->assertTrue($original->withNamedArguments(true)->namedArguments());
 		$this->assertSame(['PATH', 'CI'], $original->withEnvironmentVariables(['PATH', 'CI'])->environmentVariables());
+		$this->assertSame(['xdebug'], $original->withStrippedExtensions(['xdebug'])->strippedExtensions());
 		$this->assertEquals(Configuration::create(), $original);
 	}
 

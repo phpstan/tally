@@ -31,6 +31,9 @@ final class WorkerCommandTest extends TestCase
 	private const WORKER = __DIR__ . '/../../Fixtures/Worker';
 	private const BENCH = 'Tally\\Tests\\Fixtures\\Worker\\WorkerBench';
 
+	/** Strips no extensions, this process loads PCOV for coverage */
+	private const CONFIG = '--config=' . __DIR__ . '/../../Fixtures/StrippedExtensions/none.php';
+
 	private string $directory;
 
 	#[Override]
@@ -100,6 +103,7 @@ final class WorkerCommandTest extends TestCase
 			PHP_BINARY,
 			InProcessTally::BINARY,
 			'worker',
+			self::CONFIG,
 			'--case=' . self::BENCH . '::' . $method,
 			'--scratch=' . $this->directory,
 			'--result=' . $this->directory . '/result.json',
@@ -154,9 +158,32 @@ final class WorkerCommandTest extends TestCase
 		$this->assertStringStartsWith("The benchmark does not run under CodSpeed's CPU simulation.\n", (string) $this->writtenResult()->failure);
 	}
 
+	/**
+	 * @throws InvalidResultException
+	 */
+	public function testRefusesToRunWithAStrippedExtension(): void
+	{
+		[$exitCode] = InProcessTally::run(__DIR__, [], [
+			'worker',
+			'--config=' . __DIR__ . '/../../Fixtures/StrippedExtensions/tally.php',
+			'--case=' . self::BENCH . '::benchAllocate',
+			'--scratch=' . $this->directory,
+			'--result=' . $this->directory . '/result.json',
+			self::WORKER,
+		]);
+
+		$this->assertSame(1, $exitCode);
+		$this->assertSame(
+			"PHP loads extensions that the cases run without: TALLY_HOOKS.\n"
+			. 'tally run comments out the lines of the ini files that load them, so this PHP loads them some other way, such as built in. '
+			. 'Leave them out of Configuration::withStrippedExtensions() to count with them.',
+			$this->writtenResult()->failure,
+		);
+	}
+
 	public function testReportsAResultThatCannotBeWritten(): void
 	{
-		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, [], ['worker', '--case=' . self::BENCH . '::benchAllocate', '--scratch=' . $this->directory, '--result=/nonexistent/result.json', self::WORKER]);
+		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, [], ['worker', self::CONFIG, '--case=' . self::BENCH . '::benchAllocate', '--scratch=' . $this->directory, '--result=/nonexistent/result.json', self::WORKER]);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame("Cannot write /nonexistent/result.json.\n", $errorOutput);
@@ -205,7 +232,7 @@ final class WorkerCommandTest extends TestCase
 		$arguments = ['case' => '--case=' . self::BENCH . '::benchAllocate', 'scratch' => '--scratch=' . $this->directory, 'result' => '--result=' . $this->directory . '/result.json'];
 		unset($arguments[$option]);
 
-		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, [], ['worker', ...array_values($arguments), self::WORKER]);
+		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, [], ['worker', self::CONFIG, ...array_values($arguments), self::WORKER]);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertStringStartsWith(sprintf("Option --%s is required.\nRun tally worker --help for its options.\n", $option), $errorOutput);
@@ -219,6 +246,7 @@ final class WorkerCommandTest extends TestCase
 	{
 		return InProcessTally::run(dirname(__DIR__, 3), [], [
 			'worker',
+			self::CONFIG,
 			'--case=' . $id,
 			'--scratch=' . $scratch,
 			'--result=' . $this->directory . '/result.json',
