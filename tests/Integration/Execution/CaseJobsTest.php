@@ -45,7 +45,7 @@ final class CaseJobsTest extends TestCase
 		(new DirectoryRemover())->remove($this->directory);
 	}
 
-	public function testTheCaseRunsNativelyAndThenUnderCodSpeed(): void
+	public function testTheCaseRunsNativelyAndThenUnderCallgrind(): void
 	{
 		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
 
@@ -113,7 +113,7 @@ final class CaseJobsTest extends TestCase
 			array_map(static fn (ProcessCommand $step): ProcessResult => ProcessResult::exited($step, 0), $steps),
 		);
 
-		$this->assertSame('CodSpeed wrote an invalid result: it is not JSON.', $measurement->failure);
+		$this->assertSame('The counted run wrote an invalid result: it is not JSON.', $measurement->failure);
 	}
 
 	private static function jobs(): CaseJobs
@@ -123,7 +123,7 @@ final class CaseJobsTest extends TestCase
 
 	private function settings(string $workDirectory): WorkerSettings
 	{
-		return new WorkerSettings([], [], '/opt/codspeed', '/opt/libinstrument_hooks.so', $workDirectory, 60, 1800);
+		return new WorkerSettings([], [], '/opt/codspeed/valgrind', '/opt/codspeed/libinstrument_hooks.so', $workDirectory, 60, 1800);
 	}
 
 	private static function memory(int $bytes): Measurement

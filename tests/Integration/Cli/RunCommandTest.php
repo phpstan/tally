@@ -11,7 +11,6 @@ use Tally\Result\InvalidResultException;
 use Tally\Result\MeasurementJson;
 use Tally\Result\ResultsDirectory;
 use Tally\Tests\InProcessTally;
-use Tally\Tests\InstrumentHooksFixture;
 use function array_map;
 use function fclose;
 use function file_get_contents;
@@ -33,7 +32,6 @@ final class RunCommandTest extends TestCase
 
 	private const RUN = __DIR__ . '/../../Fixtures/Run';
 	private const BENCH = 'Tally\\Tests\\Fixtures\\Run\\RunBench';
-	private const FAKE_CODSPEED = __DIR__ . '/../../Fixtures/CodSpeed/bin';
 
 	private string $output;
 
@@ -141,7 +139,7 @@ final class RunCommandTest extends TestCase
 		[$exitCode, $output] = InProcessTally::run(__DIR__, $environment, ['run', '--filter=benchOk', self::RUN]);
 
 		$this->assertSame(1, $exitCode);
-		$this->assertStringContainsString("CodSpeed's profile has no part named " . self::BENCH . '::benchOk.', $output);
+		$this->assertStringContainsString("Callgrind's profile has no part named " . self::BENCH . '::benchOk.', $output);
 	}
 
 	public function testKillsACaseThatRunsTooLong(): void
@@ -203,13 +201,17 @@ final class RunCommandTest extends TestCase
 		$this->assertSame("Cannot write the job summary to /nonexistent/summary.md.\n", $errorOutput);
 	}
 
-	public function testRefusesToStartWithoutCodSpeed(): void
+	public function testRefusesToStartWithoutABuildOfValgrind(): void
 	{
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, ['PATH' => '/nonexistent'], ['run', self::RUN]);
+		[$exitCode, $output, $errorOutput] = InProcessTally::runWithCodSpeed('/nonexistent/codspeed/linux-riscv64', __DIR__, $this->environment(), ['run', self::RUN]);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('', $output);
-		$this->assertStringStartsWith("Tally counts with CodSpeed's CPU simulation, but the codspeed CLI is not on PATH.", $errorOutput);
+		$this->assertSame(
+			"Tally counts with CodSpeed's Valgrind, but has no build of it for linux-riscv64 in /nonexistent/codspeed.\n"
+			. "Releases of Tally include builds for linux-x86_64 and linux-aarch64. In a clone of Tally, build it with build/build-codspeed.sh.\n",
+			$errorOutput,
+		);
 	}
 
 	public function testReportsAResultsDirectoryThatCannotBeCreated(): void
@@ -245,8 +247,7 @@ final class RunCommandTest extends TestCase
 	private function environment(): array
 	{
 		return [
-			'PATH' => self::FAKE_CODSPEED . ':' . (string) getenv('PATH'),
-			'INSTRUMENT_HOOKS_LIBRARY' => InstrumentHooksFixture::compile(true),
+			'PATH' => (string) getenv('PATH'),
 			'TALLY_FAKE_COUNTS' => json_encode([
 				self::BENCH . '::benchOk' => [1100, 1650, 100, 150],
 				self::BENCH . '::benchSlower' => [2100, 3150, 100, 150],

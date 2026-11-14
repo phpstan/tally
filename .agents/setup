@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prepares an Amp orb (Debian) with what the checks in CLAUDE.md need: PHP 8.5 with FFI and pcov,
-# Composer, the dependencies, build-cs, and CodSpeed with instrument-hooks for make bench.
+# Composer, the dependencies, build-cs, and the build of CodSpeed's Valgrind for make bench.
 # Runs again on a stale snapshot, so every step skips what is already in place.
 set -euo pipefail
 
@@ -17,19 +17,10 @@ step() {
 	echo "==> $*"
 }
 
-# The Benchmarks job pins CodSpeed and instrument-hooks; use the same versions.
-ci_env() {
-	sed -nE "s/^[[:space:]]+$1: \"([^\"]+)\".*/\1/p" .github/workflows/ci.yml
-}
-CODSPEED_VERSION="$(ci_env CODSPEED_VERSION)"
-CODSPEED_SHA256="$(ci_env CODSPEED_SHA256)"
-INSTRUMENT_HOOKS_COMMIT="$(ci_env INSTRUMENT_HOOKS_COMMIT)"
-: "${CODSPEED_VERSION:?not found in ci.yml}" "${CODSPEED_SHA256:?not found in ci.yml}" "${INSTRUMENT_HOOKS_COMMIT:?not found in ci.yml}"
-
 step "PHP $PHP_VERSION and system packages"
 # Debian ships an older PHP; CI runs the checks on 8.5. FFI and posix come with php-common.
-# libc6-dbg makes Valgrind's counts more accurate, as codspeed setup advises.
-packages=(php$PHP_VERSION-cli php$PHP_VERSION-xml php$PHP_VERSION-mbstring php$PHP_VERSION-curl php$PHP_VERSION-zip php$PHP_VERSION-pcov unzip gcc make libc6-dbg)
+# autotools and gcc build CodSpeed's Valgrind, zip packs the release tree for build/check-release.sh.
+packages=(php$PHP_VERSION-cli php$PHP_VERSION-xml php$PHP_VERSION-mbstring php$PHP_VERSION-curl php$PHP_VERSION-zip php$PHP_VERSION-pcov unzip zip gcc make autoconf automake)
 missing=()
 for package in "${packages[@]}"; do
 	dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'install ok installed' || missing+=("$package")
@@ -67,34 +58,13 @@ fi
 step "build-cs"
 make cs-install
 
-step "CodSpeed $CODSPEED_VERSION"
-if ! codspeed --version 2>/dev/null | grep -qF "$CODSPEED_VERSION"; then
-	codspeed_dir="$(mktemp -d)"
-	archive=codspeed-runner-x86_64-unknown-linux-musl.tar.gz
-	curl -fsSL -o "$codspeed_dir/$archive" "https://github.com/CodSpeedHQ/codspeed/releases/download/v$CODSPEED_VERSION/$archive"
-	echo "$CODSPEED_SHA256  $codspeed_dir/$archive" | sha256sum -c --quiet -
-	tar xzf "$codspeed_dir/$archive" -C "$codspeed_dir" --strip-components=1 codspeed-runner-x86_64-unknown-linux-musl/codspeed
-	sudo install -m 0755 "$codspeed_dir/codspeed" /usr/local/bin/codspeed
-	rm -rf "$codspeed_dir"
+step "CodSpeed's Valgrind"
+# Builds again only when build/build-codspeed.sh or its pins changed.
+key="$(build/build-codspeed.sh --print-key)"
+build_dir="codspeed/linux-$(uname -m)"
+if [ "$(cat "$build_dir/.key" 2>/dev/null)" != "$key" ]; then
+	build/build-codspeed.sh
+	echo "$key" >"$build_dir/.key"
 fi
-# Installs CodSpeed's Valgrind; returns quickly when it is already installed.
-codspeed setup --mode=simulation
-
-step "instrument-hooks $INSTRUMENT_HOOKS_COMMIT"
-hooks_dir=/opt/instrument-hooks
-hooks_library="$hooks_dir/libinstrument_hooks.so"
-if [ "$(cat "$hooks_dir/COMMIT" 2>/dev/null)" != "$INSTRUMENT_HOOKS_COMMIT" ] || [ ! -f "$hooks_library" ]; then
-	source_dir="$(mktemp -d)"
-	git -C "$source_dir" init -q
-	git -C "$source_dir" fetch -q --depth=1 https://github.com/CodSpeedHQ/instrument-hooks.git "$INSTRUMENT_HOOKS_COMMIT"
-	git -C "$source_dir" checkout -q FETCH_HEAD
-	gcc -shared -fPIC -O2 -I"$source_dir/includes" -w "$source_dir/dist/core.c" -o "$source_dir/libinstrument_hooks.so"
-	sudo install -d "$hooks_dir"
-	sudo install -m 0644 "$source_dir/libinstrument_hooks.so" "$hooks_library"
-	echo "$INSTRUMENT_HOOKS_COMMIT" | sudo tee "$hooks_dir/COMMIT" >/dev/null
-	rm -rf "$source_dir"
-fi
-# Login shells, which Amp and orb services start in, get the library for bin/tally run.
-echo "export INSTRUMENT_HOOKS_LIBRARY=$hooks_library" | sudo tee /etc/profile.d/tally-instrument-hooks.sh >/dev/null
 
 step "done"

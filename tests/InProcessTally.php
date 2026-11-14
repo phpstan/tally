@@ -25,13 +25,24 @@ final class InProcessTally
 	 */
 	public static function run(string $workingDirectory, array $environment, array $arguments): array
 	{
+		return self::runWithCodSpeed(InstrumentHooksFixture::codspeed(), $workingDirectory, $environment, $arguments);
+	}
+
+	/**
+	 * @param string $codspeed the build of CodSpeed's Valgrind that tally run counts with
+	 * @param array<string, string> $environment
+	 * @param list<string> $arguments without the program
+	 * @return array{int, string, string} the exit code, the output, and the error output
+	 */
+	public static function runWithCodSpeed(string $codspeed, string $workingDirectory, array $environment, array $arguments): array
+	{
 		$output = fopen('php://memory', 'w+');
 		$errorOutput = fopen('php://memory', 'w+');
 		Assert::assertNotFalse($output);
 		Assert::assertNotFalse($errorOutput);
 
 		$exitCode = (new ApplicationFactory())
-			->create($output, $errorOutput, $workingDirectory, $environment, false, false, PHP_BINARY, self::BINARY)
+			->create($output, $errorOutput, $workingDirectory, $environment, false, false, PHP_BINARY, self::BINARY, $codspeed)
 			->run(['tally', ...$arguments]);
 
 		rewind($output);

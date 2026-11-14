@@ -66,8 +66,9 @@ final class ApplicationFactory
 	 * @param bool $errorColors whether to color the error output
 	 * @param string $phpBinary runs the workers
 	 * @param string $tallyBinary the bin/tally the workers run
+	 * @param string $codspeed the build of CodSpeed's Valgrind and instrument-hooks for this platform
 	 */
-	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, bool $errorColors, string $phpBinary, string $tallyBinary): Application
+	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, bool $errorColors, string $phpBinary, string $tallyBinary, string $codspeed): Application
 	{
 		$relativePath = new RelativePath();
 		$closestName = new ClosestName();
@@ -105,7 +106,7 @@ final class ApplicationFactory
 				new ListCommand($selectedCases),
 				new RunCommand(
 					$selectedCases,
-					new CodSpeedInstallation(),
+					new CodSpeedInstallation($codspeed),
 					new CaseJobs(new WorkerCommandLine($phpBinary, $tallyBinary), new CaseOutcome(), new CallgrindProfile(), $json),
 					new ProcessPool(new ProcessKiller(new ProcessTable())),
 					$comparator,

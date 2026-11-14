@@ -69,7 +69,7 @@ final class CaseJobs
 		$directory = $this->directory($settings, $id);
 		$runs = [$this->run($id, 'The native run', $results[0], $directory . '/native.json')];
 		if (isset($results[1])) {
-			$runs[] = $this->run($id, 'CodSpeed', $results[1], $directory . '/counted.json');
+			$runs[] = $this->run($id, 'The counted run', $results[1], $directory . '/counted.json');
 		}
 
 		$parts = [];

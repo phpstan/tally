@@ -43,5 +43,8 @@ use Tally\Cli\ApplicationFactory;
 	$colors = stream_isatty(STDOUT) && !$noColor;
 	$errorColors = stream_isatty(STDERR) && !$noColor;
 
-	exit((new ApplicationFactory())->create(STDOUT, STDERR, $workingDirectory, $environment, $colors, $errorColors, PHP_BINARY, __FILE__)->run($arguments));
+	// built by build/build-codspeed.sh, the releases include it
+	$codspeed = sprintf('%s/codspeed/%s-%s', dirname(__DIR__), strtolower(PHP_OS_FAMILY), php_uname('m'));
+
+	exit((new ApplicationFactory())->create(STDOUT, STDERR, $workingDirectory, $environment, $colors, $errorColors, PHP_BINARY, __FILE__, $codspeed)->run($arguments));
 })();

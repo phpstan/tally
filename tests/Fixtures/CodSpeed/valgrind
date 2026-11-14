@@ -1,0 +1,47 @@
+#!/usr/bin/env php
+<?php declare(strict_types = 1);
+
+// Stands in for CodSpeed's Valgrind in the tests. Like its launcher, it fails without its tools in
+// VALGRIND_LIB, runs the program after its options, and writes a callgrind profile to
+// --callgrind-out-file, where %p is the process ID.
+// TALLY_FAKE_COUNTS maps case IDs to the instructions and cycles of the case and its baseline,
+// like {"App\\FooBench::benchFoo": [1100, 1500, 100, 150]}; a case not in it gets no parts.
+
+$tools = getenv('VALGRIND_LIB');
+if ($tools === false || !is_dir($tools)) {
+	fwrite(STDERR, "valgrind: failed to start tool 'callgrind' for platform 'amd64-linux': No such file or directory\n");
+	exit(1);
+}
+
+$arguments = array_slice($argv, 1);
+$profileFile = null;
+while (str_starts_with($arguments[0] ?? '', '-')) {
+	$option = (string) array_shift($arguments);
+	if (str_starts_with($option, '--callgrind-out-file=')) {
+		$profileFile = substr($option, strlen('--callgrind-out-file='));
+	}
+}
+if ($profileFile === null || $arguments === []) {
+	fwrite(STDERR, "Usage: valgrind --callgrind-out-file=<file> [options] <program> [<argument>...]\n");
+	exit(1);
+}
+
+$process = proc_open($arguments, [0 => STDIN, 1 => STDOUT, 2 => STDERR], $pipes);
+$exitCode = proc_close($process);
+
+$counts = json_decode((string) getenv('TALLY_FAKE_COUNTS'), true) ?? [];
+$part = 1;
+$profile = "# callgrind format\nversion: 1\ncreator: fake-valgrind\n";
+foreach ($counts as $id => [$instructions, $cycles, $baselineInstructions, $baselineCycles]) {
+	if (!in_array('--case=' . $id, $arguments, true)) {
+		continue;
+	}
+
+	foreach ([[$id . '#baseline', $baselineInstructions, $baselineCycles], [$id, $instructions, $cycles]] as [$name, $ir, $cycleCount]) {
+		// cycles are estimated from instructions and misses: Ir + 10 * I1mr
+		$profile .= sprintf("part: %d\ndesc: Trigger: Client Request: %s\nevents: Ir I1mr\ntotals: %d %d\n\n", $part++, $name, $ir, ($cycleCount - $ir) / 10);
+	}
+}
+file_put_contents(str_replace('%p', (string) getmypid(), $profileFile), $profile);
+
+exit($exitCode);

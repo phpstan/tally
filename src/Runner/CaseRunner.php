@@ -32,7 +32,7 @@ use function sprintf;
  *
  * The object gets one MeterSession for the whole case: every call is a span of it, the hooks and
  * warm-up calls with a counter that counts nothing. Its memory is subtracted here, its instructions and cycles
- * from CodSpeed's profile.
+ * from Callgrind's profile.
  */
 final class CaseRunner
 {

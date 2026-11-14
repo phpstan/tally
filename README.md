@@ -25,7 +25,6 @@ Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simul
 ## Contents
 
 - [Installation](#installation)
-- [Setting up CodSpeed](#setting-up-codspeed)
 - [Writing benchmarks](#writing-benchmarks)
 - [Attributes](#attributes)
 - [Complexity](#complexity)
@@ -43,27 +42,9 @@ Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simul
 composer require --dev phpstan/tally
 ```
 
-Tally needs PHP 8.2 or later with the FFI and POSIX extensions, and CodSpeed, which runs on Linux.
+Tally needs PHP 8.2 or later with the FFI and POSIX extensions, on Linux on x86_64 or aarch64. Nothing else to set up: each release includes builds of [CodSpeed's Valgrind](https://github.com/CodSpeedHQ/valgrind-codspeed) and [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks) for both, in `codspeed/`, with their licenses and where their source is. Tally starts the Valgrind with the options of `codspeed run --mode=simulation`, so it counts like CodSpeed, but needs neither the `codspeed` CLI nor a CodSpeed account, and uploads nothing.
 
-## Setting up CodSpeed
-
-Tally needs two things from CodSpeed: the `codspeed` CLI on `PATH`, and the instrument-hooks library, which tells Valgrind when to count. Tally finds the library through the `INSTRUMENT_HOOKS_LIBRARY` environment variable.
-
-```bash
-# the CLI, with Valgrind
-curl -fsSLO https://github.com/CodSpeedHQ/codspeed/releases/download/v5.6.3/codspeed-runner-x86_64-unknown-linux-musl.tar.gz
-tar xzf codspeed-runner-x86_64-unknown-linux-musl.tar.gz --strip-components=1 codspeed-runner-x86_64-unknown-linux-musl/codspeed
-sudo mv codspeed /usr/local/bin/
-codspeed setup --mode=simulation
-
-# instrument-hooks
-git clone https://github.com/CodSpeedHQ/instrument-hooks.git
-cd instrument-hooks
-gcc -shared -fPIC -O2 -Iincludes -w dist/core.c -o libinstrument_hooks.so
-export INSTRUMENT_HOOKS_LIBRARY=$PWD/libinstrument_hooks.so
-```
-
-Tally does not upload anything to CodSpeed and needs no CodSpeed account.
+Releases are tagged on the `release/1.x` branch, which CI builds from `1.x` with the builds committed. A clone of `1.x`, or `dev-1.x` from Composer, has no builds: run `build/build-codspeed.sh`, which needs gcc, make, and autotools.
 
 The counts depend on the PHP build and the system libraries. Numbers measured on a laptop differ from those of a CI runner, so take the expected numbers from CI.
 
@@ -449,21 +430,7 @@ jobs:
           php-version: "8.5"
           extensions: ffi, posix
       - run: composer install --no-interaction --no-progress
-      - name: Install CodSpeed
-        run: |
-          mkdir -p "$RUNNER_TEMP/codspeed" && cd "$RUNNER_TEMP/codspeed"
-          curl -fsSLO https://github.com/CodSpeedHQ/codspeed/releases/download/v5.6.3/codspeed-runner-x86_64-unknown-linux-musl.tar.gz
-          tar xzf codspeed-runner-x86_64-unknown-linux-musl.tar.gz --strip-components=1 codspeed-runner-x86_64-unknown-linux-musl/codspeed
-          echo "$RUNNER_TEMP/codspeed" >> "$GITHUB_PATH"
-          ./codspeed setup --mode=simulation
-      - name: Build instrument-hooks
-        run: |
-          git clone -q --depth=1 https://github.com/CodSpeedHQ/instrument-hooks.git "$RUNNER_TEMP/instrument-hooks"
-          cd "$RUNNER_TEMP/instrument-hooks"
-          gcc -shared -fPIC -O2 -Iincludes -w dist/core.c -o libinstrument_hooks.so
       - run: vendor/bin/tally run --output=tmp/tally-results
-        env:
-          INSTRUMENT_HOOKS_LIBRARY: ${{ runner.temp }}/instrument-hooks/libinstrument_hooks.so
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -573,7 +540,7 @@ An `ExpectationSource` has four methods:
 
 ## Lifecycle of a case
 
-`tally run` loads the benchmarks, then runs each case in two processes of its own: first natively, which fails quickly when the case is broken, then under `codspeed run`, which counts it. Several cases run at once, see `--jobs`.
+`tally run` loads the benchmarks, then runs each case in two processes of its own: first natively, which fails quickly when the case is broken, then under CodSpeed's Valgrind, which counts it. Several cases run at once, see `--jobs`.
 
 Every process loads the whole suite, so **data providers run in every process**: in `tally run` itself, and twice for each case. Every `tally` command runs them too. Keep them cheap and do expensive preparation in a `#[Before]` method, which runs only for the case that needs it.
 
@@ -590,7 +557,7 @@ In each of the two processes of a case, Tally:
 
 The native process runs the same steps, so hooks and warm-up calls run twice per case, once in each process. The scratch directory is shared between the two, so a `#[Before]` method that writes a file finds it already there in the second process.
 
-Instructions and cycles come from CodSpeed's profile of the benchmark's span. Memory is the peak above the memory used when counting started, minus that of the baseline.
+Instructions and cycles come from Callgrind's profile of the benchmark's span. Memory is the peak above the memory used when counting started, minus that of the baseline.
 
 Cycles are Valgrind's estimate: instructions, plus 10 for each first-level cache miss and 100 for each last-level cache miss of the simulated cache. The cache sizes are the same on every machine.
 

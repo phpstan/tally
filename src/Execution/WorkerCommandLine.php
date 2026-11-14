@@ -3,8 +3,6 @@
 namespace Tally\Execution;
 
 use Tally\CaseId;
-use function array_map;
-use function escapeshellarg;
 
 /**
  * The commands that run one case with tally worker: natively, and under CodSpeed's CPU simulation.
@@ -16,6 +14,29 @@ final class WorkerCommandLine
 	 * Valgrind breaks PHP's detection of the stack size, so the stack limit check is turned off.
 	 */
 	private const COUNTED_INI_ENTRIES = ['ffi.enable=1', 'zend.max_allowed_stack_size=-1'];
+
+	/**
+	 * What codspeed run --mode=simulation of CodSpeed 5.6.3 passes, so the counts match those of
+	 * CodSpeed: the simulated caches, and counting only between the calls of instrument-hooks.
+	 * Without its shell around the command, Valgrind does not need to follow child processes.
+	 */
+	private const VALGRIND_OPTIONS = [
+		'-q',
+		'--tool=callgrind',
+		'--cache-sim=yes',
+		'--I1=32768,8,64',
+		'--D1=32768,8,64',
+		'--LL=8388608,16,64',
+		'--cycle-estimation=yes',
+		'--deterministic-rng=yes',
+		'--collect-systime=nsec',
+		'--read-inline-info=yes',
+		'--instr-atstart=no',
+		'--separate-threads=no',
+		'--compress-strings=no',
+		'--combine-dumps=yes',
+		'--dump-line=no',
+	];
 
 	/**
 	 * @param string $tallyBinary the bin/tally of this installation
@@ -37,27 +58,19 @@ final class WorkerCommandLine
 	}
 
 	/**
-	 * CodSpeed joins the command after -- into a shell script, so its arguments are escaped.
+	 * The worker under Callgrind, which finds its tools through VALGRIND_LIB.
 	 *
 	 * @return non-empty-list<string>
 	 */
 	public function counted(WorkerSettings $settings, CaseId $id, string $scratch, string $result, string $profileFolder): array
 	{
-		$worker = [
+		return [
+			$settings->valgrind,
+			...self::VALGRIND_OPTIONS,
+			'--callgrind-out-file=' . $profileFolder . '/%p.out',
 			$this->phpBinary,
 			...$this->ini([...self::COUNTED_INI_ENTRIES, ...$settings->iniEntries]),
 			...$this->worker($settings, $id, $scratch, $result, ['--instrument-hooks=' . $settings->instrumentHooks]),
-		];
-
-		return [
-			$settings->codspeed,
-			'run',
-			'--mode=simulation',
-			// tally compares the numbers itself
-			'--skip-upload',
-			'--profile-folder=' . $profileFolder,
-			'--',
-			...array_map(escapeshellarg(...), $worker),
 		];
 	}
 

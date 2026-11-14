@@ -6,7 +6,7 @@ use Override;
 
 /**
  * Lets CodSpeed's CPU simulation count the span: each span becomes a part of the callgrind
- * profile named after the case, which CodSpeedExecutor reads when the process has finished.
+ * profile named after the case, which tally run reads when the process has finished.
  */
 final class CodSpeedCounter implements Counter
 {

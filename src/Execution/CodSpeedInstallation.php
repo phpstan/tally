@@ -4,78 +4,63 @@ namespace Tally\Execution;
 
 use Tally\Runner\CodSpeedException;
 use function array_map;
-use function explode;
+use function basename;
+use function chmod;
+use function dirname;
+use function glob;
 use function in_array;
-use function is_executable;
 use function is_file;
 use function sprintf;
 use function strtolower;
-use const PATH_SEPARATOR;
 
 /**
- * Finds what counting under CodSpeed's CPU simulation needs: the codspeed CLI, CodSpeed's
- * instrument-hooks library, and the PHP extensions that run the workers.
+ * Finds what counting under CodSpeed's CPU simulation needs: the build of CodSpeed's Valgrind
+ * and instrument-hooks library that Tally's releases include, and the PHP extensions that run
+ * the workers.
  */
 final class CodSpeedInstallation
 {
 
-	public const INSTRUMENT_HOOKS_VARIABLE = 'INSTRUMENT_HOOKS_LIBRARY';
-
-	public const SETUP_URL = 'https://github.com/phpstan/tally#setting-up-codspeed';
+	public const SETUP_URL = 'https://github.com/phpstan/tally#installation';
 
 	/**
-	 * @param array<string, string> $environment
+	 * @param string $directory the build for this platform, like codspeed/linux-x86_64 in Tally
+	 */
+	public function __construct(private string $directory)
+	{
+	}
+
+	/**
 	 * @param list<string> $extensions the loaded PHP extensions
-	 * @return array{string, string} the codspeed CLI and the instrument-hooks library
+	 * @return array{string, string, string} Valgrind's launcher, the directory of its tools, and
+	 *     the instrument-hooks library
 	 * @throws CodSpeedException
 	 */
-	public function locate(array $environment, array $extensions): array
+	public function locate(array $extensions): array
 	{
 		foreach (['ffi' => 'FFI', 'posix' => 'POSIX'] as $extension => $name) {
 			if (!in_array($extension, array_map(strtolower(...), $extensions), true)) {
-				throw new CodSpeedException(sprintf("Tally needs PHP's %s extension.\n%s", $name, $this->setUp()));
+				throw new CodSpeedException(sprintf("Tally needs PHP's %s extension.\nSet it up as %s describes.", $name, self::SETUP_URL));
 			}
 		}
 
-		return [$this->codspeed($environment), $this->instrumentHooks($environment)];
-	}
-
-	/**
-	 * @param array<string, string> $environment
-	 * @throws CodSpeedException
-	 */
-	private function codspeed(array $environment): string
-	{
-		foreach (explode(PATH_SEPARATOR, $environment['PATH'] ?? '') as $directory) {
-			$codspeed = $directory . '/codspeed';
-			if ($directory !== '' && is_file($codspeed) && is_executable($codspeed)) {
-				return $codspeed;
-			}
+		$valgrind = $this->directory . '/valgrind';
+		if (!is_file($valgrind)) {
+			throw new CodSpeedException(sprintf(
+				"Tally counts with CodSpeed's Valgrind, but has no build of it for %s in %s.\nReleases of Tally include builds for linux-x86_64 and linux-aarch64. In a clone of Tally, build it with build/build-codspeed.sh.",
+				basename($this->directory),
+				dirname($this->directory),
+			));
 		}
 
-		throw new CodSpeedException(sprintf("Tally counts with CodSpeed's CPU simulation, but the codspeed CLI is not on PATH.\n%s", $this->setUp()));
-	}
-
-	/**
-	 * @param array<string, string> $environment
-	 * @throws CodSpeedException
-	 */
-	private function instrumentHooks(array $environment): string
-	{
-		$library = $environment[self::INSTRUMENT_HOOKS_VARIABLE] ?? '';
-		if ($library === '') {
-			throw new CodSpeedException(sprintf("Tally counts with CodSpeed's CPU simulation, but %s is not set to CodSpeed's instrument-hooks library.\n%s", self::INSTRUMENT_HOOKS_VARIABLE, $this->setUp()));
-		}
-		if (!is_file($library)) {
-			throw new CodSpeedException(sprintf("%s is set to %s, which does not exist.\n%s", self::INSTRUMENT_HOOKS_VARIABLE, $library, $this->setUp()));
+		// Composer drops the executable bits when it extracts a package without unzip
+		$tools = $this->directory . '/libexec';
+		$toolFiles = glob($tools . '/*-linux');
+		foreach ([$valgrind, ...($toolFiles === false ? [] : $toolFiles)] as $executable) {
+			@chmod($executable, 0755);
 		}
 
-		return $library;
-	}
-
-	private function setUp(): string
-	{
-		return sprintf('Set it up as %s describes.', self::SETUP_URL);
+		return [$valgrind, $tools, $this->directory . '/libinstrument_hooks.so'];
 	}
 
 }
