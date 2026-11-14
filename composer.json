@@ -6,10 +6,10 @@
 	],
 	"keywords": ["benchmark", "performance", "codspeed"],
 	"require": {
-		"php": "^8.2",
-		"ext-posix": "*"
+		"php": "^8.2"
 	},
 	"require-dev": {
+		"ext-posix": "*",
 		"infection/infection": "^0.35.10",
 		"php-parallel-lint/php-parallel-lint": "^1.4",
 		"phpstan/phpstan": "^2.1",
