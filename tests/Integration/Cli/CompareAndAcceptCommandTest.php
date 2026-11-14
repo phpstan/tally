@@ -74,8 +74,9 @@ final class CompareAndAcceptCommandTest extends TestCase
 		[, $output] = InProcessTally::run(__DIR__, [], ['compare', '--table', '--filter=benchOk', self::RESULTS, self::COMPARE]);
 
 		$this->assertStringStartsWith(
-			"Benchmark                                            Metric         Expected   Measured   Change   Allowed   Status\n"
-			. self::BENCH . "::benchOk   instructions     1.000K     1.000K    0.0 %     ±10 %   ok\n",
+			"Benchmark                                            Metric         Expected   Measured   Change    Allowed   Status\n"
+			. self::BENCH . "::benchOk   instructions     1.000K     1.000K    0.0 %       ±2 %   ok\n"
+			. "                                                     cycles           1.500K     1.500K    0.0 %   ±133.3 %   ok\n",
 			$output,
 		);
 		$this->assertStringContainsString("\n\nBenchmarks passed: all 1 match their expectations\n", $output);

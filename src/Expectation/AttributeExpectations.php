@@ -19,7 +19,8 @@ final class AttributeExpectations implements ExpectationSource
 		private string $class,
 		private string $method,
 		private ?string $dataSet,
-		private ?Metrics $metrics
+		private ?Metrics $metrics,
+		private bool $namedArguments
 	)
 	{
 	}
@@ -39,7 +40,7 @@ final class AttributeExpectations implements ExpectationSource
 	#[Override]
 	public function rewrite(string $code, Metrics $measured): string
 	{
-		return $this->rewriter->rewrite($code, $this->class, $this->method, $this->dataSet, $measured);
+		return $this->rewriter->rewrite($code, $this->class, $this->method, $this->dataSet, $measured, $this->namedArguments);
 	}
 
 	#[Override]

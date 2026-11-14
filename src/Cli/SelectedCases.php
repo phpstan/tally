@@ -67,7 +67,7 @@ final class SelectedCases
 			throw new UsageException(sprintf('No benchmarks to load. Pass their paths, or list them in %s.', self::DEFAULT_CONFIGURATION));
 		}
 
-		$cases = $this->loader->load($paths, $this->workingDirectory);
+		$cases = $this->loader->load($paths, $this->workingDirectory, $configuration);
 		if ($cases === []) {
 			throw new NoBenchmarksException(sprintf("No benchmarks in %s.\n%s", implode(', ', array_map(escapeshellarg(...), $paths)), self::NO_BENCHMARKS));
 		}

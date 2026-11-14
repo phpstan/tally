@@ -10,6 +10,7 @@ use ReflectionClass;
 use SplFileInfo;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
+use Tally\Configuration;
 use Tally\Report\RelativePath;
 use Throwable;
 use function array_filter;
@@ -42,7 +43,7 @@ final class DirectorySuiteLoader
 	 * @return list<BenchmarkCase> in the order of CaseId::compare()
 	 * @throws InvalidBenchmarkException
 	 */
-	public function load(array $paths, string $workingDirectory): array
+	public function load(array $paths, string $workingDirectory, Configuration $configuration): array
 	{
 		$files = $this->files($paths);
 		foreach ($files as $file) {
@@ -68,7 +69,7 @@ final class DirectorySuiteLoader
 					throw new InvalidBenchmarkException($className . '::' . $method->getName() . '()', 'a bench* method must be public and not static. Rename it if it is not a benchmark.');
 				}
 
-				$cases = [...$cases, ...$this->expander->expand($class, $method, $hooks)];
+				$cases = [...$cases, ...$this->expander->expand($class, $method, $hooks, $configuration)];
 			}
 		}
 

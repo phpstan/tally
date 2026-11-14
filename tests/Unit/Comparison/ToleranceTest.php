@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tally\Attribute\DurationTolerance;
+use Tally\Attribute\MetricTolerance;
 use Tally\Attribute\RelativeTolerance;
 use Tally\Metric;
 
@@ -22,6 +23,29 @@ final class ToleranceTest extends TestCase
 		}
 		$this->assertSame('±5 % of each metric', $tolerance->describe());
 		$this->assertSame('±0 % of each metric', (new RelativeTolerance(0))->describe());
+	}
+
+	/**
+	 * @return iterable<string, array{Metric, int, float}>
+	 */
+	public static function metricProvider(): iterable
+	{
+		yield 'instructions, whatever their number' => [Metric::Instructions, 1_000, 0.02];
+		yield 'memory, whatever its size' => [Metric::Memory, 1_000, 0.05];
+		yield 'cycles where the share allows more than the floor' => [Metric::Cycles, 100_000, 0.05];
+		yield 'cycles where the share and the floor allow the same' => [Metric::Cycles, 40_000, 0.05];
+		yield 'cycles where the floor allows more than the share' => [Metric::Cycles, 10_000, 0.2];
+		yield 'cycles of an expected 0, where any cycles fail anyway' => [Metric::Cycles, 0, 2_000.0];
+	}
+
+	#[DataProvider('metricProvider')]
+	public function testMetricToleranceAllowsEachMetricItsShareAndTheCyclesAFloor(Metric $metric, int $expected, float $allowed): void
+	{
+		$tolerance = new MetricTolerance(instructions: 0.02, cycles: 0.05, memory: 0.05, cyclesAtLeast: 2_000);
+
+		$this->assertEqualsWithDelta($allowed, $tolerance->allowedChange($metric, $expected), 1e-9);
+		$this->assertSame('±2 % instructions, ±5 % cycles but at least ±2,000, ±5 % memory', $tolerance->describe());
+		$this->assertSame('±0 % instructions, ±0 % cycles but at least ±0, ±0 % memory', (new MetricTolerance(0, 0, 0, 0))->describe());
 	}
 
 	/**
@@ -128,6 +152,10 @@ final class ToleranceTest extends TestCase
 	public static function invalidProvider(): iterable
 	{
 		yield 'negative relative tolerance' => [static fn () => new RelativeTolerance(-0.1), '#[RelativeTolerance] needs zero or more, -0.1 given.'];
+		yield 'negative instructions' => [static fn () => new MetricTolerance(-0.01, 0, 0, 0), '#[MetricTolerance] needs zero or more of each metric.'];
+		yield 'negative cycles' => [static fn () => new MetricTolerance(0, -0.01, 0, 0), '#[MetricTolerance] needs zero or more of each metric.'];
+		yield 'negative memory' => [static fn () => new MetricTolerance(0, 0, -0.01, 0), '#[MetricTolerance] needs zero or more of each metric.'];
+		yield 'negative cycles at least' => [static fn () => new MetricTolerance(0, 0, 0, -1), '#[MetricTolerance] needs zero or more of each metric.'];
 		yield 'no tolerances' => [static fn () => new DurationTolerance([], 1, 1, 0.1), '#[DurationTolerance] needs a tolerance from 0 ms.'];
 		yield 'not from 0 ms' => [static fn () => new DurationTolerance([1 => 0.1], 1, 1, 0.1), '#[DurationTolerance] needs a tolerance from 0 ms.'];
 		yield 'descending' => [static fn () => new DurationTolerance([0 => 0.5, 500 => 0.2, 100 => 0.25], 1, 1, 0.1), '#[DurationTolerance] needs the tolerances in ascending order of milliseconds.'];

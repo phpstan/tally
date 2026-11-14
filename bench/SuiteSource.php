@@ -2,10 +2,9 @@
 
 namespace Tally\Bench;
 
-use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
-use Tally\Discovery\CaseExpander;
+use Tally\Configuration;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Metric;
@@ -68,8 +67,8 @@ final class SuiteSource
 			0,
 			[],
 			[],
-			new AttributeExpectations($rewriter, self::FILE, $class, $method, $dataSet, null),
-			new RelativeTolerance(CaseExpander::DEFAULT_TOLERANCE),
+			new AttributeExpectations($rewriter, self::FILE, $class, $method, $dataSet, null, false),
+			Configuration::create()->tolerance(),
 			null,
 		);
 	}

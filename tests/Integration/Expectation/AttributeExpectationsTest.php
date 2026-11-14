@@ -23,7 +23,7 @@ final class AttributeExpectationsTest extends TestCase
 	 */
 	public function testRewritesTheAttributeInTheCodeItGets(): void
 	{
-		$source = new AttributeExpectations(new ExpectedAttributeRewriter(), self::FILE, SortBench::class, 'benchSort', null, Metrics::fromArray(['instructions' => 1000, 'cycles' => 1100, 'memory' => 0]));
+		$source = new AttributeExpectations(new ExpectedAttributeRewriter(), self::FILE, SortBench::class, 'benchSort', null, Metrics::fromArray(['instructions' => 1000, 'cycles' => 1100, 'memory' => 0]), false);
 		$code = (string) file_get_contents(self::FILE);
 
 		$this->assertSame(self::FILE, $source->file());
@@ -43,7 +43,7 @@ final class AttributeExpectationsTest extends TestCase
 	public function testLocationFailsForAMissingFile(): void
 	{
 		$file = __DIR__ . '/../../Fixtures/Rewriter/MissingBench.php';
-		$source = new AttributeExpectations(new ExpectedAttributeRewriter(), $file, SortBench::class, 'benchSort', null, null);
+		$source = new AttributeExpectations(new ExpectedAttributeRewriter(), $file, SortBench::class, 'benchSort', null, null, false);
 
 		$this->expectException(ExpectationException::class);
 		$this->expectExceptionMessage(sprintf('Cannot read %s.', $file));

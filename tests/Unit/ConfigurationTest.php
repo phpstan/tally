@@ -3,6 +3,7 @@
 namespace Tally\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Tally\Attribute\RelativeTolerance;
 use Tally\Configuration;
 
 final class ConfigurationTest extends TestCase
@@ -16,20 +17,21 @@ final class ConfigurationTest extends TestCase
 		$this->assertSame([], $configuration->iniEntries());
 		$this->assertSame(60, $configuration->nativeTimeLimitSeconds());
 		$this->assertSame(1800, $configuration->countedTimeLimitSeconds());
+		$this->assertSame('±2 % instructions, ±5 % cycles but at least ±2,000, ±5 % memory', $configuration->tolerance()->describe());
+		$this->assertFalse($configuration->namedArguments());
 	}
 
 	public function testWithersKeepTheOriginal(): void
 	{
 		$original = Configuration::create();
-		$configured = $original
-			->withPaths(['benchmarks'])
-			->withIniEntries(['memory_limit=-1'])
-			->withTimeLimits(5, 300);
 
-		$this->assertSame(['benchmarks'], $configured->paths());
-		$this->assertSame(['memory_limit=-1'], $configured->iniEntries());
-		$this->assertSame(5, $configured->nativeTimeLimitSeconds());
-		$this->assertSame(300, $configured->countedTimeLimitSeconds());
+		// each on the original, so that one changing its receiver shows
+		$this->assertSame(['benchmarks'], $original->withPaths(['benchmarks'])->paths());
+		$this->assertSame(['memory_limit=-1'], $original->withIniEntries(['memory_limit=-1'])->iniEntries());
+		$this->assertSame(5, $original->withTimeLimits(5, 300)->nativeTimeLimitSeconds());
+		$this->assertSame(300, $original->withTimeLimits(5, 300)->countedTimeLimitSeconds());
+		$this->assertSame('±30 % of each metric', $original->withTolerance(new RelativeTolerance(0.3))->tolerance()->describe());
+		$this->assertTrue($original->withNamedArguments(true)->namedArguments());
 		$this->assertEquals(Configuration::create(), $original);
 	}
 

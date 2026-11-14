@@ -10,7 +10,8 @@ use function str_repeat;
 
 /**
  * How much the measured numbers may differ from the expected ones before the run fails. Without a
- * policy, a benchmark gets ±10 %. A policy on the class applies to its methods without one.
+ * policy, a benchmark gets the tolerance of the configuration. A policy on the class applies to its
+ * methods without one.
  */
 #[RelativeTolerance(0.02)]
 final class ToleranceBench

@@ -71,13 +71,14 @@ final class ExpectedAttributeRewriter
 
 	/**
 	 * @param Metrics $metrics every metric
+	 * @param bool $namedArguments whether to write the data set as dataSet: '…'
 	 * @throws MethodNotFoundException
 	 * @throws ExpectationException
 	 * @throws InvalidArgumentException when a metric is missing
 	 */
-	public function rewrite(string $code, string $class, string $method, ?string $dataSet, Metrics $metrics): string
+	public function rewrite(string $code, string $class, string $method, ?string $dataSet, Metrics $metrics, bool $namedArguments): string
 	{
-		$arguments = $this->arguments($dataSet, $metrics);
+		$arguments = $this->arguments($dataSet, $metrics, $namedArguments);
 		$tokens = new Tokens($code);
 		$scan = $this->scan($tokens, $class, $method);
 		$attribute = $this->findAttribute($scan['member'], $dataSet);
@@ -114,11 +115,11 @@ final class ExpectedAttributeRewriter
 		return $code;
 	}
 
-	private function arguments(?string $dataSet, Metrics $metrics): string
+	private function arguments(?string $dataSet, Metrics $metrics, bool $namedArguments): string
 	{
 		$arguments = [];
 		if ($dataSet !== null) {
-			$arguments[] = var_export($dataSet, true);
+			$arguments[] = ($namedArguments ? 'dataSet: ' : '') . var_export($dataSet, true);
 		}
 		foreach (Metric::cases() as $metric) {
 			$value = $metrics->get($metric) ?? throw new InvalidArgumentException(sprintf('The %s to write are missing.', $metric->value));

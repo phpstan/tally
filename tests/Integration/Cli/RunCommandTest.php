@@ -90,11 +90,11 @@ final class RunCommandTest extends TestCase
 			"Tally counts 2 cases under CodSpeed's CPU simulation, 1 at once.\n\n"
 			. 'S.' . str_repeat(' ', 65) . " 2 / 2 (100%)\n\n"
 			. "Benchmarks failed: 1 slower, 1 unchanged\n"
-			. "Allowed difference: instructions grow at most as O(n) from the smallest data set, ±10 % of each metric\n\n"
+			. "Allowed difference: instructions grow at most as O(n) from the smallest data set, ±2 % instructions, ±5 % cycles but at least ±2,000, ±5 % memory\n\n"
 			. "Slower than expected\n"
 			. "These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, loosen the complexity class.\n\n"
 			. "  Benchmark                                                    Metric         Expected   Measured    Change   Allowed\n"
-			. '  ' . $growth . "@large   instructions     2.000K     2.400K   +20.0 %     ±10 %\n\n"
+			. '  ' . $growth . "@large   instructions     2.000K     2.400K   +20.0 %      ±2 %\n\n"
 			. "Reproduce locally\n"
 			. "  vendor/bin/tally run --filter='" . $growth . "@large'\n",
 			$output,

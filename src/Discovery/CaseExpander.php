@@ -10,13 +10,13 @@ use Tally\Attribute\Before;
 use Tally\Attribute\DataProvider;
 use Tally\Attribute\Expected;
 use Tally\Attribute\ExpectedFor;
-use Tally\Attribute\RelativeTolerance;
 use Tally\Attribute\Warmup;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Comparison\TolerancePolicy;
 use Tally\Complexity\ComplexityClass;
 use Tally\Complexity\GrowthPoint;
+use Tally\Configuration;
 use Tally\DataSet;
 use Tally\Expectation\AttributeExpectations;
 use Tally\Expectation\ExpectationSource;
@@ -40,9 +40,6 @@ use function sprintf;
  */
 final class CaseExpander
 {
-
-	/** The share each metric may differ by in a benchmark without a tolerance policy */
-	public const DEFAULT_TOLERANCE = 0.1;
 
 	public function __construct(
 		private ExpectedAttributeRewriter $rewriter,
@@ -83,7 +80,7 @@ final class CaseExpander
 	 * @return list<BenchmarkCase> in the order the data provider yields them
 	 * @throws InvalidBenchmarkException
 	 */
-	public function expand(ReflectionClass $class, ReflectionMethod $method, array $hooks): array
+	public function expand(ReflectionClass $class, ReflectionMethod $method, array $hooks, Configuration $configuration): array
 	{
 		$where = $class->getName() . '::' . $method->getName() . '()';
 		foreach ([Before::class => 'Before', After::class => 'After'] as $hook => $name) {
@@ -92,7 +89,7 @@ final class CaseExpander
 			}
 		}
 		$warmup = $this->warmup($class, $method, $where);
-		$tolerance = $this->tolerance($class, $method, $where);
+		$tolerance = $this->tolerance($class, $method, $where, $configuration->tolerance());
 		$expected = $this->expected($method, $where);
 		$expectedFor = $this->expectedFor($method, $where);
 		$complexity = $this->complexity($method, $where);
@@ -106,7 +103,7 @@ final class CaseExpander
 			$arguments,
 			$warmup,
 			$hooks,
-			new AttributeExpectations($this->rewriter, $file, $declaringClass, $method->getName(), $dataSet, $metrics),
+			new AttributeExpectations($this->rewriter, $file, $declaringClass, $method->getName(), $dataSet, $metrics, $configuration->namedArguments()),
 			$tolerance,
 		);
 
@@ -211,12 +208,12 @@ final class CaseExpander
 	}
 
 	/**
-	 * The policy among the attributes of the method, else of the class, else the default.
+	 * The policy among the attributes of the method, else of the class, else that of the configuration.
 	 *
 	 * @param ReflectionClass<object> $class
 	 * @throws InvalidBenchmarkException
 	 */
-	private function tolerance(ReflectionClass $class, ReflectionMethod $method, string $where): TolerancePolicy
+	private function tolerance(ReflectionClass $class, ReflectionMethod $method, string $where, TolerancePolicy $configured): TolerancePolicy
 	{
 		foreach ([$method->getAttributes(TolerancePolicy::class, ReflectionAttribute::IS_INSTANCEOF), $class->getAttributes(TolerancePolicy::class, ReflectionAttribute::IS_INSTANCEOF)] as $attributes) {
 			if (count($attributes) > 1) {
@@ -228,7 +225,7 @@ final class CaseExpander
 			}
 		}
 
-		return new RelativeTolerance(self::DEFAULT_TOLERANCE);
+		return $configured;
 	}
 
 	/**
