@@ -137,6 +137,36 @@ final class ExpectationChangesTest extends TestCase
 		$this->assertSame([], $plan->failures);
 	}
 
+	public function testAComplexityClassThatCannotBeReplacedDoesNotStopTheOthers(): void
+	{
+		$code = "<?php\nnamespace App;\nuse Tally\\Attribute\\Linear;\nclass SortBench {\n\t#[Linear('numbers')]\n\tpublic function benchA() {}\n\t#[Linear('numbers')]\n\tpublic function benchB() {}\n\tpublic function benchC() {}\n}\n";
+		$rewriter = new ExpectedAttributeRewriter();
+		$index = $rewriter->index($code);
+		$attribute = static fn (string $file, string $method): ComplexityAttribute => new ComplexityAttribute($rewriter, $file, $index, 'App\SortBench', $method, new Linear('numbers'));
+
+		$plan = (new ExpectationChanges())->plan(
+			[],
+			[
+				[CaseId::fromString('App\GoneBench::benchGone'), $attribute('/GoneBench.php', 'benchA'), new Quadratic('numbers')],
+				[CaseId::fromString('App\SortBench::benchC'), $attribute('/SortBench.php', 'benchC'), new Quadratic('numbers')],
+				[CaseId::fromString('App\SortBench::benchB'), $attribute('/SortBench.php', 'benchB'), new Quadratic('numbers')],
+			],
+			['/SortBench.php' => $code, '/GoneBench.php' => false],
+		);
+
+		$this->assertSame(
+			[str_replace("#[Linear('numbers')]\n\tpublic function benchB", "#[Quadratic('numbers')]\n\tpublic function benchB", str_replace('use Tally\\Attribute\\Linear;', "use Tally\\Attribute\\Linear;\nuse Tally\\Attribute\\Quadratic;", $code))],
+			array_map(static fn (FileChange $file): string => $file->after, $plan->files),
+		);
+		$this->assertSame(
+			[
+				'App\GoneBench::benchGone' => 'Cannot read /GoneBench.php.',
+				'App\SortBench::benchC' => 'Method App\SortBench::benchC() has no #[Linear] attribute.',
+			],
+			$plan->failures,
+		);
+	}
+
 	public function testEditsAtOneOffsetGoInTheNaturalOrderOfTheirTextAndInsertionsBeforeReplacements(): void
 	{
 		$plan = (new ExpectationChanges())->plan(

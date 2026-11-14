@@ -30,17 +30,10 @@ final class ExpectationChanges
 	{
 		/** @var array<string, array{string, array<string, list<CodeEdit>>}> $editsByFile the code and the edits by case */
 		$editsByFile = [];
-		$changes = [];
-		foreach ($accepted as [$case, $measured]) {
-			$changes[] = [$case->id, $case->expectations->file(), static fn (string $code): array => $case->expectations->edits($code, $measured)];
-		}
-		foreach ($complexities as [$id, $attribute, $replacement]) {
-			$changes[] = [$id, $attribute->file(), static fn (string $code): array => $attribute->edits($code, $replacement)];
-		}
-
 		$failures = [];
-		foreach ($changes as [$caseId, $file, $edits]) {
-			$id = $caseId->toString();
+		foreach ($accepted as [$case, $measured]) {
+			$id = $case->id->toString();
+			$file = $case->expectations->file();
 			$before = $code[$file] ?? false;
 			if ($before === false) {
 				$failures[$id] = sprintf('Cannot read %s.', $file);
@@ -48,7 +41,26 @@ final class ExpectationChanges
 			}
 
 			try {
-				$edits = $edits($before);
+				$edits = $case->expectations->edits($before, $measured);
+			} catch (ExpectationException $e) {
+				$failures[$id] = $e->getMessage();
+				continue;
+			}
+			$editsByFile[$file] ??= [$before, []];
+			$editsByFile[$file][1][$id] = $edits;
+		}
+		// a loop of its own, not closures shared with the cases, which would cost each case
+		foreach ($complexities as [$caseId, $attribute, $replacement]) {
+			$id = $caseId->toString();
+			$file = $attribute->file();
+			$before = $code[$file] ?? false;
+			if ($before === false) {
+				$failures[$id] = sprintf('Cannot read %s.', $file);
+				continue;
+			}
+
+			try {
+				$edits = $attribute->edits($before, $replacement);
 			} catch (ExpectationException $e) {
 				$failures[$id] = $e->getMessage();
 				continue;

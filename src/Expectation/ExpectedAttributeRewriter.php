@@ -15,6 +15,7 @@ use function explode;
 use function implode;
 use function in_array;
 use function ltrim;
+use function preg_match_all;
 use function sprintf;
 use function str_starts_with;
 use function strcasecmp;
@@ -47,6 +48,7 @@ use const T_WHITESPACE;
  * is added after the method's other attributes, and imported when the file does not import it yet.
  *
  * @phpstan-import-type Attribute from AttributeIndex
+ * @phpstan-import-type Other from AttributeIndex
  * @phpstan-import-type Member from AttributeIndex
  * @phpstan-import-type Import from AttributeIndex
  */
@@ -64,7 +66,7 @@ final class ExpectedAttributeRewriter
 	public function locate(AttributeIndex $index, string $class, string $method, ?string $dataSet): int
 	{
 		$member = $this->member($index, $class, $method);
-		$attribute = $this->findAttribute($member, $dataSet === null ? Expected::class : ExpectedFor::class, $dataSet);
+		$attribute = $this->findAttribute($member, $dataSet);
 
 		return $attribute !== null ? $attribute['line'] : $member['line'];
 	}
@@ -84,12 +86,12 @@ final class ExpectedAttributeRewriter
 	{
 		$arguments = $this->arguments($dataSet, $metrics, $namedArguments);
 		$member = $this->member($index, $class, $method);
-		$attributeClass = $dataSet === null ? Expected::class : ExpectedFor::class;
-		$attribute = $this->findAttribute($member, $attributeClass, $dataSet);
+		$attribute = $this->findAttribute($member, $dataSet);
 		if ($attribute !== null) {
 			return [new CodeEdit($attribute['start'], $attribute['end'] - $attribute['start'], $attribute['name'] . '(' . $arguments . ')')];
 		}
 
+		$attributeClass = $dataSet === null ? Expected::class : ExpectedFor::class;
 		$name = $this->localName($index, $attributeClass);
 		$imports = [];
 		if ($name === null) {
@@ -112,9 +114,11 @@ final class ExpectedAttributeRewriter
 	 */
 	public function complexityEdits(AttributeIndex $index, string $class, string $method, string $current, ComplexityClass $replacement): array
 	{
-		$attribute = $this->findAttribute($this->member($index, $class, $method), $current, null)
+		$attribute = $this->findOther($this->member($index, $class, $method), $current)
 			?? throw new ExpectationException(sprintf('Method %s::%s() has no #[%s] attribute.', $class, $method, $this->shortName($current)));
-		$arguments = $attribute['size'] ?? '';
+		// only the attribute, so that accept tokenizes its arguments and index() does not
+		$tokens = new Tokens('<?php ' . substr($index->code, $attribute['start'], $attribute['end'] - $attribute['start']));
+		$arguments = $this->sizeArgument($tokens, $tokens->next(1), $tokens->count() - 1);
 		if ($replacement instanceof Polynomial) {
 			$arguments .= ', degree: ' . $replacement->degree();
 		}
@@ -145,10 +149,68 @@ final class ExpectedAttributeRewriter
 	}
 
 	/**
-	 * The import of the attribute's class, when the attribute uses its alias and nothing else in
-	 * the code does. An import among others in one use statement stays.
+	 * @param Member $member
+	 * @param class-string $class
+	 * @return Other|null
+	 */
+	private function findOther(array $member, string $class): ?array
+	{
+		foreach ($member['others'] as $attribute) {
+			if (strcasecmp($attribute['class'], $class) === 0) {
+				return $attribute;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The size argument of a complexity class as written: the first argument, unless it is named,
+	 * else the one named size. Discovery checks that the attribute has one.
 	 *
-	 * @param Attribute $attribute
+	 * @param int $open the opening parenthesis
+	 * @param int $close the closing parenthesis
+	 */
+	private function sizeArgument(Tokens $tokens, int $open, int $close): string
+	{
+		$nesting = 0;
+		$argumentStart = $open + 1;
+		for ($i = $argumentStart;; $i++) {
+			$text = $tokens->at($i)->text;
+			if (in_array($text, ['(', '['], true)) {
+				$nesting++;
+				continue;
+			}
+			if ($nesting > 0) {
+				if (in_array($text, [')', ']'], true)) {
+					$nesting--;
+				}
+				continue;
+			}
+			if ($text !== ',' && $i !== $close) {
+				continue;
+			}
+
+			$first = $tokens->next($argumentStart - 1);
+			$named = $tokens->at($first)->is(T_STRING) && $tokens->at($tokens->next($first))->text === ':';
+			if (!$named || $tokens->at($first)->text === 'size') {
+				$argument = '';
+				for ($j = $first; $j <= $tokens->previous($i); $j++) {
+					$argument .= $tokens->at($j)->text;
+				}
+
+				return $argument;
+			}
+			$argumentStart = $i + 1;
+		}
+	}
+
+	/**
+	 * The import of the attribute's class, when the attribute uses its alias and nothing else in
+	 * the code does. An import among others in one use statement stays, and so does one whose name
+	 * appears elsewhere, even in a comment or a string.
+	 *
+	 * @param Other $attribute
 	 * @return array{int, Import}|null its key in the imports of the index, and the import
 	 */
 	private function unusedImport(AttributeIndex $index, array $attribute): ?array
@@ -162,15 +224,15 @@ final class ExpectedAttributeRewriter
 					return null;
 				}
 			}
-
 			if (strcasecmp($attribute['name'], $import['alias']) !== 0) {
 				return null;
 			}
 
-			// the attribute's own name is one of the uses
-			$alias = strtolower($import['alias']);
+			// uses come after the imports, the attribute is one of them; an alias needs no quoting, and a
+			// name after a backslash is part of another name
+			$uses = preg_match_all('~(?<![\\w$\\\\])' . $import['alias'] . '(?!\\w)~i', substr($index->code, $import['end']));
 
-			return isset($index->names[$alias]) && $index->names[$alias] > 1 ? null : [$key, $import];
+			return $uses > 1 ? null : [$key, $import];
 		}
 
 		return null;
@@ -232,13 +294,12 @@ final class ExpectedAttributeRewriter
 
 	/**
 	 * @param Member $member
-	 * @param class-string $class
 	 * @return Attribute|null
 	 */
-	private function findAttribute(array $member, string $class, ?string $dataSet): ?array
+	private function findAttribute(array $member, ?string $dataSet): ?array
 	{
 		foreach ($member['attributes'] as $attribute) {
-			if (strcasecmp($attribute['class'], $class) === 0 && $attribute['dataSet'] === $dataSet) {
+			if ($attribute['dataSet'] === $dataSet) {
 				return $attribute;
 			}
 		}
@@ -319,18 +380,15 @@ final class ExpectedAttributeRewriter
 		// the depth of the body of $currentClass
 		$classDepth = null;
 		$attributes = [];
+		$others = [];
 		$insertAt = null;
 		$members = [];
-		$names = [];
 
 		$count = $tokens->count();
 		for ($i = 0; $i < $count; $i++) {
 			$token = $tokens->at($i);
 			if ($token->isIgnorable()) {
 				continue;
-			}
-			if ($token->is(T_STRING)) {
-				$names[strtolower($token->text)] = ($names[strtolower($token->text)] ?? 0) + 1;
 			}
 
 			if ($token->text === '{' || $token->is(T_DOLLAR_OPEN_CURLY_BRACES)) {
@@ -340,6 +398,7 @@ final class ExpectedAttributeRewriter
 					$classDepth = $depth;
 					$pendingClass = null;
 					$attributes = [];
+					$others = [];
 					$insertAt = null;
 				}
 				continue;
@@ -352,6 +411,7 @@ final class ExpectedAttributeRewriter
 				}
 				$depth--;
 				$attributes = [];
+				$others = [];
 				$insertAt = null;
 				continue;
 			}
@@ -394,20 +454,15 @@ final class ExpectedAttributeRewriter
 
 			if ($token->text === ';') {
 				$attributes = [];
+				$others = [];
 				$insertAt = null;
 				continue;
 			}
 
 			if ($token->is(T_ATTRIBUTE)) {
-				[$groupAttributes, $groupEnd] = $this->parseAttributeGroup($tokens, $i, $namespace, $imports);
+				[$groupAttributes, $groupOthers, $groupEnd] = $this->parseAttributeGroup($tokens, $i, $namespace, $imports);
 				$attributes = [...$attributes, ...$groupAttributes];
-				for ($j = $i; $j < $groupEnd; $j++) {
-					if (!$tokens->at($j)->is(T_STRING)) {
-						continue;
-					}
-
-					$names[strtolower($tokens->at($j)->text)] = ($names[strtolower($tokens->at($j)->text)] ?? 0) + 1;
-				}
+				$others = [...$others, ...$groupOthers];
 				$insertAt = null;
 				$i = $groupEnd;
 				continue;
@@ -428,20 +483,22 @@ final class ExpectedAttributeRewriter
 			// the first declaration of the method counts, like PHP's
 			$members[strtolower($currentClass . '::' . $tokens->at($tokens->next($i))->text)] ??= [
 				'attributes' => $attributes,
+				'others' => $others,
 				'insertAt' => $tokens->at($insertAt)->pos,
 				'line' => $tokens->at($insertAt)->line,
 				'indent' => $indent,
 			];
 			$attributes = [];
+			$others = [];
 			$insertAt = null;
 		}
 
-		return new AttributeIndex($code, $namespace, $namespaceEnd, $imports, $otherUse, $members, $names);
+		return new AttributeIndex($code, $namespace, $namespaceEnd, $imports, $otherUse, $members);
 	}
 
 	/**
 	 * @param list<Import> $imports
-	 * @return array{list<Attribute>, int} the attributes of the group, and the index of its closing bracket
+	 * @return array{list<Attribute>, list<Other>, int} the #[Expected] and #[ExpectedFor] attributes of the group, its other attributes, and the index of its closing bracket
 	 */
 	private function parseAttributeGroup(Tokens $tokens, int $start, ?string $namespace, array $imports): array
 	{
@@ -451,6 +508,7 @@ final class ExpectedAttributeRewriter
 		}
 
 		$attributes = [];
+		$others = [];
 		$nesting = 0;
 		$segmentStart = $start + 1;
 		// $start is #[
@@ -470,91 +528,37 @@ final class ExpectedAttributeRewriter
 				continue;
 			}
 
-			// nothing after a trailing comma
-			if ($tokens->next($segmentStart - 1) !== $i) {
-				$attributes[] = $this->parseAttribute($tokens, $segmentStart, $i, $namespace, $aliases);
-			}
+			$name = $tokens->next($segmentStart - 1);
 			$segmentStart = $i + 1;
+			// nothing after a trailing comma
+			if ($name !== $i) {
+				$resolved = $this->resolve($tokens->at($name)->text, $namespace, $aliases);
+				$open = $tokens->next($name);
+				$hasArguments = $tokens->at($open)->text === '(';
+				$attributeEnd = $hasArguments ? $tokens->previous($i) : $name;
+				$location = [
+					'start' => $tokens->at($name)->pos,
+					'end' => $tokens->at($attributeEnd)->pos + strlen($tokens->at($attributeEnd)->text),
+					'name' => $tokens->at($name)->text,
+				];
+				$isExpected = strcasecmp($resolved, Expected::class) === 0;
+				if ($isExpected || strcasecmp($resolved, ExpectedFor::class) === 0) {
+					$value = !$isExpected && $hasArguments ? $this->dataSetArgument($tokens, $open, $attributeEnd) : null;
+					$dataSet = $value === null ? null : $this->stringValue($tokens->at($value)->text);
+					$attributes[] = $location + [
+						'dataSet' => $dataSet,
+						'line' => $tokens->at($name)->line,
+						// member() rejects it only on the method it looks for
+						'literal' => $isExpected || $dataSet !== null,
+					];
+				} else {
+					$others[] = $location + ['class' => $resolved];
+				}
+			}
 			if ($text === ']') {
-				return [$attributes, $i];
+				return [$attributes, $others, $i];
 			}
 		}
-	}
-
-	/**
-	 * @param array<string, string> $aliases
-	 * @return Attribute
-	 */
-	private function parseAttribute(Tokens $tokens, int $start, int $end, ?string $namespace, array $aliases): array
-	{
-		$name = $tokens->next($start - 1);
-		$resolved = $this->resolve($tokens->at($name)->text, $namespace, $aliases);
-		$isExpectedFor = strcasecmp($resolved, ExpectedFor::class) === 0;
-
-		$open = $tokens->next($name);
-		$hasArguments = $tokens->at($open)->text === '(';
-		$attributeEnd = $hasArguments ? $tokens->previous($end) : $name;
-		$dataSet = null;
-		if ($isExpectedFor) {
-			$value = $hasArguments ? $this->dataSetArgument($tokens, $open, $attributeEnd) : null;
-			$dataSet = $value === null ? null : $this->stringValue($tokens->at($value)->text);
-		}
-
-		return [
-			'start' => $tokens->at($name)->pos,
-			'end' => $tokens->at($attributeEnd)->pos + strlen($tokens->at($attributeEnd)->text),
-			'name' => $tokens->at($name)->text,
-			'class' => $resolved,
-			'dataSet' => $dataSet,
-			'size' => $hasArguments ? $this->sizeArgument($tokens, $open, $attributeEnd) : null,
-			'line' => $tokens->at($name)->line,
-			// member() rejects it only on the method it looks for
-			'literal' => !$isExpectedFor || $dataSet !== null,
-		];
-	}
-
-	/**
-	 * The size argument of a complexity class as written: the first argument, unless it is named,
-	 * else the one named size.
-	 *
-	 * @param int $open the opening parenthesis
-	 * @param int $close the closing parenthesis
-	 * @return string|null null when the attribute has no such argument
-	 */
-	private function sizeArgument(Tokens $tokens, int $open, int $close): ?string
-	{
-		$nesting = 0;
-		$argumentStart = $open + 1;
-		for ($i = $argumentStart; $i <= $close; $i++) {
-			$text = $tokens->at($i)->text;
-			if (in_array($text, ['(', '['], true)) {
-				$nesting++;
-				continue;
-			}
-			if ($nesting > 0) {
-				if (in_array($text, [')', ']'], true)) {
-					$nesting--;
-				}
-				continue;
-			}
-			if ($text !== ',' && $i !== $close) {
-				continue;
-			}
-
-			$first = $tokens->next($argumentStart - 1);
-			$named = $tokens->at($first)->is(T_STRING) && $tokens->at($tokens->next($first))->text === ':';
-			if ($first !== $i && (!$named || $tokens->at($first)->text === 'size')) {
-				$argument = '';
-				for ($j = $first; $j <= $tokens->previous($i); $j++) {
-					$argument .= $tokens->at($j)->text;
-				}
-
-				return $argument;
-			}
-			$argumentStart = $i + 1;
-		}
-
-		return null;
 	}
 
 	/**
