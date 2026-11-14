@@ -3,9 +3,9 @@
 namespace Tally\Bench\Expectation;
 
 use Tally\Attribute\DataProvider;
-use Tally\Attribute\ExpectedFor;
 use Tally\Attribute\Warmup;
 use Tally\Bench\SuiteSource;
+use Tally\Expectation\AttributeIndex;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Expectation\MethodNotFoundException;
@@ -13,24 +13,42 @@ use Tally\Metrics;
 use function sprintf;
 
 /**
- * tally run and tally compare locate the expectation of every case in its file, and tally accept
- * rewrites it, so a file with many cases is tokenized once per case.
+ * Every tally command indexes the attributes of each benchmark file once, and tally run, compare,
+ * and accept then locate and rewrite the expectation of each case in the index.
  */
 #[Warmup(1)]
 final class ExpectedAttributeRewriterBench
 {
 
 	/**
-	 * @return iterable<string, array{string, string, string}> the code, the class, and the data set whose attribute to find
+	 * @return iterable<string, array{string}>
 	 */
 	public static function files(): iterable
 	{
 		$source = new SuiteSource();
 		foreach ([10, 100] as $size) {
+			yield sprintf('size-%d', $size) => [$source->code($size, $size, true)];
+		}
+	}
+
+	#[DataProvider('files')]
+	public function benchIndex(string $code): void
+	{
+		(new ExpectedAttributeRewriter())->index($code);
+	}
+
+	/**
+	 * @return iterable<string, array{AttributeIndex, string, string, Metrics}> the index, the class, the data set whose attribute to rewrite, and its metrics
+	 */
+	public static function indexes(): iterable
+	{
+		$source = new SuiteSource();
+		foreach ([10, 100] as $size) {
 			yield sprintf('size-%d', $size) => [
-				$source->code($size, $size, true),
+				(new ExpectedAttributeRewriter())->index($source->code($size, $size, true)),
 				$source->className($size, $size),
 				$source->dataSet($size),
+				$source->measured(1),
 			];
 		}
 	}
@@ -39,34 +57,10 @@ final class ExpectedAttributeRewriterBench
 	 * @throws ExpectationException
 	 * @throws MethodNotFoundException
 	 */
-	#[DataProvider('files')]
-	#[ExpectedFor('size-10', instructions: '1.906M', cycles: '2.077M', memory: '128.6KiB')]
-	#[ExpectedFor('size-100', instructions: '16.84M', cycles: '18.60M', memory: '1.002MiB')]
-	public function benchLocate(string $code, string $class, string $dataSet): void
+	#[DataProvider('indexes')]
+	public function benchEdits(AttributeIndex $index, string $class, string $dataSet, Metrics $measured): void
 	{
-		(new ExpectedAttributeRewriter())->locate($code, $class, SuiteSource::SIZED_METHOD, $dataSet);
-	}
-
-	/**
-	 * @return iterable<string, array{string, string, string, Metrics}> files() with the measured metrics
-	 */
-	public static function rewrites(): iterable
-	{
-		foreach (self::files() as $name => $arguments) {
-			yield $name => [...$arguments, (new SuiteSource())->measured(1)];
-		}
-	}
-
-	/**
-	 * @throws ExpectationException
-	 * @throws MethodNotFoundException
-	 */
-	#[DataProvider('rewrites')]
-	#[ExpectedFor('size-10', instructions: '1.947M', cycles: '2.133M', memory: '128.7KiB')]
-	#[ExpectedFor('size-100', instructions: '16.91M', cycles: '18.68M', memory: '1.007MiB')]
-	public function benchRewrite(string $code, string $class, string $dataSet, Metrics $measured): void
-	{
-		(new ExpectedAttributeRewriter())->rewrite($code, $class, SuiteSource::SIZED_METHOD, $dataSet, $measured, false);
+		(new ExpectedAttributeRewriter())->edits($index, $class, SuiteSource::SIZED_METHOD, $dataSet, $measured, false);
 	}
 
 }

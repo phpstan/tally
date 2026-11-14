@@ -14,8 +14,10 @@ use Tally\Discovery\CaseExpander;
 use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\AttributeExpectations;
+use Tally\Expectation\ExpectationChanges;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
+use Tally\Expectation\FileChange;
 use Tally\Metrics;
 use Tally\Tests\Expressions;
 use Tally\Tests\Fixtures\Growth\GrowthBench;
@@ -155,12 +157,12 @@ final class CaseExpanderTest extends TestCase
 		self::assertCount(3, $named);
 
 		$this->assertSame(
-			str_replace("#[ExpectedFor('size-10', instructions: '100', cycles: '110', memory: '0B')]", "#[ExpectedFor('size-10', instructions: '7', cycles: '8', memory: '0B')]", $code),
-			$positional[1]->expectations->rewrite($code, $metrics),
+			[str_replace("#[ExpectedFor('size-10', instructions: '100', cycles: '110', memory: '0B')]", "#[ExpectedFor('size-10', instructions: '7', cycles: '8', memory: '0B')]", $code)],
+			self::rewrite($code, $positional[1], $metrics),
 		);
 		$this->assertSame(
-			str_replace("#[ExpectedFor('size-10', instructions: '100', cycles: '110', memory: '0B')]", "#[ExpectedFor(dataSet: 'size-10', instructions: '7', cycles: '8', memory: '0B')]", $code),
-			$named[1]->expectations->rewrite($code, $metrics),
+			[str_replace("#[ExpectedFor('size-10', instructions: '100', cycles: '110', memory: '0B')]", "#[ExpectedFor(dataSet: 'size-10', instructions: '7', cycles: '8', memory: '0B')]", $code)],
+			self::rewrite($code, $named[1], $metrics),
 		);
 	}
 
@@ -239,9 +241,22 @@ final class CaseExpanderTest extends TestCase
 	private static function expand(string $class, string $method, Configuration $configuration): array
 	{
 		$reflection = new ReflectionClass($class);
-		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints());
+		$rewriter = new ExpectedAttributeRewriter();
+		$expander = new CaseExpander($rewriter, new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints());
+		$method = $reflection->getMethod($method);
 
-		return $expander->expand($reflection, $reflection->getMethod($method), $expander->hooks($reflection), $configuration);
+		return $expander->expand($reflection, $method, $expander->hooks($reflection), $rewriter->index((string) file_get_contents((string) $method->getDeclaringClass()->getFileName())), $configuration);
+	}
+
+	/**
+	 * @return list<string> the code of each changed file
+	 */
+	private static function rewrite(string $code, BenchmarkCase $case, Metrics $metrics): array
+	{
+		$plan = (new ExpectationChanges())->plan([[$case, $metrics]], [$case->expectations->file() => $code]);
+		self::assertSame([], $plan->failures);
+
+		return array_map(static fn (FileChange $file): string => $file->after, $plan->files);
 	}
 
 }

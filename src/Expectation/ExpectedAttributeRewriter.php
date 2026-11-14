@@ -21,8 +21,6 @@ use function strrpos;
 use function strtolower;
 use function strtr;
 use function substr;
-use function substr_replace;
-use function usort;
 use function var_export;
 use const T_AS;
 use const T_ATTRIBUTE;
@@ -39,15 +37,15 @@ use const T_USE;
 use const T_WHITESPACE;
 
 /**
- * Finds and rewrites the #[Expected] attribute of one benchmark method, or its #[ExpectedFor] of
- * one data set, in PHP code, using PHP's tokenizer. Everything else in the code stays byte for byte
- * the same. A missing attribute is added after the method's other attributes, and imported when
- * the file does not import it yet.
+ * Finds the #[Expected] attribute of each benchmark method, or its #[ExpectedFor] of each data set,
+ * in PHP code, using PHP's tokenizer, and the edits that rewrite one of them. index() reads the
+ * whole code once, so a file with many cases is tokenized once, not once per case. Everything else
+ * in the code stays byte for byte the same. A missing attribute is added after the method's other
+ * attributes, and imported when the file does not import it yet.
  *
- * @phpstan-type Attribute array{start: int, end: int, name: string, dataSet: string|null, line: int, literal: bool}
- * @phpstan-type Member array{attributes: list<Attribute>, insertAt: int}
- * @phpstan-type Import array{name: string, alias: string, start: int, end: int}
- * @phpstan-type Scan array{namespace: string|null, namespaceEnd: int|null, imports: list<Import>, otherUse: int|null, member: Member}
+ * @phpstan-import-type Attribute from AttributeIndex
+ * @phpstan-import-type Member from AttributeIndex
+ * @phpstan-import-type Import from AttributeIndex
  */
 final class ExpectedAttributeRewriter
 {
@@ -60,59 +58,68 @@ final class ExpectedAttributeRewriter
 	 * @throws MethodNotFoundException
 	 * @throws ExpectationException
 	 */
-	public function locate(string $code, string $class, string $method, ?string $dataSet): int
+	public function locate(AttributeIndex $index, string $class, string $method, ?string $dataSet): int
 	{
-		$tokens = new Tokens($code);
-		$member = $this->scan($tokens, $class, $method)['member'];
+		$member = $this->member($index, $class, $method);
 		$attribute = $this->findAttribute($member, $dataSet);
 
-		return $attribute !== null ? $attribute['line'] : $tokens->at($member['insertAt'])->line;
+		return $attribute !== null ? $attribute['line'] : $member['line'];
 	}
 
 	/**
+	 * The edits of the indexed code that replace the attribute with the metrics, or add it with its
+	 * import. Cases that add the same import get the same edit.
+	 *
 	 * @param Metrics $metrics every metric
 	 * @param bool $namedArguments whether to write the data set as dataSet: '…'
+	 * @return non-empty-list<CodeEdit>
 	 * @throws MethodNotFoundException
 	 * @throws ExpectationException
 	 * @throws InvalidArgumentException when a metric is missing
 	 */
-	public function rewrite(string $code, string $class, string $method, ?string $dataSet, Metrics $metrics, bool $namedArguments): string
+	public function edits(AttributeIndex $index, string $class, string $method, ?string $dataSet, Metrics $metrics, bool $namedArguments): array
 	{
 		$arguments = $this->arguments($dataSet, $metrics, $namedArguments);
-		$tokens = new Tokens($code);
-		$scan = $this->scan($tokens, $class, $method);
-		$attribute = $this->findAttribute($scan['member'], $dataSet);
-		$attributeClass = $dataSet === null ? Expected::class : ExpectedFor::class;
-
+		$member = $this->member($index, $class, $method);
+		$attribute = $this->findAttribute($member, $dataSet);
 		if ($attribute !== null) {
-			$start = $tokens->at($attribute['start'])->pos;
-			$end = $tokens->at($attribute['end'])->pos + strlen($tokens->at($attribute['end'])->text);
-
-			return substr_replace($code, $attribute['name'] . '(' . $arguments . ')', $start, $end - $start);
+			return [new CodeEdit($attribute['start'], $attribute['end'] - $attribute['start'], $attribute['name'] . '(' . $arguments . ')')];
 		}
 
-		$edits = [];
-		$name = $this->localName($scan, $attributeClass);
+		$attributeClass = $dataSet === null ? Expected::class : ExpectedFor::class;
+		$name = $this->localName($index, $attributeClass);
+		$imports = [];
 		if ($name === null) {
 			$name = $this->shortName($attributeClass);
-			$edits[] = $this->importEdit($tokens, $scan, $attributeClass);
+			$imports = $this->importEdits($index, $attributeClass);
 		}
 
-		$insertAt = $scan['member']['insertAt'];
-		$indent = '';
-		$previous = $tokens->at($insertAt - 1);
-		if ($previous->is(T_WHITESPACE)) {
-			$newline = strrpos($previous->text, "\n");
-			$indent = $newline === false ? $previous->text : substr($previous->text, $newline + 1);
-		}
-		$edits[] = [$tokens->at($insertAt)->pos, '#[' . $name . '(' . $arguments . ')]' . "\n" . $indent];
+		return [...$imports, new CodeEdit($member['insertAt'], 0, '#[' . $name . '(' . $arguments . ')]' . "\n" . $member['indent'])];
+	}
 
-		usort($edits, static fn (array $a, array $b): int => $b[0] <=> $a[0]);
-		foreach ($edits as [$offset, $text]) {
-			$code = substr_replace($code, $text, $offset, 0);
+	/**
+	 * Reads every class of the code once.
+	 */
+	public function index(string $code): AttributeIndex
+	{
+		return $this->scan(new Tokens($code), $code);
+	}
+
+	/**
+	 * @return Member
+	 * @throws MethodNotFoundException
+	 * @throws ExpectationException
+	 */
+	private function member(AttributeIndex $index, string $class, string $method): array
+	{
+		$member = $index->members[strtolower($class . '::' . $method)] ?? throw new MethodNotFoundException($class, $method);
+		foreach ($member['attributes'] as $attribute) {
+			if (!$attribute['literal']) {
+				throw new ExpectationException(sprintf('#[ExpectedFor] on line %d: write the data set as a string literal, so tally accept can find the attribute.', $attribute['line']));
+			}
 		}
 
-		return $code;
+		return $member;
 	}
 
 	private function arguments(?string $dataSet, Metrics $metrics, bool $namedArguments): string
@@ -147,24 +154,23 @@ final class ExpectedAttributeRewriter
 	/**
 	 * The name the code can use for the attribute, null when it needs an import.
 	 *
-	 * @param Scan $scan
 	 * @param class-string $attributeClass
 	 */
-	private function localName(array $scan, string $attributeClass): ?string
+	private function localName(AttributeIndex $index, string $attributeClass): ?string
 	{
-		foreach ($scan['imports'] as $import) {
+		foreach ($index->imports as $import) {
 			if (strcasecmp($import['name'], $attributeClass) === 0) {
 				return $import['alias'];
 			}
 		}
 
-		foreach ($scan['imports'] as $import) {
+		foreach ($index->imports as $import) {
 			if (strcasecmp($import['alias'], $this->shortName($attributeClass)) === 0) {
 				return '\\' . $attributeClass;
 			}
 		}
 
-		return $scan['namespace'] === null ? '\\' . $attributeClass : null;
+		return $index->namespace === null ? '\\' . $attributeClass : null;
 	}
 
 	/**
@@ -176,40 +182,37 @@ final class ExpectedAttributeRewriter
 	}
 
 	/**
-	 * Keeps the imports sorted, before the imports of functions and constants.
+	 * Keeps the imports sorted, before the imports of functions and constants. The edits of
+	 * #[Expected] and #[ExpectedFor] can go to the same place; in the natural order of their text,
+	 * which is how ExpectationChanges applies edits at one place, they stay sorted too.
 	 *
-	 * @param Scan $scan
 	 * @param class-string $attributeClass
-	 * @return array{int, string}
+	 * @return non-empty-list<CodeEdit>
 	 */
-	private function importEdit(Tokens $tokens, array $scan, string $attributeClass): array
+	private function importEdits(AttributeIndex $index, string $attributeClass): array
 	{
 		$statement = 'use ' . $attributeClass . ';';
-		foreach ($scan['imports'] as $import) {
+		foreach ($index->imports as $import) {
 			// 0 would be the attribute itself, which needs no import
 			if ((strtolower($import['name']) <=> strtolower($attributeClass)) === 1) {
-				return [$tokens->at($import['start'])->pos, $statement . "\n"];
+				return [new CodeEdit($import['start'], 0, $statement . "\n")];
 			}
 		}
 
-		$imports = $scan['imports'];
+		$imports = $index->imports;
 		if ($imports !== []) {
-			return [$tokens->at($imports[count($imports) - 1]['end'])->pos + 1, "\n" . $statement];
+			return [new CodeEdit($imports[count($imports) - 1]['end'], 0, "\n" . $statement)];
 		}
-		if ($scan['otherUse'] !== null) {
-			return [$tokens->at($scan['otherUse'])->pos, $statement . "\n"];
+		if ($index->otherUse !== null) {
+			return [new CodeEdit($index->otherUse, 0, $statement . "\n")];
 		}
 
-		// localName() returns a fully qualified name without a namespace
-		return [$tokens->at((int) $scan['namespaceEnd'])->pos + 1, "\n\n" . $statement];
+		// localName() returns a fully qualified name without a namespace; the blank line is an edit
+		// of its own, so the edits of both attributes add it once
+		return [new CodeEdit((int) $index->namespaceEnd, 0, "\n"), new CodeEdit((int) $index->namespaceEnd, 0, "\n" . $statement)];
 	}
 
-	/**
-	 * @return Scan
-	 * @throws MethodNotFoundException
-	 * @throws ExpectationException
-	 */
-	private function scan(Tokens $tokens, string $class, string $method): array
+	private function scan(Tokens $tokens, string $code): AttributeIndex
 	{
 		$namespace = null;
 		$namespaceEnd = null;
@@ -222,6 +225,7 @@ final class ExpectedAttributeRewriter
 		$classDepth = null;
 		$attributes = [];
 		$insertAt = null;
+		$members = [];
 
 		$count = $tokens->count();
 		for ($i = 0; $i < $count; $i++) {
@@ -258,7 +262,7 @@ final class ExpectedAttributeRewriter
 				// namespace { opens the global namespace
 				if ($tokens->at($next)->is([T_STRING, T_NAME_QUALIFIED])) {
 					$namespace = $tokens->at($next)->text;
-					$namespaceEnd = $tokens->skipTo($next, ';');
+					$namespaceEnd = $tokens->at($tokens->skipTo($next, ';'))->pos + 1;
 				}
 				continue;
 			}
@@ -266,10 +270,10 @@ final class ExpectedAttributeRewriter
 			if ($depth === 0 && $token->is(T_USE)) {
 				$end = $tokens->skipTo($i, ';');
 				if ($tokens->at($tokens->next($i))->is([T_FUNCTION, T_CONST])) {
-					$otherUse ??= $i;
+					$otherUse ??= $token->pos;
 				} else {
 					foreach ($this->parseImports($tokens, $i, $end) as [$name, $alias]) {
-						$imports[] = ['name' => $name, 'alias' => $alias, 'start' => $i, 'end' => $end];
+						$imports[] = ['name' => $name, 'alias' => $alias, 'start' => $token->pos, 'end' => $tokens->at($end)->pos + 1];
 					}
 				}
 				$i = $end;
@@ -309,34 +313,29 @@ final class ExpectedAttributeRewriter
 				continue;
 			}
 
-			$name = $tokens->next($i);
-			if (
-				strcasecmp($currentClass, $class) === 0
-				&& strcasecmp($tokens->at($name)->text, $method) === 0
-			) {
-				foreach ($attributes as $attribute) {
-					if (!$attribute['literal']) {
-						throw new ExpectationException(sprintf('#[ExpectedFor] on line %d: write the data set as a string literal, so tally accept can find the attribute.', $attribute['line']));
-					}
-				}
-
-				return [
-					'namespace' => $namespace,
-					'namespaceEnd' => $namespaceEnd,
-					'imports' => $imports,
-					'otherUse' => $otherUse,
-					'member' => ['attributes' => $attributes, 'insertAt' => $insertAt],
-				];
+			$indent = '';
+			$previous = $tokens->at($insertAt - 1);
+			if ($previous->is(T_WHITESPACE)) {
+				$newline = strrpos($previous->text, "\n");
+				$indent = $newline === false ? $previous->text : substr($previous->text, $newline + 1);
 			}
+			// the first declaration of the method counts, like PHP's
+			$members[strtolower($currentClass . '::' . $tokens->at($tokens->next($i))->text)] ??= [
+				'attributes' => $attributes,
+				'insertAt' => $tokens->at($insertAt)->pos,
+				'line' => $tokens->at($insertAt)->line,
+				'indent' => $indent,
+			];
+			$attributes = [];
+			$insertAt = null;
 		}
 
-		throw new MethodNotFoundException($class, $method);
+		return new AttributeIndex($code, $namespace, $namespaceEnd, $imports, $otherUse, $members);
 	}
 
 	/**
 	 * @param list<Import> $imports
 	 * @return array{list<Attribute>, int} the #[Expected] and #[ExpectedFor] attributes of the group, and the index of its closing bracket
-	 * @throws ExpectationException
 	 */
 	private function parseAttributeGroup(Tokens $tokens, int $start, ?string $namespace, array $imports): array
 	{
@@ -379,7 +378,6 @@ final class ExpectedAttributeRewriter
 	/**
 	 * @param array<string, string> $aliases
 	 * @return Attribute|null
-	 * @throws ExpectationException
 	 */
 	private function parseAttribute(Tokens $tokens, int $start, int $end, ?string $namespace, array $aliases): ?array
 	{
@@ -401,8 +399,8 @@ final class ExpectedAttributeRewriter
 		}
 
 		return [
-			'start' => $name,
-			'end' => $attributeEnd,
+			'start' => $tokens->at($name)->pos,
+			'end' => $tokens->at($attributeEnd)->pos + strlen($tokens->at($attributeEnd)->text),
 			'name' => $tokens->at($name)->text,
 			'dataSet' => $dataSet,
 			'line' => $tokens->at($name)->line,
