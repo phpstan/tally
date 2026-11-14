@@ -93,18 +93,16 @@ final class RunCommandTest extends TestCase
 			. "Benchmarks failed: 1 slower, 1 unchanged\n"
 			. "Allowed difference: instructions grow at most as O(n) from the smallest data set, ±10 % of each metric\n\n"
 			. "Slower than expected\n"
-			. "These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, loosen the complexity class.\n\n"
+			. "These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, accept the new complexity class.\n\n"
 			. "  Benchmark                                                    Metric         Expected   Measured    Change   Allowed\n"
 			. '  ' . $growth . "@large   instructions     2.000K     2.400K   +20.0 %     ±10 %\n\n"
 			. "Reproduce locally\n"
-			. "  vendor/bin/tally run --filter='" . $growth . "@large'\n",
+			. "  vendor/bin/tally run --filter='" . $growth . "@large'\n\n"
+			. "Accept the new numbers\n"
+			. "  vendor/bin/tally accept '" . $this->output . "-growth'\n",
 			$output,
 		);
-
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $environment, ['accept', $this->output . '-growth', __DIR__ . '/../../Fixtures/Growth']);
 		(new DirectoryRemover())->remove($this->output . '-growth');
-		$this->assertSame(0, $exitCode, $errorOutput);
-		$this->assertSame("Accepted the numbers of 0 cases.\n", $output);
 	}
 
 	public function testPassesWhenEveryCaseMatches(): void

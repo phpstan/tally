@@ -92,7 +92,7 @@ final class ReportOutput
 			$accepted[] = [$case, $measurement->metrics];
 		}
 
-		$plan = $this->changes->plan($accepted, $this->files->read(array_map(static fn (array $accepted): BenchmarkCase => $accepted[0], $accepted)));
+		$plan = $this->changes->plan($accepted, [], $this->files->read(array_map(static fn (array $accepted): string => $accepted[0]->expectations->file(), $accepted)));
 
 		return new NewExpectations($this->patch->render($plan, $workingDirectory), $plan->failures);
 	}

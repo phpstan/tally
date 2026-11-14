@@ -27,6 +27,7 @@ final class ExpectationChangesTest extends TestCase
 				[self::case('B::benchB', new InMemoryExpectations(null, '/b.php')), Metrics::fromArray(['instructions' => 2])],
 				[self::case('A::benchC', new InMemoryExpectations(null, '/a.php')), Metrics::fromArray(['instructions' => 3])],
 			],
+			[],
 			['/a.php' => "<?php\n", '/b.php' => "<?php // b\n", '/unused.php' => ''],
 		);
 
@@ -51,6 +52,7 @@ final class ExpectationChangesTest extends TestCase
 				[self::case('App\SortBench::benchLarge@large', new AttributeExpectations($rewriter, '/SortBench.php', 'App\SortBench', 'benchLarge', 'large', null, false)), Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0])],
 				[self::case('App\SortBench::benchSort', new AttributeExpectations($rewriter, '/SortBench.php', 'App\SortBench', 'benchSort', null, null, false)), Metrics::fromArray(['instructions' => 2, 'cycles' => 2, 'memory' => 0])],
 			],
+			[],
 			['/SortBench.php' => $code, '/GoneBench.php' => false],
 		);
 
@@ -74,7 +76,7 @@ final class ExpectationChangesTest extends TestCase
 
 	public function testAFileThatWasNotReadCannotBeRewritten(): void
 	{
-		$plan = (new ExpectationChanges())->plan([[self::case('A::bench', new InMemoryExpectations(null, '/a.php')), Metrics::none()]], []);
+		$plan = (new ExpectationChanges())->plan([[self::case('A::bench', new InMemoryExpectations(null, '/a.php')), Metrics::none()]], [], []);
 
 		$this->assertSame([], $plan->files);
 		$this->assertSame(['A::bench' => 'Cannot read /a.php.'], $plan->failures);
@@ -82,7 +84,7 @@ final class ExpectationChangesTest extends TestCase
 
 	public function testNothingToChange(): void
 	{
-		$plan = (new ExpectationChanges())->plan([], ['/a.php' => '']);
+		$plan = (new ExpectationChanges())->plan([], [], ['/a.php' => '']);
 
 		$this->assertSame([], $plan->files);
 		$this->assertSame([], $plan->failures);

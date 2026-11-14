@@ -68,7 +68,7 @@ final class ConsoleReport
 
 		$output .= "\n" . $this->style($colors, '1', 'Reproduce locally') . "\n";
 		$output .= '  ' . $reproduceCommand . "\n";
-		if ($report->hasNumbersToAccept()) {
+		if ($report->hasChangesToAccept()) {
 			$output .= "\n" . $this->style($colors, '1', 'Accept the new numbers') . "\n";
 			$output .= '  ' . str_replace("\n", "\n  ", $acceptCommand) . "\n";
 		}

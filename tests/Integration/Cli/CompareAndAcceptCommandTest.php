@@ -115,6 +115,58 @@ final class CompareAndAcceptCommandTest extends TestCase
 		);
 	}
 
+	public function testAcceptReplacesAPresetComplexityClassWithTheNextOneTheGrowthFits(): void
+	{
+		$bench = $this->directory . '/AcceptGrowthBench.php';
+		$original = (string) file_get_contents(__DIR__ . '/../../Fixtures/AcceptGrowth/AcceptGrowthBench.php');
+		file_put_contents($bench, $original);
+		$class = 'Tally\\Tests\\Fixtures\\AcceptGrowth\\AcceptGrowthBench';
+
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', __DIR__ . '/../../Fixtures/Results/accept-growth', $bench]);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame('Cannot accept ' . $class . "::benchUnbounded: no preset complexity class bounds how its instructions grow, write a #[Complexity] that does.\n", $errorOutput);
+		$this->assertSame(
+			'faster  ' . $class . "::benchDown: O(n) to O(log n)\n"
+			. 'slower  ' . $class . "::benchUp: O(1) to O(log n)\n"
+			. "\nAccepted the complexity classes of 2 benchmarks.\n",
+			$output,
+		);
+		$this->assertSame(
+			str_replace(
+				[
+					"use Tally\\Attribute\\Linear;\n",
+					"use Tally\\Attribute\\Linearithmic;\n",
+					"#[Constant('size')]\n\tpublic function benchUp(",
+					"#[Linear(size: 'size')]",
+				],
+				[
+					'',
+					"use Tally\\Attribute\\Linearithmic;\nuse Tally\\Attribute\\Logarithmic;\n",
+					"#[Logarithmic('size')]\n\tpublic function benchUp(",
+					"#[Logarithmic(size: 'size')]",
+				],
+				$original,
+			),
+			file_get_contents($bench),
+		);
+	}
+
+	public function testAcceptReportsAComplexityClassThatCannotBeWritten(): void
+	{
+		$bench = $this->directory . '/AcceptGrowthBench.php';
+		file_put_contents($bench, (string) file_get_contents(__DIR__ . '/../../Fixtures/AcceptGrowth/AcceptGrowthBench.php'));
+		chmod($bench, 0444);
+		$class = 'Tally\\Tests\\Fixtures\\AcceptGrowth\\AcceptGrowthBench';
+
+		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', '--filter=/bench(Up|Down)/', __DIR__ . '/../../Fixtures/Results/accept-growth', $bench]);
+		chmod($bench, 0644);
+
+		$this->assertSame(2, $exitCode);
+		$this->assertSame(sprintf("Cannot accept %1\$s::benchDown, %1\$s::benchUp: Cannot write %2\$s.\n", $class, $bench), $errorOutput);
+		$this->assertSame("Accepted the numbers of 0 cases.\n", $output);
+	}
+
 	public function testAcceptReadsTheBenchmarksFromTheConfiguration(): void
 	{
 		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, [], ['accept', '--config=' . self::COMPARE . '/tally.php', __DIR__ . '/../../Fixtures/Results/ok']);

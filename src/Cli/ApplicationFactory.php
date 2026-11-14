@@ -3,6 +3,7 @@
 namespace Tally\Cli;
 
 use Tally\Comparison\Comparator;
+use Tally\Complexity\PresetFit;
 use Tally\Discovery\ArgumentResolver;
 use Tally\Discovery\AttributeFactory;
 use Tally\Discovery\CaseExpander;
@@ -76,7 +77,9 @@ final class ApplicationFactory
 		$constructorArguments = new ConstructorArguments();
 		$functions = new FunctionLibrary([new Log(), new SquareRoot(), new Exponential(), new Factorial()]);
 		$expressionErrors = new ExpressionErrors($closestName);
-		$growthPoints = new GrowthPoints(new Parser(new Lexer()), new TypeChecker($functions, $expressionErrors), new Evaluator($functions, $expressionErrors));
+		$parser = new Parser(new Lexer());
+		$evaluator = new Evaluator($functions, $expressionErrors);
+		$growthPoints = new GrowthPoints($parser, new TypeChecker($functions, $expressionErrors), $evaluator);
 		$selectedCases = new SelectedCases(
 			new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), $argumentResolver, $growthPoints), $constructorArguments, $relativePath),
 			$workingDirectory,
@@ -118,7 +121,7 @@ final class ApplicationFactory
 					$workingDirectory,
 				),
 				new CompareCommand($selectedCases, $resultsArguments, $comparator, $reportOutput, $environment, $workingDirectory),
-				new AcceptCommand($selectedCases, $resultsArguments, $comparator, $expectationFiles, $expectationChanges),
+				new AcceptCommand($selectedCases, $resultsArguments, $comparator, $expectationFiles, $expectationChanges, new PresetFit($parser, $evaluator, $comparator)),
 			],
 			[new WorkerCommand(
 				$selectedCases,

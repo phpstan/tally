@@ -58,11 +58,14 @@ final class Report
 		return false;
 	}
 
-	/** Whether tally accept has numbers to write: of a slower, faster, or new case it can write */
-	public function hasNumbersToAccept(): bool
+	/**
+	 * Whether tally accept has something to write: the numbers of a slower, faster, or new case, or
+	 * the complexity class of a case that grew more than its class allows
+	 */
+	public function hasChangesToAccept(): bool
 	{
 		foreach ($this->cases as $case) {
-			if ($case->acceptable && $case->status !== Status::Ok && $case->status !== Status::NotMeasured) {
+			if ($case->status === Status::Slower || $case->acceptable && $case->status !== Status::Ok && $case->status !== Status::NotMeasured) {
 				return true;
 			}
 		}

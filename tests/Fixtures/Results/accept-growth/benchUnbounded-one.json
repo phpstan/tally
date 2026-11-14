@@ -1,0 +1,8 @@
+{
+    "id": "Tally\\Tests\\Fixtures\\AcceptGrowth\\AcceptGrowthBench::benchUnbounded@one",
+    "metrics": {
+        "instructions": 5000,
+        "cycles": 5000,
+        "memory": 0
+    }
+}

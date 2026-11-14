@@ -7,11 +7,11 @@ use Tally\CaseId;
 use Tally\Comparison\CaseComparison;
 use Tally\Comparison\Comparator;
 use Tally\Comparison\TolerancePolicy;
-use Tally\Complexity\GrowthPoint;
 use Tally\Expectation\SourceLocation;
 use Tally\Measurement;
 use Tally\Metrics;
 use Tally\Report\Report;
+use Tally\Tests\LinearGrowth;
 
 /** Comparisons of every status, for the report tests */
 final class Comparisons
@@ -52,7 +52,7 @@ final class Comparisons
 		return (new Comparator())->compareGrowth(
 			$caseId,
 			new SourceLocation(self::FILE, 1),
-			new GrowthPoint('O(n)', $base, 10.0),
+			LinearGrowth::point($base, 10.0, 10.0),
 			new RelativeTolerance(0.1),
 			Measurement::measured($caseId, Metrics::fromArray(['instructions' => $instructions])),
 			Measurement::measured($base, Metrics::fromArray(['instructions' => 1000])),

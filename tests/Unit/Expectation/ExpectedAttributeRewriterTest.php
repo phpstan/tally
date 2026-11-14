@@ -5,12 +5,20 @@ namespace Tally\Tests\Unit\Expectation;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tally\Attribute\Constant;
+use Tally\Attribute\Linear;
+use Tally\Attribute\Linearithmic;
+use Tally\Attribute\Logarithmic;
+use Tally\Attribute\Polynomial;
+use Tally\Attribute\Quadratic;
+use Tally\Complexity\ComplexityClass;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Expectation\MethodNotFoundException;
 use Tally\Metrics;
 use Tally\Tests\Fixtures\Rewriter\SortBench;
 use function file_get_contents;
+use function str_contains;
 use function str_replace;
 use function substr_count;
 
@@ -399,6 +407,97 @@ final class ExpectedAttributeRewriterTest extends TestCase
 		$this->expectException(MethodNotFoundException::class);
 		$this->expectExceptionMessage('Tally\Tests\Fixtures\Rewriter\SortBench::benchMissing');
 		(new ExpectedAttributeRewriter())->locate(self::read(self::SORT_BENCH), SortBench::class, 'benchMissing', null);
+	}
+
+	/**
+	 * @return iterable<string, array{class-string<ComplexityClass>, ComplexityClass, string, string}>
+	 */
+	public static function dataReplaceComplexity(): iterable
+	{
+		$head = "<?php\nnamespace App;\n";
+		yield 'the import of the replaced class goes, the new one is added in order' => [
+			Linear::class,
+			new Linearithmic('ignored'),
+			$head . "use Tally\\Attribute\\DataProvider;\nuse Tally\\Attribute\\Linear;\nuse function sort;\nclass FooBench {\n\t#[DataProvider('lists')]\n\t#[Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\DataProvider;\nuse Tally\\Attribute\\Linearithmic;\nuse function sort;\nclass FooBench {\n\t#[DataProvider('lists')]\n\t#[Linearithmic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a named size' => [
+			Linear::class,
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\Linear;\n\nclass FooBench {\n\t#[Linear(size: 'input.rows')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant;\n\nclass FooBench {\n\t#[Constant(size: 'input.rows')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a polynomial of another degree' => [
+			Polynomial::class,
+			new Polynomial('ignored', 4),
+			$head . "use Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Polynomial('numbers', degree: 3)]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Polynomial('numbers', degree: 4)]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'the size after the degree' => [
+			Polynomial::class,
+			new Quadratic('ignored'),
+			$head . "use Tally\\Attribute\\Polynomial;\nuse Tally\\Attribute\\Quadratic;\nclass FooBench {\n\t#[Polynomial(degree: 3,size: self::SIZES[0])]\n\tpublic function bench() {}\n\t#[Quadratic('numbers')]\n\tpublic function benchOther() {}\n}\n",
+			$head . "use Tally\\Attribute\\Quadratic;\nclass FooBench {\n\t#[Quadratic(size: self::SIZES[0])]\n\tpublic function bench() {}\n\t#[Quadratic('numbers')]\n\tpublic function benchOther() {}\n}\n",
+		];
+		yield 'only the attribute of the method, the class used elsewhere stays imported' => [
+			Linear::class,
+			new Polynomial('ignored', 3),
+			$head . "use Tally\\Attribute\\Linear;\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function benchOther() {}\n\t#[Linear('numbers'), Warmup(1)]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Linear;\nuse Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function benchOther() {}\n\t#[Polynomial('numbers', degree: 3), Warmup(1)]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a constant, and a comma in brackets' => [
+			Linear::class,
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\Linear; // O(n)\nclass FooBench {\n\t#[Linear(SIZE . ['rows', 'columns'][0])]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant;\n // O(n)\nclass FooBench {\n\t#[Constant(SIZE . ['rows', 'columns'][0])]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'an import among others in one statement stays' => [
+			Linear::class,
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\{DataProvider, Linear};\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant;\nuse Tally\\Attribute\\{DataProvider, Linear};\nclass FooBench {\n\t#[Constant('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'an alias' => [
+			Linear::class,
+			new Logarithmic('ignored'),
+			$head . "use Tally\\Attribute as T;\nuse Tally\\Attribute\\Linear as OfN;\nclass FooBench {\n\t#[OfN('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute as T;\nuse Tally\\Attribute\\Logarithmic;\nclass FooBench {\n\t#[Logarithmic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a qualified name keeps the import it is qualified by' => [
+			Linear::class,
+			new Logarithmic('ignored'),
+			$head . "use Tally\\Attribute;\nclass FooBench {\n\t#[Attribute\\Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute;\nuse Tally\\Attribute\\Logarithmic;\nclass FooBench {\n\t#[Logarithmic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'in the global namespace' => [
+			Linear::class,
+			new Quadratic('ignored'),
+			"<?php\nclass FooBench {\n\t#[\\Tally\\Attribute\\Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			"<?php\nclass FooBench {\n\t#[\\Tally\\Attribute\\Quadratic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+	}
+
+	/**
+	 * @param class-string<ComplexityClass> $current
+	 * @throws ExpectationException
+	 */
+	#[DataProvider('dataReplaceComplexity')]
+	public function testReplaceComplexity(string $current, ComplexityClass $replacement, string $code, string $expected): void
+	{
+		$class = str_contains($code, 'namespace App;') ? 'App\\FooBench' : 'FooBench';
+
+		$this->assertSame($expected, (new ExpectedAttributeRewriter())->replaceComplexity($code, $class, 'bench', $current, $replacement));
+	}
+
+	/**
+	 * @throws ExpectationException
+	 */
+	public function testReplaceComplexityNeedsTheAttribute(): void
+	{
+		$this->expectException(ExpectationException::class);
+		$this->expectExceptionMessage('Method App\\FooBench::bench() has no #[Linear] attribute.');
+
+		(new ExpectedAttributeRewriter())->replaceComplexity("<?php\nnamespace App;\nclass FooBench {\n\t#[Quadratic('numbers')]\n\tpublic function bench() {}\n}\n", 'App\\FooBench', 'bench', Linear::class, new Constant('numbers'));
 	}
 
 	private static function read(string $file): string

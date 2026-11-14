@@ -12,13 +12,13 @@ use Tally\Comparison\MetricComparison;
 use Tally\Comparison\Percent;
 use Tally\Comparison\Status;
 use Tally\Comparison\TolerancePolicy;
-use Tally\Complexity\GrowthPoint;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\SourceLocation;
 use Tally\Measurement;
 use Tally\Metrics;
 use Tally\Tests\Fixtures\Tolerance\Exact;
 use Tally\Tests\InMemoryExpectations;
+use Tally\Tests\LinearGrowth;
 use function array_map;
 use function sprintf;
 
@@ -165,7 +165,7 @@ final class ComparatorTest extends TestCase
 		$comparison = (new Comparator())->compareGrowth(
 			CaseId::fromString($id),
 			$location,
-			new GrowthPoint('O(n)', CaseId::fromString('A::bench@small'), 10.0),
+			LinearGrowth::point(CaseId::fromString('A::bench@small'), 10.0, 10.0),
 			$tolerance,
 			$measurement,
 			$base,
@@ -192,7 +192,7 @@ final class ComparatorTest extends TestCase
 		$comparison = (new Comparator())->compareGrowth(
 			CaseId::fromString('A::bench@large'),
 			new SourceLocation('/bench/ABench.php', 12),
-			new GrowthPoint('O(n)', CaseId::fromString('A::bench@small'), 1.25),
+			LinearGrowth::point(CaseId::fromString('A::bench@small'), 1.25, 1.25),
 			new Exact(),
 			Measurement::measured(CaseId::fromString('A::bench@large'), Metrics::fromArray(['instructions' => 4])),
 			Measurement::measured(CaseId::fromString('A::bench@small'), Metrics::fromArray(['instructions' => 3])),
@@ -208,8 +208,8 @@ final class ComparatorTest extends TestCase
 	public function testCompareCaseComparesByExpectationsOrByGrowth(): void
 	{
 		$expectations = new InMemoryExpectations(Metrics::fromArray(['instructions' => 100]), '/bench/ABench.php');
-		$small = new BenchmarkCase(CaseId::fromString('A::bench@small'), [], 0, [], [], $expectations, new RelativeTolerance(0.1), new GrowthPoint('O(n)', CaseId::fromString('A::bench@small'), 1.0));
-		$large = $small->withGrowth(new GrowthPoint('O(n)', CaseId::fromString('A::bench@small'), 3.0));
+		$small = new BenchmarkCase(CaseId::fromString('A::bench@small'), [], 0, [], [], $expectations, new RelativeTolerance(0.1), LinearGrowth::point(CaseId::fromString('A::bench@small'), 1.0, 1.0));
+		$large = $small->withGrowth(LinearGrowth::point(CaseId::fromString('A::bench@small'), 3.0, 3.0));
 		$large = new BenchmarkCase(CaseId::fromString('A::bench@large'), [], 0, [], [], $expectations, new RelativeTolerance(0.1), $large->growth);
 		$plain = new BenchmarkCase(CaseId::fromString('A::plain'), [], 0, [], [], $expectations, new RelativeTolerance(0.1), null);
 		$measurements = [

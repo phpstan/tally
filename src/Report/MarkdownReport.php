@@ -49,7 +49,7 @@ final class MarkdownReport
 		}
 		if ($sections !== []) {
 			$output .= "### Reproduce locally\n\n```\n" . $reproduceCommand . "\n```\n\n";
-			if ($report->hasNumbersToAccept()) {
+			if ($report->hasChangesToAccept()) {
 				$output .= "### Accept the new numbers\n\n```\n" . $acceptCommand . "\n```\n\n";
 			}
 		}

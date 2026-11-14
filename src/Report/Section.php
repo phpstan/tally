@@ -40,7 +40,7 @@ final class Section
 		};
 	}
 
-	/** A case compared by its growth has no numbers to accept, its complexity class is what changes */
+	/** A case compared by its growth has no numbers to accept, tally accept changes its complexity class */
 	private function slowerText(): string
 	{
 		$growing = 0;
@@ -50,8 +50,8 @@ final class Section
 
 		return 'These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, ' . match ($growing) {
 			0 => 'accept the new numbers.',
-			count($this->cases) => 'loosen the complexity class.',
-			default => 'accept the new numbers or loosen the complexity class.',
+			count($this->cases) => 'accept the new complexity class.',
+			default => 'accept the new numbers and complexity classes.',
 		};
 	}
 

@@ -43,7 +43,7 @@ final class ExpectationChangesBench
 	#[ExpectedFor('cases-200', instructions: '1.895B', cycles: '2.071B', memory: '1.043MiB')]
 	public function benchPlan(array $accepted, array $code): void
 	{
-		(new ExpectationChanges())->plan($accepted, $code);
+		(new ExpectationChanges())->plan($accepted, [], $code);
 	}
 
 }

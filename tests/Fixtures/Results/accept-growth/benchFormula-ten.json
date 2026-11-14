@@ -1,0 +1,8 @@
+{
+    "id": "Tally\\Tests\\Fixtures\\AcceptGrowth\\AcceptGrowthBench::benchFormula@ten",
+    "metrics": {
+        "instructions": 1000,
+        "cycles": 1000,
+        "memory": 0
+    }
+}

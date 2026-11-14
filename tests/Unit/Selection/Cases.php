@@ -5,9 +5,9 @@ namespace Tally\Tests\Unit\Selection;
 use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
-use Tally\Complexity\GrowthPoint;
 use Tally\Metrics;
 use Tally\Tests\InMemoryExpectations;
+use Tally\Tests\LinearGrowth;
 use function array_map;
 
 final class Cases
@@ -40,7 +40,7 @@ final class Cases
 				[],
 				new InMemoryExpectations($instructions === null ? null : Metrics::fromArray(['instructions' => $instructions]), '/benchmarks/InMemoryBench.php'),
 				new RelativeTolerance(0.1),
-				$base === null ? null : new GrowthPoint('O(n)', CaseId::fromString($base), 1.0),
+				$base === null ? null : LinearGrowth::point(CaseId::fromString($base), 1.0, 1.0),
 			);
 		}
 

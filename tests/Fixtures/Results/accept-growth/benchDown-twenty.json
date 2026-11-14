@@ -1,0 +1,8 @@
+{
+    "id": "Tally\\Tests\\Fixtures\\AcceptGrowth\\AcceptGrowthBench::benchDown@twenty",
+    "metrics": {
+        "instructions": 1301,
+        "cycles": 1301,
+        "memory": 0
+    }
+}

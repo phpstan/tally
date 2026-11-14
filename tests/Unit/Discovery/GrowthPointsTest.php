@@ -48,7 +48,7 @@ final class GrowthPointsTest extends TestCase
 		$actual = [];
 		foreach (self::expand($method) as $case) {
 			$this->assertNotNull($case->growth);
-			$this->assertSame($bound, $case->growth->bound);
+			$this->assertSame($bound, $case->growth->attribute->complexity->describe());
 			$this->assertSame(ComplexityBench::class . '::' . $method . '@' . $base, $case->growth->base->toString());
 			$actual[$case->id->dataSet ?? ''] = $case->growth->growth;
 		}

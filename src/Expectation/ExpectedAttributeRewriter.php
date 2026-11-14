@@ -5,6 +5,8 @@ namespace Tally\Expectation;
 use InvalidArgumentException;
 use Tally\Attribute\Expected;
 use Tally\Attribute\ExpectedFor;
+use Tally\Attribute\Polynomial;
+use Tally\Complexity\ComplexityClass;
 use Tally\Metric;
 use Tally\Metrics;
 use function count;
@@ -40,11 +42,11 @@ use const T_WHITESPACE;
 
 /**
  * Finds and rewrites the #[Expected] attribute of one benchmark method, or its #[ExpectedFor] of
- * one data set, in PHP code, using PHP's tokenizer. Everything else in the code stays byte for byte
- * the same. A missing attribute is added after the method's other attributes, and imported when
- * the file does not import it yet.
+ * one data set, in PHP code, using PHP's tokenizer, and replaces its complexity class. Everything
+ * else in the code stays byte for byte the same. A missing attribute is added after the method's
+ * other attributes, and imported when the file does not import it yet.
  *
- * @phpstan-type Attribute array{start: int, end: int, name: string, dataSet: string|null, line: int, literal: bool}
+ * @phpstan-type Attribute array{start: int, end: int, name: string, class: string, dataSet: string|null, line: int, literal: bool}
  * @phpstan-type Member array{attributes: list<Attribute>, insertAt: int}
  * @phpstan-type Import array{name: string, alias: string, start: int, end: int}
  * @phpstan-type Scan array{namespace: string|null, namespaceEnd: int|null, imports: list<Import>, otherUse: int|null, member: Member}
@@ -64,7 +66,7 @@ final class ExpectedAttributeRewriter
 	{
 		$tokens = new Tokens($code);
 		$member = $this->scan($tokens, $class, $method)['member'];
-		$attribute = $this->findAttribute($member, $dataSet);
+		$attribute = $this->findAttribute($member, $dataSet === null ? Expected::class : ExpectedFor::class, $dataSet);
 
 		return $attribute !== null ? $attribute['line'] : $tokens->at($member['insertAt'])->line;
 	}
@@ -81,8 +83,8 @@ final class ExpectedAttributeRewriter
 		$arguments = $this->arguments($dataSet, $metrics, $namedArguments);
 		$tokens = new Tokens($code);
 		$scan = $this->scan($tokens, $class, $method);
-		$attribute = $this->findAttribute($scan['member'], $dataSet);
 		$attributeClass = $dataSet === null ? Expected::class : ExpectedFor::class;
+		$attribute = $this->findAttribute($scan['member'], $attributeClass, $dataSet);
 
 		if ($attribute !== null) {
 			$start = $tokens->at($attribute['start'])->pos;
@@ -115,6 +117,120 @@ final class ExpectedAttributeRewriter
 		return $code;
 	}
 
+	/**
+	 * Replaces the complexity class of a benchmark method with another, with the same size argument
+	 * as written. The import of the replaced class is removed when nothing else uses it.
+	 *
+	 * @param class-string<ComplexityClass> $current the class of the attribute to replace
+	 * @throws MethodNotFoundException
+	 * @throws ExpectationException
+	 */
+	public function replaceComplexity(string $code, string $class, string $method, string $current, ComplexityClass $replacement): string
+	{
+		$tokens = new Tokens($code);
+		$scan = $this->scan($tokens, $class, $method);
+		$attribute = $this->findAttribute($scan['member'], $current, null)
+			?? throw new ExpectationException(sprintf('Method %s::%s() has no #[%s] attribute.', $class, $method, $this->shortName($current)));
+
+		$arguments = $this->sizeArgument($code, $tokens, $tokens->next($attribute['start']), $attribute['end']);
+		if ($replacement instanceof Polynomial) {
+			$arguments .= ', degree: ' . $replacement->degree();
+		}
+		$name = $this->localName($scan, $replacement::class);
+		$import = null;
+		if ($name === null) {
+			$name = $this->shortName($replacement::class);
+			$import = $this->importEdit($tokens, $scan, $replacement::class);
+		}
+
+		// the attribute comes after the imports, so replacing it first keeps the import's offset
+		$start = $tokens->at($attribute['start'])->pos;
+		$end = $tokens->at($attribute['end'])->pos + strlen($tokens->at($attribute['end'])->text);
+		$code = substr_replace($code, $name . '(' . $arguments . ')', $start, $end - $start);
+		if ($import !== null) {
+			$code = substr_replace($code, $import[1], $import[0], 0);
+		}
+
+		return $this->removeUnusedImport($code, $class, $method, $current);
+	}
+
+	/**
+	 * The size argument of a complexity class as written: the first argument, unless it is named,
+	 * else the one named size.
+	 *
+	 * @param int $open the opening parenthesis
+	 * @param int $close the closing parenthesis
+	 */
+	private function sizeArgument(string $code, Tokens $tokens, int $open, int $close): string
+	{
+		$nesting = 0;
+		$argumentStart = $open + 1;
+		for ($i = $argumentStart;; $i++) {
+			$text = $tokens->at($i)->text;
+			if (in_array($text, ['(', '['], true)) {
+				$nesting++;
+				continue;
+			}
+			if ($nesting > 0) {
+				if (in_array($text, [')', ']'], true)) {
+					$nesting--;
+				}
+				continue;
+			}
+			if ($text !== ',' && $i !== $close) {
+				continue;
+			}
+
+			$first = $tokens->next($argumentStart - 1);
+			$named = $tokens->at($first)->is(T_STRING) && $tokens->at($tokens->next($first))->text === ':';
+			if (!$named || $tokens->at($first)->text === 'size') {
+				$last = $tokens->at($tokens->previous($i));
+
+				return substr($code, $tokens->at($first)->pos, $last->pos + strlen($last->text) - $tokens->at($first)->pos);
+			}
+			$argumentStart = $i + 1;
+		}
+	}
+
+	/**
+	 * Removes the import of a class that the code no longer uses. An import among others in one use
+	 * statement stays.
+	 *
+	 * @param class-string $imported
+	 * @throws MethodNotFoundException
+	 * @throws ExpectationException
+	 */
+	private function removeUnusedImport(string $code, string $class, string $method, string $imported): string
+	{
+		$tokens = new Tokens($code);
+		$imports = $this->scan($tokens, $class, $method)['imports'];
+		foreach ($imports as $import) {
+			if (strcasecmp($import['name'], $imported) !== 0) {
+				continue;
+			}
+			foreach ($imports as $other) {
+				if ($other['start'] === $import['start'] && $other !== $import) {
+					return $code;
+				}
+			}
+
+			// the imports come first, a use of the class after them
+			$count = $tokens->count();
+			for ($i = $tokens->next($import['end']); $i < $count; $i++) {
+				if ($tokens->at($i)->is(T_STRING) && strcasecmp($tokens->at($i)->text, $import['alias']) === 0) {
+					return $code;
+				}
+			}
+
+			$start = $tokens->at($import['start'])->pos;
+			$end = $tokens->at($import['end'])->pos + 1;
+
+			return substr_replace($code, '', $start, $end - $start + (substr($code, $end, 1) === "\n" ? 1 : 0));
+		}
+
+		return $code;
+	}
+
 	private function arguments(?string $dataSet, Metrics $metrics, bool $namedArguments): string
 	{
 		$arguments = [];
@@ -131,12 +247,13 @@ final class ExpectedAttributeRewriter
 
 	/**
 	 * @param Member $member
+	 * @param class-string $class
 	 * @return Attribute|null
 	 */
-	private function findAttribute(array $member, ?string $dataSet): ?array
+	private function findAttribute(array $member, string $class, ?string $dataSet): ?array
 	{
 		foreach ($member['attributes'] as $attribute) {
-			if ($attribute['dataSet'] === $dataSet) {
+			if (strcasecmp($attribute['class'], $class) === 0 && $attribute['dataSet'] === $dataSet) {
 				return $attribute;
 			}
 		}
@@ -335,7 +452,7 @@ final class ExpectedAttributeRewriter
 
 	/**
 	 * @param list<Import> $imports
-	 * @return array{list<Attribute>, int} the #[Expected] and #[ExpectedFor] attributes of the group, and the index of its closing bracket
+	 * @return array{list<Attribute>, int} the attributes of the group, and the index of its closing bracket
 	 * @throws ExpectationException
 	 */
 	private function parseAttributeGroup(Tokens $tokens, int $start, ?string $namespace, array $imports): array
@@ -365,9 +482,9 @@ final class ExpectedAttributeRewriter
 				continue;
 			}
 
-			$attribute = $this->parseAttribute($tokens, $segmentStart, $i, $namespace, $aliases);
-			if ($attribute !== null) {
-				$attributes[] = $attribute;
+			// nothing after a trailing comma
+			if ($tokens->next($segmentStart - 1) !== $i) {
+				$attributes[] = $this->parseAttribute($tokens, $segmentStart, $i, $namespace, $aliases);
 			}
 			$segmentStart = $i + 1;
 			if ($text === ']') {
@@ -378,24 +495,19 @@ final class ExpectedAttributeRewriter
 
 	/**
 	 * @param array<string, string> $aliases
-	 * @return Attribute|null
-	 * @throws ExpectationException
+	 * @return Attribute
 	 */
-	private function parseAttribute(Tokens $tokens, int $start, int $end, ?string $namespace, array $aliases): ?array
+	private function parseAttribute(Tokens $tokens, int $start, int $end, ?string $namespace, array $aliases): array
 	{
-		// the closing bracket after a trailing comma, which is not the attribute either
 		$name = $tokens->next($start - 1);
 		$resolved = $this->resolve($tokens->at($name)->text, $namespace, $aliases);
-		$isExpected = strcasecmp($resolved, Expected::class) === 0;
-		if (!$isExpected && strcasecmp($resolved, ExpectedFor::class) !== 0) {
-			return null;
-		}
+		$isExpectedFor = strcasecmp($resolved, ExpectedFor::class) === 0;
 
 		$open = $tokens->next($name);
 		$hasArguments = $tokens->at($open)->text === '(';
 		$attributeEnd = $hasArguments ? $tokens->previous($end) : $name;
 		$dataSet = null;
-		if (!$isExpected) {
+		if ($isExpectedFor) {
 			$value = $hasArguments ? $this->dataSetArgument($tokens, $open, $attributeEnd) : null;
 			$dataSet = $value === null ? null : $this->stringValue($tokens->at($value)->text);
 		}
@@ -404,10 +516,11 @@ final class ExpectedAttributeRewriter
 			'start' => $name,
 			'end' => $attributeEnd,
 			'name' => $tokens->at($name)->text,
+			'class' => $resolved,
 			'dataSet' => $dataSet,
 			'line' => $tokens->at($name)->line,
 			// scan() rejects it only on the method it looks for
-			'literal' => $isExpected || $dataSet !== null,
+			'literal' => !$isExpectedFor || $dataSet !== null,
 		];
 	}
 

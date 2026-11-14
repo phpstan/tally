@@ -32,6 +32,11 @@ final class Polynomial implements ComplexityClass
 		$this->complexity = new Complexity($size, 'n^' . $degree);
 	}
 
+	public function degree(): int
+	{
+		return $this->degree;
+	}
+
 	#[Override]
 	public function size(): string
 	{
