@@ -6,6 +6,7 @@ use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Expectation\AttributeExpectations;
+use Tally\Expectation\AttributeIndex;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Metric;
 use Tally\Metrics;
@@ -38,13 +39,14 @@ final class SuiteSource
 	public function measuredCases(int $methods, int $dataSets): array
 	{
 		$rewriter = new ExpectedAttributeRewriter();
+		$index = $rewriter->index($this->code($methods, $dataSets, false));
 		$class = $this->className($methods, $dataSets);
 		$cases = [];
 		for ($i = 1; $i <= $methods; $i++) {
-			$cases[] = [$this->case($rewriter, $class, sprintf('benchMethod%d', $i), null), $this->measured($i)];
+			$cases[] = [$this->case($rewriter, $index, $class, sprintf('benchMethod%d', $i), null), $this->measured($i)];
 		}
 		for ($i = 1; $i <= $dataSets; $i++) {
-			$cases[] = [$this->case($rewriter, $class, self::SIZED_METHOD, $this->dataSet($i)), $this->measured($i)];
+			$cases[] = [$this->case($rewriter, $index, $class, self::SIZED_METHOD, $this->dataSet($i)), $this->measured($i)];
 		}
 
 		return $cases;
@@ -59,7 +61,7 @@ final class SuiteSource
 			->with(Metric::Memory, 1_024 * $index);
 	}
 
-	private function case(ExpectedAttributeRewriter $rewriter, string $class, string $method, ?string $dataSet): BenchmarkCase
+	private function case(ExpectedAttributeRewriter $rewriter, AttributeIndex $index, string $class, string $method, ?string $dataSet): BenchmarkCase
 	{
 		return new BenchmarkCase(
 			new CaseId($class, $method, $dataSet),
@@ -68,7 +70,7 @@ final class SuiteSource
 			0,
 			[],
 			[],
-			new AttributeExpectations($rewriter, self::FILE, $class, $method, $dataSet, null, false),
+			new AttributeExpectations($rewriter, self::FILE, $index, $class, $method, $dataSet, null, false),
 			new RelativeTolerance(0.1),
 			null,
 		);

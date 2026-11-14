@@ -23,7 +23,7 @@ final class RefusingExpectations implements ExpectationSource
 		return __FILE__;
 	}
 
-	public function rewrite(string $code, Metrics $measured): string
+	public function edits(string $code, Metrics $measured): array
 	{
 		throw new ExpectationException('The data set is generated.');
 	}

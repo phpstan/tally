@@ -15,6 +15,7 @@ use Tally\Discovery\ValueTypeCheck;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Tests\Expressions;
 use Tally\Tests\Fixtures\Complexity\ComplexityBench;
+use function file_get_contents;
 use function implode;
 use function log;
 
@@ -131,9 +132,10 @@ final class GrowthPointsTest extends TestCase
 	private static function expand(string $method): array
 	{
 		$class = new ReflectionClass(ComplexityBench::class);
-		$expander = new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints());
+		$rewriter = new ExpectedAttributeRewriter();
+		$expander = new CaseExpander($rewriter, new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints());
 
-		return $expander->expand($class, $class->getMethod($method), $expander->hooks($class), Configuration::create());
+		return $expander->expand($class, $class->getMethod($method), $expander->hooks($class), $rewriter->index((string) file_get_contents((string) $class->getFileName())), Configuration::create());
 	}
 
 }

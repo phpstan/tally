@@ -7,11 +7,13 @@ use Tally\Attribute\RelativeTolerance;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Expectation\AttributeExpectations;
+use Tally\Expectation\CodeEdit;
 use Tally\Expectation\ExpectationChanges;
 use Tally\Expectation\ExpectationSource;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Expectation\FileChange;
 use Tally\Metrics;
+use Tally\Tests\FixedEdits;
 use Tally\Tests\InMemoryExpectations;
 use function array_map;
 use function str_replace;
@@ -44,12 +46,13 @@ final class ExpectationChangesTest extends TestCase
 	{
 		$code = "<?php\n\nnamespace App;\n\nuse Tally\\Attribute\\ExpectedFor;\n\nfinal class SortBench\n{\n\n\t#[ExpectedFor(self::LARGE, '1', '1', '0B')]\n\tpublic function benchLarge(): void\n\t{\n\t}\n\n\tpublic function benchSort(): void\n\t{\n\t}\n\n}\n";
 		$rewriter = new ExpectedAttributeRewriter();
+		$index = $rewriter->index($code);
 
 		$plan = (new ExpectationChanges())->plan(
 			[
 				[self::case('App\GoneBench::benchGone', new InMemoryExpectations(null, '/GoneBench.php')), Metrics::fromArray(['instructions' => 3])],
-				[self::case('App\SortBench::benchLarge@large', new AttributeExpectations($rewriter, '/SortBench.php', 'App\SortBench', 'benchLarge', 'large', null, false)), Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0])],
-				[self::case('App\SortBench::benchSort', new AttributeExpectations($rewriter, '/SortBench.php', 'App\SortBench', 'benchSort', null, null, false)), Metrics::fromArray(['instructions' => 2, 'cycles' => 2, 'memory' => 0])],
+				[self::case('App\SortBench::benchLarge@large', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchLarge', 'large', null, false)), Metrics::fromArray(['instructions' => 1, 'cycles' => 1, 'memory' => 0])],
+				[self::case('App\SortBench::benchSort', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchSort', null, null, false)), Metrics::fromArray(['instructions' => 2, 'cycles' => 2, 'memory' => 0])],
 			],
 			['/SortBench.php' => $code, '/GoneBench.php' => false],
 		);
@@ -70,6 +73,68 @@ final class ExpectationChangesTest extends TestCase
 			],
 			$plan->failures,
 		);
+	}
+
+	public function testCasesThatAddTheSameImportAddItOnceAndKeepTheImportsSorted(): void
+	{
+		$code = "<?php\nnamespace App;\nclass SortBench {\n\tpublic function benchA() {}\n\tpublic function benchB() {}\n\tpublic function benchC() {}\n}\n";
+		$rewriter = new ExpectedAttributeRewriter();
+		$index = $rewriter->index($code);
+		$metrics = Metrics::fromArray(['instructions' => 1, 'cycles' => 2, 'memory' => 0]);
+
+		$plan = (new ExpectationChanges())->plan(
+			[
+				[self::case('App\SortBench::benchA@x', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchA', 'x', null, false)), $metrics],
+				[self::case('App\SortBench::benchB', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchB', null, null, false)), $metrics],
+				[self::case('App\SortBench::benchC', new AttributeExpectations($rewriter, '/SortBench.php', $index, 'App\SortBench', 'benchC', null, null, false)), $metrics],
+			],
+			['/SortBench.php' => $code],
+		);
+
+		$this->assertSame(
+			[[
+				'/SortBench.php',
+				$code,
+				"<?php\nnamespace App;\n\nuse Tally\\Attribute\\Expected;\nuse Tally\\Attribute\\ExpectedFor;\nclass SortBench {\n"
+				. "\t#[ExpectedFor('x', instructions: '1', cycles: '2', memory: '0B')]\n\tpublic function benchA() {}\n"
+				. "\t#[Expected(instructions: '1', cycles: '2', memory: '0B')]\n\tpublic function benchB() {}\n"
+				. "\t#[Expected(instructions: '1', cycles: '2', memory: '0B')]\n\tpublic function benchC() {}\n}\n",
+				['App\SortBench::benchA@x', 'App\SortBench::benchB', 'App\SortBench::benchC'],
+			]],
+			self::files($plan->files),
+		);
+		$this->assertSame([], $plan->failures);
+	}
+
+	public function testEditsAtOneOffsetGoInTheNaturalOrderOfTheirTextAndInsertionsBeforeReplacements(): void
+	{
+		$plan = (new ExpectationChanges())->plan(
+			[
+				[self::case('A::bench10', new FixedEdits('/a.php', [new CodeEdit(1, 2, '[10]')])), Metrics::none()],
+				[self::case('A::bench2', new FixedEdits('/a.php', [new CodeEdit(1, 0, '<2>')])), Metrics::none()],
+				[self::case('A::bench1', new FixedEdits('/a.php', [new CodeEdit(1, 0, '<10>'), new CodeEdit(3, 0, '<3>')])), Metrics::none()],
+			],
+			['/a.php' => 'abcd'],
+		);
+
+		$this->assertSame([['/a.php', 'abcd', 'a<2><10>[10]<3>d', ['A::bench10', 'A::bench2', 'A::bench1']]], self::files($plan->files));
+		$this->assertSame([], $plan->failures);
+	}
+
+	public function testACaseWhoseEditsOverlapAnotherCaseIsLeftOut(): void
+	{
+		$plan = (new ExpectationChanges())->plan(
+			[
+				[self::case('A::benchA', new FixedEdits('/a.php', [new CodeEdit(1, 2, 'X')])), Metrics::none()],
+				[self::case('A::benchB', new FixedEdits('/a.php', [new CodeEdit(0, 1, 'Y'), new CodeEdit(2, 0, 'Z')])), Metrics::none()],
+				[self::case('A::benchC', new FixedEdits('/a.php', [new CodeEdit(1, 2, 'X'), new CodeEdit(3, 1, 'W')])), Metrics::none()],
+				[self::case('A::benchD', new FixedEdits('/a.php', [new CodeEdit(2, 1, 'V')])), Metrics::none()],
+			],
+			['/a.php' => 'abcd'],
+		);
+
+		$this->assertSame([['/a.php', 'abcd', 'aXW', ['A::benchA', 'A::benchC']]], self::files($plan->files));
+		$this->assertSame(['A::benchB' => 'Its expectations overlap those of A::benchA.', 'A::benchD' => 'Its expectations overlap those of A::benchA.'], $plan->failures);
 	}
 
 	public function testAFileThatWasNotReadCannotBeRewritten(): void

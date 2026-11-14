@@ -49,6 +49,8 @@ final class ShardSelectorBench
 	{
 		$source = new SuiteSource();
 		$rewriter = new ExpectedAttributeRewriter();
+		// sharding reads only the expected numbers
+		$index = $rewriter->index('');
 		$class = $source->className($count, 0);
 		$cases = [];
 		for ($i = 1; $i <= $count; $i++) {
@@ -60,7 +62,7 @@ final class ShardSelectorBench
 				0,
 				[],
 				[],
-				new AttributeExpectations($rewriter, SuiteSource::FILE, $class, $method, null, $i % 10 === 0 ? null : $source->measured($i * 7_919 % 1_000), false),
+				new AttributeExpectations($rewriter, SuiteSource::FILE, $index, $class, $method, null, $i % 10 === 0 ? null : $source->measured($i * 7_919 % 1_000), false),
 				new RelativeTolerance(0.1),
 				null,
 			);

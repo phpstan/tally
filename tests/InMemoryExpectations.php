@@ -3,14 +3,16 @@
 namespace Tally\Tests;
 
 use Override;
+use Tally\Expectation\CodeEdit;
 use Tally\Expectation\ExpectationSource;
 use Tally\Expectation\SourceLocation;
 use Tally\Metrics;
 use function json_encode;
+use function strlen;
 use const JSON_THROW_ON_ERROR;
 
 /**
- * Keeps the expectations of a data set in memory, for tests. Rewriting appends a line with the
+ * Keeps the expectations of a data set in memory, for tests. Its edit appends a line with the
  * measured metrics to the code.
  */
 final class InMemoryExpectations implements ExpectationSource
@@ -33,9 +35,9 @@ final class InMemoryExpectations implements ExpectationSource
 	}
 
 	#[Override]
-	public function rewrite(string $code, Metrics $measured): string
+	public function edits(string $code, Metrics $measured): array
 	{
-		return $code . json_encode($measured->toArray(), JSON_THROW_ON_ERROR) . "\n";
+		return [new CodeEdit(strlen($code), 0, json_encode($measured->toArray(), JSON_THROW_ON_ERROR) . "\n")];
 	}
 
 	#[Override]

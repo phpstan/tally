@@ -139,7 +139,7 @@ final class DirectorySuiteLoaderTest extends TestCase
 	 */
 	private static function ids(array $paths): array
 	{
-		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints()), new ConstructorArguments(), new RelativePath());
+		$loader = new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), new ArgumentResolver(), (new Expressions())->growthPoints()), new ConstructorArguments(), new ExpectedAttributeRewriter(), new RelativePath());
 
 		return array_map(static fn (BenchmarkCase $case): string => $case->id->toString(), $loader->load($paths, dirname(__DIR__, 3), Configuration::create()));
 	}

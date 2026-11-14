@@ -11,12 +11,14 @@ use SplFileInfo;
 use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Configuration;
+use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Report\RelativePath;
 use Throwable;
 use function array_fill_keys;
 use function array_filter;
 use function array_map;
 use function array_merge;
+use function file_get_contents;
 use function get_declared_classes;
 use function is_file;
 use function iterator_to_array;
@@ -34,7 +36,12 @@ use function usort;
 final class DirectorySuiteLoader
 {
 
-	public function __construct(private CaseExpander $expander, private ConstructorArguments $constructor, private RelativePath $relativePath)
+	public function __construct(
+		private CaseExpander $expander,
+		private ConstructorArguments $constructor,
+		private ExpectedAttributeRewriter $rewriter,
+		private RelativePath $relativePath
+	)
 	{
 	}
 
@@ -52,6 +59,8 @@ final class DirectorySuiteLoader
 		}
 
 		$expanded = [];
+		// the attributes of each file that declares a benchmark method, read once for all its cases
+		$attributes = [];
 		$isLoaded = array_fill_keys($files, true);
 		$classNames = get_declared_classes();
 		// the order PHP declared them in depends on what was autoloaded before, so the first invalid benchmark would too
@@ -71,7 +80,9 @@ final class DirectorySuiteLoader
 					throw new InvalidBenchmarkException($className . '::' . $method->getName() . '()', 'a bench* method must be public and not static. Rename it if it is not a benchmark.');
 				}
 
-				$expanded[] = $this->expander->expand($class, $method, $hooks, $configuration);
+				$file = (string) $method->getDeclaringClass()->getFileName();
+				$attributes[$file] ??= $this->rewriter->index((string) file_get_contents($file));
+				$expanded[] = $this->expander->expand($class, $method, $hooks, $attributes[$file], $configuration);
 			}
 		}
 

@@ -17,6 +17,7 @@ use Tally\Discovery\CaseExpander;
 use Tally\Discovery\GrowthPoints;
 use Tally\Discovery\InvalidBenchmarkException;
 use Tally\Discovery\ValueTypeCheck;
+use Tally\Expectation\AttributeIndex;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Expression\Evaluator;
 use Tally\Expression\ExpressionErrors;
@@ -44,12 +45,14 @@ final class CaseExpanderBench
 {
 
 	/**
-	 * @return iterable<string, array{int, int}> the methods and data sets of the class
+	 * @return iterable<string, array{int, int, AttributeIndex}> the methods and data sets of the class,
+	 *     and the attributes of its file, which the loader indexes once before expanding its methods
 	 */
 	public static function classes(): iterable
 	{
+		$source = new SuiteSource();
 		foreach ([10, 100] as $size) {
-			yield sprintf('size-%d', $size) => [$size, $size];
+			yield sprintf('size-%d', $size) => [$size, $size, (new ExpectedAttributeRewriter())->index($source->code($size, $size, true))];
 		}
 	}
 
@@ -74,12 +77,13 @@ final class CaseExpanderBench
 	public function declareClass(int $methods, int $dataSets): void
 	{
 		$source = new SuiteSource();
+		$code = $source->code($methods, $dataSets, true);
 		if (class_exists($source->className($methods, $dataSets), false)) {
 			return;
 		}
 
 		$file = sprintf('%s/Suite%dx%dBench.php', $this->scratch->path(), $methods, $dataSets);
-		file_put_contents($file, $source->code($methods, $dataSets, true));
+		file_put_contents($file, $code);
 		require $file;
 	}
 
@@ -89,7 +93,7 @@ final class CaseExpanderBench
 	#[DataProvider('classes')]
 	#[ExpectedFor('size-10', instructions: '1.835M', cycles: '2.451M', memory: '19.59KiB')]
 	#[ExpectedFor('size-100', instructions: '19.02M', cycles: '25.07M', memory: '174.3KiB')]
-	public function benchExpand(int $methods, int $dataSets): void
+	public function benchExpand(int $methods, int $dataSets, AttributeIndex $attributes): void
 	{
 		$name = (new SuiteSource())->className($methods, $dataSets);
 		if (!class_exists($name, false)) {
@@ -103,7 +107,7 @@ final class CaseExpanderBench
 				continue;
 			}
 
-			$this->expander->expand($class, $method, $hooks, $this->configuration);
+			$this->expander->expand($class, $method, $hooks, $attributes, $this->configuration);
 		}
 	}
 

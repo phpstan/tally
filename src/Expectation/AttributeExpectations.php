@@ -4,18 +4,22 @@ namespace Tally\Expectation;
 
 use Override;
 use Tally\Metrics;
-use function file_get_contents;
 use function sprintf;
 
 /**
- * The #[Expected] attribute of a benchmark method, or the #[ExpectedFor] of one of its data sets.
+ * The #[Expected] attribute of a benchmark method, or the #[ExpectedFor] of one of its data sets,
+ * found in the index of its file, which all cases of the file share.
  */
 final class AttributeExpectations implements ExpectationSource
 {
 
+	/**
+	 * @param AttributeIndex $index of the file's code when the benchmarks were loaded
+	 */
 	public function __construct(
 		private ExpectedAttributeRewriter $rewriter,
 		private string $file,
+		private AttributeIndex $index,
 		private string $class,
 		private string $method,
 		private ?string $dataSet,
@@ -38,20 +42,19 @@ final class AttributeExpectations implements ExpectationSource
 	}
 
 	#[Override]
-	public function rewrite(string $code, Metrics $measured): string
+	public function edits(string $code, Metrics $measured): array
 	{
-		return $this->rewriter->rewrite($code, $this->class, $this->method, $this->dataSet, $measured, $this->namedArguments);
+		if ($code !== $this->index->code) {
+			throw new ExpectationException(sprintf('%s changed after Tally loaded it, run the command again.', $this->file));
+		}
+
+		return $this->rewriter->edits($this->index, $this->class, $this->method, $this->dataSet, $measured, $this->namedArguments);
 	}
 
 	#[Override]
 	public function location(): SourceLocation
 	{
-		$code = @file_get_contents($this->file);
-		if ($code === false) {
-			throw new ExpectationException(sprintf('Cannot read %s.', $this->file));
-		}
-
-		return new SourceLocation($this->file, $this->rewriter->locate($code, $this->class, $this->method, $this->dataSet));
+		return new SourceLocation($this->file, $this->rewriter->locate($this->index, $this->class, $this->method, $this->dataSet));
 	}
 
 }

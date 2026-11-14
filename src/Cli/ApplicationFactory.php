@@ -74,11 +74,12 @@ final class ApplicationFactory
 		$closestName = new ClosestName();
 		$argumentResolver = new ArgumentResolver();
 		$constructorArguments = new ConstructorArguments();
+		$rewriter = new ExpectedAttributeRewriter();
 		$functions = new FunctionLibrary([new Log(), new SquareRoot(), new Exponential(), new Factorial()]);
 		$expressionErrors = new ExpressionErrors($closestName);
 		$growthPoints = new GrowthPoints(new Parser(new Lexer()), new TypeChecker($functions, $expressionErrors), new Evaluator($functions, $expressionErrors));
 		$selectedCases = new SelectedCases(
-			new DirectorySuiteLoader(new CaseExpander(new ExpectedAttributeRewriter(), new AttributeFactory(new ValueTypeCheck()), $argumentResolver, $growthPoints), $constructorArguments, $relativePath),
+			new DirectorySuiteLoader(new CaseExpander($rewriter, new AttributeFactory(new ValueTypeCheck()), $argumentResolver, $growthPoints), $constructorArguments, $rewriter, $relativePath),
 			$workingDirectory,
 		);
 		$idle = new IdleCounter();

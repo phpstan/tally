@@ -562,7 +562,7 @@ An `ExpectationSource` has four methods:
 | --- | --- |
 | `read(): ?Metrics` | The expected numbers, `null` for a new case. |
 | `file(): string` | The file that keeps them. |
-| `rewrite(string $code, Metrics $measured): string` | The code of the file with the measured numbers instead. Takes and returns code without reading or writing the file, so `tally accept` writes it and `tally run` shows it as a patch. |
+| `edits(string $code, Metrics $measured): list<CodeEdit>` | The edits of the file's code that write the measured numbers instead, each a `Tally\Expectation\CodeEdit` of an offset, a length, and the text that replaces those bytes. Takes code and returns edits without reading or writing the file, so `tally accept` writes the edited code and `tally run` shows it as a patch. Tally applies the edits of all cases of a file in one pass: they must not overlap, equal edits, such as the same import, are made once, and insertions at one offset go in the natural order of their text. |
 | `location(): SourceLocation` | Where reports point to. Throws `ExpectationException` when the case's numbers cannot be rewritten, so `tally run` fails before counting. |
 
 [examples/Scripts](examples/Scripts) is the whole example.

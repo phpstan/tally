@@ -19,6 +19,7 @@ use Tally\Complexity\GrowthPoint;
 use Tally\Configuration;
 use Tally\DataSet;
 use Tally\Expectation\AttributeExpectations;
+use Tally\Expectation\AttributeIndex;
 use Tally\Expectation\ExpectationSource;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Metrics;
@@ -77,10 +78,11 @@ final class CaseExpander
 	/**
 	 * @param ReflectionClass<object> $class
 	 * @param array{before: list<string>, after: list<string>} $hooks what hooks() returns for the class
+	 * @param AttributeIndex $attributes of the file that declares the method
 	 * @return list<BenchmarkCase> in the order the data provider yields them
 	 * @throws InvalidBenchmarkException
 	 */
-	public function expand(ReflectionClass $class, ReflectionMethod $method, array $hooks, Configuration $configuration): array
+	public function expand(ReflectionClass $class, ReflectionMethod $method, array $hooks, AttributeIndex $attributes, Configuration $configuration): array
 	{
 		$where = $class->getName() . '::' . $method->getName() . '()';
 		foreach ([Before::class => 'Before', After::class => 'After'] as $hook => $name) {
@@ -103,7 +105,7 @@ final class CaseExpander
 			$arguments,
 			$warmup,
 			$hooks,
-			new AttributeExpectations($this->rewriter, $file, $declaringClass, $method->getName(), $dataSet, $metrics, $configuration->namedArguments()),
+			new AttributeExpectations($this->rewriter, $file, $attributes, $declaringClass, $method->getName(), $dataSet, $metrics, $configuration->namedArguments()),
 			$tolerance,
 		);
 
