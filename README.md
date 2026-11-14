@@ -359,6 +359,8 @@ Accept the new numbers
 ```
 
 The progress bar shows one character per case: `.` unchanged, `S` slower, `F` faster, `N` new, `E` not measured.
+The commands under "Reproduce locally" and "Accept the new numbers" run Tally the way you ran it, such as `tools/tally/vendor/bin/tally` when Tally has a Composer project of its own.
+
 
 A case is **slower** when a metric exceeds its expected value by more than the tolerance, and **faster** when it is lower by more. A case that throws, exits, or times out is **not measured**. A case without expected numbers is **new**. Slower and not measured cases fail the run. Faster and new cases pass, but their numbers should be accepted, so a later slowdown back to the old numbers does not go unnoticed.
 

@@ -29,7 +29,7 @@ final class InProcessTally
 	 */
 	public static function run(string $workingDirectory, array $environment, array $arguments): array
 	{
-		return self::runWithCodSpeed(ValgrindFixture::codspeed(), $workingDirectory, $environment, $arguments);
+		return self::runAs('vendor/bin/tally', ValgrindFixture::codspeed(), $workingDirectory, $environment, $arguments);
 	}
 
 	/**
@@ -39,6 +39,18 @@ final class InProcessTally
 	 * @return array{int, string, string} the exit code, the output, and the error output
 	 */
 	public static function runWithCodSpeed(string $codspeed, string $workingDirectory, array $environment, array $arguments): array
+	{
+		return self::runAs('vendor/bin/tally', $codspeed, $workingDirectory, $environment, $arguments);
+	}
+
+	/**
+	 * @param string $program how the user ran Tally, argv[0]
+	 * @param string $codspeed the build of CodSpeed's Valgrind that tally run counts with
+	 * @param array<string, string> $environment
+	 * @param list<string> $arguments without the program
+	 * @return array{int, string, string} the exit code, the output, and the error output
+	 */
+	public static function runAs(string $program, string $codspeed, string $workingDirectory, array $environment, array $arguments): array
 	{
 		$output = fopen('php://memory', 'w+');
 		$errorOutput = fopen('php://memory', 'w+');
@@ -57,8 +69,8 @@ final class InProcessTally
 		}
 
 		$exitCode = (new ApplicationFactory())
-			->create($output, $errorOutput, $workingDirectory, $environment, false, false, PHP_BINARY, $iniFiles, self::BINARY, $codspeed)
-			->run(['tally', ...$arguments]);
+			->create($output, $errorOutput, $workingDirectory, $environment, false, false, PHP_BINARY, $iniFiles, self::BINARY, $program, $codspeed)
+			->run([$program, ...$arguments]);
 
 		rewind($output);
 		rewind($errorOutput);

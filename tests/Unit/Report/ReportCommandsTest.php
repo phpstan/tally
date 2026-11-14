@@ -13,8 +13,26 @@ final class ReportCommandsTest extends TestCase
 	{
 		$worst = Comparisons::compare("App\\ABench::benchSlower@it's", 1, ['instructions' => 1], ['instructions' => 2], null);
 
-		$this->assertSame("vendor/bin/tally run --filter='App\\ABench::benchSlower@it'\\''s'", (new ReportCommands())->reproduce($worst));
-		$this->assertSame('', (new ReportCommands())->reproduce(null));
+		$this->assertSame("vendor/bin/tally run --filter='App\\ABench::benchSlower@it'\\''s'", (new ReportCommands('vendor/bin/tally'))->reproduce($worst));
+		$this->assertSame('', (new ReportCommands('vendor/bin/tally'))->reproduce(null));
+	}
+
+	/**
+	 * @return iterable<string, array{string, string}>
+	 */
+	public static function dataProgram(): iterable
+	{
+		yield 'a Composer project of its own' => ['tools/tally/vendor/bin/tally', "tools/tally/vendor/bin/tally run --filter='App\\ABench::benchSlower'\ntools/tally/vendor/bin/tally run --output=tmp/tally\ntools/tally/vendor/bin/tally accept tmp/tally"];
+		yield 'a path the shell splits' => ['/home/me/my project/tally', "'/home/me/my project/tally' run --filter='App\\ABench::benchSlower'\n'/home/me/my project/tally' run --output=tmp/tally\n'/home/me/my project/tally' accept tmp/tally"];
+	}
+
+	#[DataProvider('dataProgram')]
+	public function testCommandsRunTheProgramAsGiven(string $program, string $commands): void
+	{
+		$worst = Comparisons::compare('App\\ABench::benchSlower', 1, ['instructions' => 1], ['instructions' => 2], null);
+		$reportCommands = new ReportCommands($program);
+
+		$this->assertSame($commands, $reportCommands->reproduce($worst) . "\n" . $reportCommands->accept([], null));
 	}
 
 	/**
@@ -38,7 +56,7 @@ final class ReportCommandsTest extends TestCase
 	#[DataProvider('dataAccept')]
 	public function testAccept(array $environment, ?string $resultsDirectory, string $command): void
 	{
-		$this->assertSame($command, (new ReportCommands())->accept($environment, $resultsDirectory));
+		$this->assertSame($command, (new ReportCommands('vendor/bin/tally'))->accept($environment, $resultsDirectory));
 	}
 
 }
