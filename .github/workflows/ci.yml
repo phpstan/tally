@@ -431,7 +431,7 @@ jobs:
           if-no-files-found: ignore
 
   release-tree:
-    name: "Release tree (${{ matrix.runner }}, PHP ${{ matrix.php-version }})"
+    name: "Release tree (${{ matrix.runner }}, PHP ${{ matrix.php-version }} ${{ matrix.phpts }})"
     # Checks the tree release/1.x gets from this commit the way a project installs it, on each platform
     needs: ["codspeed", "tally-hooks"]
     if: ${{ !cancelled() && !failure() }}
@@ -448,6 +448,16 @@ jobs:
         php-version:
           - "8.2"
           - "8.5"
+        phpts:
+          - "nts"
+        # and the thread safe build, which tally run picks by ZEND_THREAD_SAFE
+        include:
+          - runner: "ubuntu-24.04"
+            php-version: "8.5"
+            phpts: "ts"
+          - runner: "ubuntu-24.04-arm"
+            php-version: "8.5"
+            phpts: "ts"
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -466,6 +476,14 @@ jobs:
           coverage: "none"
           php-version: "${{ matrix.php-version }}"
           extensions: posix
+        env:
+          phpts: ${{ matrix.phpts }}
+
+      - name: "Check the thread safety of PHP"
+        env:
+          PHPTS: ${{ matrix.phpts }}
+        run: |
+          php -r 'echo PHP_VERSION, ZEND_THREAD_SAFE ? " ZTS" : " NTS", "\n"; exit(ZEND_THREAD_SAFE === (getenv("PHPTS") === "ts") ? 0 : 1);'
 
       - name: "Download CodSpeed's Valgrind"
         if: ${{ !startsWith(github.ref_name, 'release/') }}
