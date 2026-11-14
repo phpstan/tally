@@ -17,7 +17,7 @@ use function sort;
 final class SortBench
 {
 
-	#[Expected(instructions: '59.00K', cycles: '94.43K', memory: '10.53KiB')]
+	#[Expected(instructions: '59.04K', cycles: '87.55K', memory: '10.59KiB')]
 	public function benchSortHundred(): void
 	{
 		$numbers = range(100, 1, -1);
@@ -44,7 +44,7 @@ final class SortBench
 	 * @param list<int> $numbers
 	 */
 	#[DataProvider('shuffled')]
-	#[ExpectedFor('size-10', instructions: '4.563K', cycles: '20.96K', memory: '1.023KiB')]
+	#[ExpectedFor('size-10', instructions: '4.563K', cycles: '16.21K', memory: '1.023KiB')]
 	#[ExpectedFor('size-1000', instructions: '955.3K', cycles: '1.119M', memory: '59.88KiB')]
 	public function benchSort(array $numbers): void
 	{

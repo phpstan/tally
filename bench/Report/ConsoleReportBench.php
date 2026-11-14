@@ -39,7 +39,7 @@ final class ConsoleReportBench
 	}
 
 	#[DataProvider('reports')]
-	#[ExpectedFor('cases-100-slower-10', instructions: '2.757M', cycles: '3.625M', memory: '43.66KiB')]
+	#[ExpectedFor('cases-100-slower-10', instructions: '2.743M', cycles: '3.210M', memory: '43.93KiB')]
 	#[ExpectedFor('cases-1000-slower-1000', instructions: '160.2M', cycles: '202.0M', memory: '3.994MiB')]
 	public function benchSummary(Report $report): void
 	{

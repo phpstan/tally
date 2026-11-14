@@ -86,8 +86,8 @@ final class CaseExpanderBench
 	 * @throws InvalidBenchmarkException
 	 */
 	#[DataProvider('classes')]
-	#[ExpectedFor('size-10', instructions: '1.704M', cycles: '2.606M', memory: '18.84KiB')]
-	#[ExpectedFor('size-100', instructions: '17.69M', cycles: '23.99M', memory: '170.8KiB')]
+	#[ExpectedFor('size-10', instructions: '1.835M', cycles: '2.451M', memory: '19.59KiB')]
+	#[ExpectedFor('size-100', instructions: '19.02M', cycles: '25.07M', memory: '174.3KiB')]
 	public function benchExpand(int $methods, int $dataSets): void
 	{
 		$name = (new SuiteSource())->className($methods, $dataSets);

@@ -28,8 +28,8 @@ final class CallgrindProfileBench
 	}
 
 	#[DataProvider('profiles')]
-	#[ExpectedFor('functions-100', instructions: '748.1K', cycles: '988.5K', memory: '64.20KiB')]
-	#[ExpectedFor('functions-10000', instructions: '53.47M', cycles: '65.04M', memory: '4.068MiB')]
+	#[ExpectedFor('functions-100', instructions: '747.9K', cycles: '799.4K', memory: '64.41KiB')]
+	#[ExpectedFor('functions-10000', instructions: '53.12M', cycles: '56.83M', memory: '4.069MiB')]
 	public function benchParts(string $profile): void
 	{
 		(new CallgrindProfile())->parts($profile);
