@@ -40,5 +40,10 @@
 	},
 	"bin": [
 		"bin/tally"
-	]
+	],
+	"extra": {
+		"skills": {
+			"source": "skills"
+		}
+	}
 }

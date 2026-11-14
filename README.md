@@ -35,6 +35,7 @@ Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simul
 - [Contributing a benchmark](#contributing-a-benchmark)
 - [Storing expectations elsewhere](#storing-expectations-elsewhere)
 - [Lifecycle of a case](#lifecycle-of-a-case)
+- [Agent skills](#agent-skills)
 
 ## Installation
 
@@ -358,9 +359,9 @@ Accept the new numbers
   vendor/bin/tally accept tmp/tally
 ```
 
-The progress bar shows one character per case: `.` unchanged, `S` slower, `F` faster, `N` new, `E` not measured.
 The commands under "Reproduce locally" and "Accept the new numbers" run Tally the way you ran it, such as `tools/tally/vendor/bin/tally` when Tally has a Composer project of its own.
 
+The progress bar shows one character per case: `.` unchanged, `S` slower, `F` faster, `N` new, `E` not measured.
 
 A case is **slower** when a metric exceeds its expected value by more than the tolerance, and **faster** when it is lower by more. A case that throws, exits, or times out is **not measured**. A case without expected numbers is **new**. Slower and not measured cases fail the run. Faster and new cases pass, but their numbers should be accepted, so a later slowdown back to the old numbers does not go unnoticed.
 
@@ -608,6 +609,42 @@ The native process runs the same steps without the simulation, so hooks and warm
 Instructions and cycles come from Callgrind's profile of the benchmark's span. Memory is the peak above the memory used when counting started, minus that of the baseline.
 
 Cycles are Valgrind's estimate: instructions, plus 10 for each first-level cache miss and 100 for each last-level cache miss of the simulated cache. The cache sizes are the same on every machine.
+
+## Agent skills
+
+Tally comes with [Agent Skills](https://agentskills.io) for coding agents such as Claude Code and Codex, in [skills/](skills):
+
+- `tally-rewind` finds the commits of a project that fixed performance problems, turns each into a Tally benchmark locked at the fix, and replays it on every release since. It then makes today's code beat the best numbers the code ever had, keeping only changes that make a real workload faster in wall-clock time. It adds the benchmarks to the project, and sets up Tally and its CI job when the project has none.
+
+Install them as a plugin, for all your projects:
+
+```bash
+claude plugin marketplace add phpstan/tally
+claude plugin install tally@phpstan
+
+codex plugin marketplace add phpstan/tally
+codex plugin add tally@phpstan
+```
+
+Or into one project, in `.agents/skills/`, with [skills](https://github.com/vercel-labs/skills), which links them into `.claude/skills/` for Claude Code:
+
+```bash
+npx skills add phpstan/tally -a claude-code -a codex
+```
+
+Or with Composer and [llm/skills](https://github.com/roxblnfk/skills), which copies the skills of the packages a project requires into `.agents/skills/` after every `composer install` and `update`, so they stay in the version of Tally the project has:
+
+```bash
+composer require --dev llm/skills
+```
+
+Claude Code reads `.claude/skills/`, so for it add a `skills.json` next to `composer.json`, then run `composer skills:update`:
+
+```json
+{
+	"aliases": [".claude/skills"]
+}
+```
 
 ## License
 

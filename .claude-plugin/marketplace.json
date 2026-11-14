@@ -1,0 +1,13 @@
+{
+	"name": "phpstan",
+	"owner": {
+		"name": "PHPStan"
+	},
+	"plugins": [
+		{
+			"name": "tally",
+			"source": "./",
+			"description": "Agent Skills for benchmarking PHP code with Tally."
+		}
+	]
+}

@@ -1,0 +1,7 @@
+{
+	"name": "tally",
+	"description": "Agent Skills for benchmarking PHP code with Tally.",
+	"homepage": "https://github.com/phpstan/tally",
+	"repository": "https://github.com/phpstan/tally",
+	"license": "MIT"
+}
