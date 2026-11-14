@@ -67,7 +67,7 @@ final class CompareCommand implements Command
 		if ($input->flag('table')) {
 			$output->write($this->reportOutput->table($report, $output) . "\n");
 		}
-		$this->reportOutput->write($report, $cases, $measurements, $output, $this->environment, $this->workingDirectory, $this->resultsArguments->directory($input));
+		$this->reportOutput->write($report, $cases, $measurements, $output, $this->environment, $this->workingDirectory, $this->resultsArguments->directory($input), false);
 
 		return $report->fails() ? Application::EXIT_FAILURE : Application::EXIT_SUCCESS;
 	}

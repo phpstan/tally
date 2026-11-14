@@ -183,6 +183,19 @@ final class RunCommandTest extends TestCase
 		$this->assertSame(0, proc_close($check));
 	}
 
+	public function testAShardWritesNoAnnotationsAndNoJobSummary(): void
+	{
+		$summary = $this->output . '-shard-summary.md';
+		$environment = ['GITHUB_ACTIONS' => 'true', 'GITHUB_STEP_SUMMARY' => $summary] + $this->environment();
+
+		[$exitCode, $output] = InProcessTally::run((string) realpath(__DIR__ . '/../../..'), $environment, ['run', '--filter=benchSlower', '--shard=1/1', self::RUN]);
+
+		$this->assertSame(1, $exitCode);
+		$this->assertStringContainsString('Benchmarks failed: 1 slower', $output);
+		$this->assertStringNotContainsString('::error', $output);
+		$this->assertFileDoesNotExist($summary);
+	}
+
 	public function testAnnotationsPointToFilesInTheWorkspaceFromASubdirectory(): void
 	{
 		$environment = ['GITHUB_ACTIONS' => 'true', 'GITHUB_WORKSPACE' => (string) realpath(__DIR__ . '/../../..')] + $this->environment();
