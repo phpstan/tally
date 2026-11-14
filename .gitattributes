@@ -1,6 +1,7 @@
 *.php text eol=lf
 
 .agents export-ignore
+.claude-plugin export-ignore
 .bashunitrc export-ignore
 .github export-ignore
 bench export-ignore
