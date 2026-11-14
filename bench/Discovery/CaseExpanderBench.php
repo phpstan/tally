@@ -35,8 +35,9 @@ use function file_put_contents;
 use function sprintf;
 
 /**
- * Every tally command, and every worker tally run starts for a case, loads the whole suite, so
- * the cases of each benchmark method are expanded once per case of the run.
+ * Every tally command loads the whole suite, and every worker tally run starts for a case loads
+ * the file of its class, so the cases of each benchmark method are expanded once per case of
+ * their file.
  */
 #[Warmup(1)]
 final class CaseExpanderBench

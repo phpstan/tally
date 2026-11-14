@@ -63,6 +63,7 @@ final class SuiteSource
 	{
 		return new BenchmarkCase(
 			new CaseId($class, $method, $dataSet),
+			self::FILE,
 			[],
 			0,
 			[],

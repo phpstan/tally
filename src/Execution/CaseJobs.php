@@ -3,6 +3,7 @@
 namespace Tally\Execution;
 
 use RuntimeException;
+use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Measurement;
 use Tally\Process\ProcessCommand;
@@ -38,9 +39,9 @@ final class CaseJobs
 	 * @return non-empty-list<ProcessCommand>
 	 * @throws RuntimeException when the case's directories cannot be created
 	 */
-	public function steps(WorkerSettings $settings, CaseId $id): array
+	public function steps(WorkerSettings $settings, BenchmarkCase $case): array
 	{
-		$directory = $this->directory($settings, $id);
+		$directory = $this->directory($settings, $case->id);
 		foreach (['/scratch', '/profile'] as $subdirectory) {
 			if (!is_dir($directory . $subdirectory) && !@mkdir($directory . $subdirectory, 0777, true)) {
 				throw new RuntimeException(sprintf('Cannot create %s.', $directory . $subdirectory));
@@ -49,12 +50,12 @@ final class CaseJobs
 
 		return [
 			new ProcessCommand(
-				$this->commandLine->native($settings, $id, $directory . '/scratch', $directory . '/native.json'),
+				$this->commandLine->native($settings, $case, $directory . '/scratch', $directory . '/native.json'),
 				$directory . '/native.log',
 				$settings->nativeTimeLimitSeconds,
 			),
 			new ProcessCommand(
-				$this->commandLine->counted($settings, $id, $directory . '/scratch', $directory . '/counted.json', $directory . '/profile'),
+				$this->commandLine->counted($settings, $case, $directory . '/scratch', $directory . '/counted.json', $directory . '/profile'),
 				$directory . '/counted.log',
 				$settings->countedTimeLimitSeconds,
 			),

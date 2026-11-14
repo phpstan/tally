@@ -2,7 +2,7 @@
 
 namespace Tally\Execution;
 
-use Tally\CaseId;
+use Tally\BenchmarkCase;
 
 /**
  * The commands that run one case with tally worker: natively, and under CodSpeed's CPU simulation.
@@ -51,12 +51,12 @@ final class WorkerCommandLine
 	/**
 	 * @return non-empty-list<string>
 	 */
-	public function native(WorkerSettings $settings, CaseId $id, string $scratch, string $result): array
+	public function native(WorkerSettings $settings, BenchmarkCase $case, string $scratch, string $result): array
 	{
 		return [
 			$this->phpBinary,
 			...$this->ini($settings->iniEntries),
-			...$this->worker($settings, $id, $scratch, $result, []),
+			...$this->worker($settings, $case, $scratch, $result, []),
 		];
 	}
 
@@ -66,7 +66,7 @@ final class WorkerCommandLine
 	 *
 	 * @return non-empty-list<string>
 	 */
-	public function counted(WorkerSettings $settings, CaseId $id, string $scratch, string $result, string $profileFolder): array
+	public function counted(WorkerSettings $settings, BenchmarkCase $case, string $scratch, string $result, string $profileFolder): array
 	{
 		return [
 			$settings->valgrind,
@@ -78,7 +78,7 @@ final class WorkerCommandLine
 				...($settings->extension === null ? [] : ['extension=' . $settings->extension]),
 				...$settings->iniEntries,
 			]),
-			...$this->worker($settings, $id, $scratch, $result, ['--counted']),
+			...$this->worker($settings, $case, $scratch, $result, ['--counted']),
 		];
 	}
 
@@ -98,20 +98,24 @@ final class WorkerCommandLine
 	}
 
 	/**
+	 * The worker loads only the file of the case's class, so the cost of starting it does not grow
+	 * with the suite, and the data providers of other files do not run.
+	 *
 	 * @param list<string> $options
 	 * @return list<string>
 	 */
-	private function worker(WorkerSettings $settings, CaseId $id, string $scratch, string $result, array $options): array
+	private function worker(WorkerSettings $settings, BenchmarkCase $case, string $scratch, string $result, array $options): array
 	{
 		return [
 			$this->tallyBinary,
 			'worker',
-			'--case=' . $id->toString(),
+			'--case=' . $case->id->toString(),
 			'--scratch=' . $scratch,
 			'--result=' . $result,
 			...$options,
-			// last, they can end with paths after --
-			...$settings->suiteArguments,
+			...$settings->suiteOptions,
+			'--',
+			$case->file,
 		];
 	}
 

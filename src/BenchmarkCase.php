@@ -13,6 +13,7 @@ final class BenchmarkCase
 {
 
 	/**
+	 * @param string $file the file that declares the benchmark's class, the one the workers load
 	 * @param list<mixed> $arguments
 	 * @param list<string> $beforeMethods
 	 * @param list<string> $afterMethods
@@ -20,6 +21,7 @@ final class BenchmarkCase
 	 */
 	public function __construct(
 		public readonly CaseId $id,
+		public readonly string $file,
 		public readonly array $arguments,
 		public readonly int $warmup,
 		public readonly array $beforeMethods,
@@ -34,7 +36,7 @@ final class BenchmarkCase
 	/** The case compared by how its instructions grow, instead of by expected numbers */
 	public function withGrowth(GrowthPoint $growth): self
 	{
-		return new self($this->id, $this->arguments, $this->warmup, $this->beforeMethods, $this->afterMethods, $this->expectations, $this->tolerance, $growth);
+		return new self($this->id, $this->file, $this->arguments, $this->warmup, $this->beforeMethods, $this->afterMethods, $this->expectations, $this->tolerance, $growth);
 	}
 
 }

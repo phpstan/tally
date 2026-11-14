@@ -5,6 +5,8 @@ namespace Tally\Tests\Integration\Execution;
 use Override;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Tally\Attribute\RelativeTolerance;
+use Tally\BenchmarkCase;
 use Tally\CaseId;
 use Tally\Execution\CaseJobs;
 use Tally\Execution\CaseOutcome;
@@ -18,6 +20,7 @@ use Tally\Process\ProcessCommand;
 use Tally\Process\ProcessResult;
 use Tally\Result\CallgrindProfile;
 use Tally\Result\MeasurementJson;
+use Tally\Tests\InMemoryExpectations;
 use function array_map;
 use function file_put_contents;
 use function getmypid;
@@ -47,18 +50,18 @@ final class CaseJobsTest extends TestCase
 
 	public function testTheCaseRunsNativelyAndThenUnderCallgrind(): void
 	{
-		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
+		$steps = self::jobs()->steps($this->settings($this->directory), self::case());
 
 		$this->assertDirectoryExists($this->caseDirectory . '/scratch');
 		$this->assertDirectoryExists($this->caseDirectory . '/profile');
 		$commandLine = new WorkerCommandLine('php', 'bin/tally');
 		$settings = $this->settings($this->directory);
-		$id = CaseId::fromString(self::ID);
+		$case = self::case();
 		$scratch = $this->caseDirectory . '/scratch';
 		$this->assertEquals(
 			[
-				new ProcessCommand($commandLine->native($settings, $id, $scratch, $this->caseDirectory . '/native.json'), $this->caseDirectory . '/native.log', 60),
-				new ProcessCommand($commandLine->counted($settings, $id, $scratch, $this->caseDirectory . '/counted.json', $this->caseDirectory . '/profile'), $this->caseDirectory . '/counted.log', 1800),
+				new ProcessCommand($commandLine->native($settings, $case, $scratch, $this->caseDirectory . '/native.json'), $this->caseDirectory . '/native.log', 60),
+				new ProcessCommand($commandLine->counted($settings, $case, $scratch, $this->caseDirectory . '/counted.json', $this->caseDirectory . '/profile'), $this->caseDirectory . '/counted.log', 1800),
 			],
 			$steps,
 		);
@@ -69,12 +72,12 @@ final class CaseJobsTest extends TestCase
 		$this->expectException(RuntimeException::class);
 		$this->expectExceptionMessage('Cannot create /nonexistent/tally/' . CaseId::fromString(self::ID)->fileName() . '/scratch.');
 
-		self::jobs()->steps($this->settings('/nonexistent/tally'), CaseId::fromString(self::ID));
+		self::jobs()->steps($this->settings('/nonexistent/tally'), self::case());
 	}
 
 	public function testMeasuresTheCaseFromWhatItsRunsLeft(): void
 	{
-		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
+		$steps = self::jobs()->steps($this->settings($this->directory), self::case());
 		$json = new MeasurementJson();
 		file_put_contents($this->caseDirectory . '/native.json', $json->encode(self::memory(1)));
 		file_put_contents($this->caseDirectory . '/counted.json', $json->encode(self::memory(2048)));
@@ -93,7 +96,7 @@ final class CaseJobsTest extends TestCase
 
 	public function testAFailedNativeRunWithItsOutput(): void
 	{
-		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
+		$steps = self::jobs()->steps($this->settings($this->directory), self::case());
 		file_put_contents($this->caseDirectory . '/native.log', "PHP Fatal error:  Out of memory\n");
 
 		$measurement = self::jobs()->measurement($this->settings($this->directory), CaseId::fromString(self::ID), [ProcessResult::exited($steps[0], 255)]);
@@ -103,7 +106,7 @@ final class CaseJobsTest extends TestCase
 
 	public function testAnInvalidResult(): void
 	{
-		$steps = self::jobs()->steps($this->settings($this->directory), CaseId::fromString(self::ID));
+		$steps = self::jobs()->steps($this->settings($this->directory), self::case());
 		file_put_contents($this->caseDirectory . '/native.json', (new MeasurementJson())->encode(self::memory(1)));
 		file_put_contents($this->caseDirectory . '/counted.json', '{');
 
@@ -114,6 +117,11 @@ final class CaseJobsTest extends TestCase
 		);
 
 		$this->assertSame('The counted run wrote an invalid result: it is not JSON.', $measurement->failure);
+	}
+
+	private static function case(): BenchmarkCase
+	{
+		return new BenchmarkCase(CaseId::fromString(self::ID), '/benchmarks/FooBench.php', [], 0, [], [], new InMemoryExpectations(null, '/benchmarks/FooBench.php'), new RelativeTolerance(0.1), null);
 	}
 
 	private static function jobs(): CaseJobs

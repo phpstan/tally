@@ -34,6 +34,7 @@ final class Cases
 			$base = $bases[$id] ?? null;
 			$cases[] = new BenchmarkCase(
 				CaseId::fromString($id),
+				'/benchmarks/FooBench.php',
 				[],
 				0,
 				[],
