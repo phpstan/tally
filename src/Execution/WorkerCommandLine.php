@@ -16,9 +16,11 @@ final class WorkerCommandLine
 	private const COUNTED_INI_ENTRIES = ['zend.max_allowed_stack_size=-1'];
 
 	/**
-	 * What codspeed run --mode=simulation of CodSpeed 5.6.3 passes, so the counts match those of
-	 * CodSpeed: the simulated caches, and counting only between the calls of tally_hooks.
-	 * Without its shell around the command, Valgrind does not need to follow child processes.
+	 * What codspeed run --mode=simulation of CodSpeed 5.6.3 passes, so the instructions match those
+	 * of CodSpeed: the simulated caches, and counting only between the calls of tally_hooks. Without
+	 * its shell around the command, Valgrind does not need to follow child processes. Unlike
+	 * CodSpeed, Tally starts the instrumentation once and collects only in the spans, so the
+	 * simulated caches stay warm between them and the cycles of small benchmarks differ.
 	 */
 	private const VALGRIND_OPTIONS = [
 		'-q',
@@ -32,6 +34,7 @@ final class WorkerCommandLine
 		'--collect-systime=nsec',
 		'--read-inline-info=yes',
 		'--instr-atstart=no',
+		'--collect-atstart=no',
 		'--separate-threads=no',
 		'--compress-strings=no',
 		'--combine-dumps=yes',

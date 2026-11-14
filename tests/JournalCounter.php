@@ -11,6 +11,12 @@ final class JournalCounter implements Counter
 {
 
 	#[Override]
+	public function prepare(): void
+	{
+		Journal::$entries[] = 'counter prepare';
+	}
+
+	#[Override]
 	public function start(): void
 	{
 		Journal::$entries[] = 'counter start';

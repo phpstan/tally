@@ -6,13 +6,12 @@ use Override;
 use function in_array;
 use function Tally\Hooks\dump;
 use function Tally\Hooks\instrumented;
-use function Tally\Hooks\start;
-use function Tally\Hooks\stop;
+use function Tally\Hooks\start_instrumentation;
 use function Tally\Hooks\toggle_collect;
 
 /**
- * Calls Tally's tally_hooks extension (ext/tally_hooks), which makes Callgrind's client requests
- * like CodSpeed's instrument-hooks library does. tally run loads it into the counted worker.
+ * Calls Tally's tally_hooks extension (ext/tally_hooks), which makes Callgrind's client requests.
+ * tally run loads it into the counted worker.
  */
 final class ExtensionInstrumentHooks implements InstrumentHooks
 {
@@ -40,15 +39,9 @@ final class ExtensionInstrumentHooks implements InstrumentHooks
 	}
 
 	#[Override]
-	public function startBenchmark(): void
+	public function startInstrumentation(): void
 	{
-		start();
-	}
-
-	#[Override]
-	public function stopBenchmark(): void
-	{
-		stop();
+		start_instrumentation();
 	}
 
 	#[Override]
@@ -58,9 +51,9 @@ final class ExtensionInstrumentHooks implements InstrumentHooks
 	}
 
 	#[Override]
-	public function setExecutedBenchmark(string $uri): void
+	public function dump(string $part): void
 	{
-		dump($uri);
+		dump($part);
 	}
 
 }

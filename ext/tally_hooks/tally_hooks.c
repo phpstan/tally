@@ -14,7 +14,7 @@
 #include "php.h"
 #include "ext/standard/info.h"
 
-#define TALLY_HOOKS_VERSION "1.0.0"
+#define TALLY_HOOKS_VERSION "1.1.0"
 #define TALLY_HOOKS_NAMESPACE "Tally\\Hooks"
 
 #ifdef TALLY_HOOKS_RECORDING
@@ -24,8 +24,7 @@
 static smart_str recorded;
 
 # define TALLY_INSTRUMENTED() (getenv("TALLY_HOOKS_OUTSIDE") == NULL)
-# define TALLY_START() smart_str_appends(&recorded, "start\n")
-# define TALLY_STOP() smart_str_appends(&recorded, "stop\n")
+# define TALLY_START_INSTRUMENTATION() smart_str_appends(&recorded, "instrument\n")
 # define TALLY_TOGGLE_COLLECT() smart_str_appends(&recorded, "toggle\n")
 # define TALLY_DUMP(name) do { \
 		smart_str_appends(&recorded, "dump "); \
@@ -36,8 +35,7 @@ static smart_str recorded;
 # include "callgrind.h"
 
 # define TALLY_INSTRUMENTED() (RUNNING_ON_VALGRIND > 0)
-# define TALLY_START() do { CALLGRIND_ZERO_STATS; CALLGRIND_START_INSTRUMENTATION; } while (0)
-# define TALLY_STOP() CALLGRIND_STOP_INSTRUMENTATION
+# define TALLY_START_INSTRUMENTATION() CALLGRIND_START_INSTRUMENTATION
 # define TALLY_TOGGLE_COLLECT() CALLGRIND_TOGGLE_COLLECT
 # define TALLY_DUMP(name) CALLGRIND_DUMP_STATS_AT(name)
 #endif
@@ -60,19 +58,12 @@ PHP_FUNCTION(tally_hooks_instrumented)
 	RETURN_BOOL(TALLY_INSTRUMENTED());
 }
 
-/* Zeroes the counts and starts counting */
-PHP_FUNCTION(tally_hooks_start)
+/* Starts simulating the process with empty caches; it collects counts only while collecting is on */
+PHP_FUNCTION(tally_hooks_start_instrumentation)
 {
 	ZEND_PARSE_PARAMETERS_NONE();
 
-	TALLY_START();
-}
-
-PHP_FUNCTION(tally_hooks_stop)
-{
-	ZEND_PARSE_PARAMETERS_NONE();
-
-	TALLY_STOP();
+	TALLY_START_INSTRUMENTATION();
 }
 
 /* Turns collecting the counts off or on, keeping the simulated caches */
@@ -83,7 +74,7 @@ PHP_FUNCTION(tally_hooks_toggle_collect)
 	TALLY_TOGGLE_COLLECT();
 }
 
-/* Writes the counts so far as a part of the profile with this name */
+/* Writes the counts collected since the last dump as a part of the profile with this name */
 PHP_FUNCTION(tally_hooks_dump)
 {
 	zend_string *name;
@@ -115,8 +106,7 @@ PHP_FUNCTION(tally_hooks_recorded_calls)
 
 static const zend_function_entry tally_hooks_functions[] = {
 	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, instrumented, ZEND_FN(tally_hooks_instrumented), arginfo_bool)
-	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, start, ZEND_FN(tally_hooks_start), arginfo_void)
-	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, stop, ZEND_FN(tally_hooks_stop), arginfo_void)
+	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, start_instrumentation, ZEND_FN(tally_hooks_start_instrumentation), arginfo_void)
 	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, toggle_collect, ZEND_FN(tally_hooks_toggle_collect), arginfo_void)
 	ZEND_NS_NAMED_FE(TALLY_HOOKS_NAMESPACE, dump, ZEND_FN(tally_hooks_dump), arginfo_dump)
 #ifdef TALLY_HOOKS_RECORDING

@@ -18,6 +18,12 @@ final class RecordingCounter implements Counter
 	}
 
 	#[Override]
+	public function prepare(): void
+	{
+		$this->calls[] = 'prepare';
+	}
+
+	#[Override]
 	public function start(): void
 	{
 		$this->calls[] = 'start';

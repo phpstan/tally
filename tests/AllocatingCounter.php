@@ -14,6 +14,11 @@ final class AllocatingCounter implements Counter
 	}
 
 	#[Override]
+	public function prepare(): void
+	{
+	}
+
+	#[Override]
 	public function start(): void
 	{
 	}

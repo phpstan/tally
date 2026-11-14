@@ -44,8 +44,8 @@ composer require --dev phpstan/tally
 
 Tally needs PHP 8.2 or later with the POSIX extension, on Linux on x86_64 or aarch64. Nothing else to set up: each release includes, in `codspeed/` for both platforms,
 
-- a build of [CodSpeed's Valgrind](https://github.com/CodSpeedHQ/valgrind-codspeed), with its license and where its source is. Tally starts it with the options of `codspeed run --mode=simulation`, so it counts like CodSpeed, but needs neither the `codspeed` CLI nor a CodSpeed account, and uploads nothing.
-- builds of Tally's `tally_hooks` extension ([ext/tally_hooks](ext/tally_hooks)) for PHP 8.2 to 8.6, thread safe or not. It tells Callgrind when to count, with the same client requests as CodSpeed's [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks). `tally run` loads the build for your PHP into the process that counts a case with `-d extension=`, so it needs no `php.ini` change and nothing else in your other processes.
+- a build of [CodSpeed's Valgrind](https://github.com/CodSpeedHQ/valgrind-codspeed), with its license and where its source is. Tally starts it with the simulated caches of `codspeed run --mode=simulation`, so it counts the same instructions as CodSpeed, but needs neither the `codspeed` CLI nor a CodSpeed account, and uploads nothing.
+- builds of Tally's `tally_hooks` extension ([ext/tally_hooks](ext/tally_hooks)) for PHP 8.2 to 8.6, thread safe or not. It tells Callgrind when to count, with the client requests of Valgrind's `callgrind.h`. `tally run` loads the build for your PHP into the process that counts a case with `-d extension=`, so it needs no `php.ini` change and nothing else in your other processes.
 
 A debug build of PHP, or another PHP whose extension API differs from the official one, needs its own build of `tally_hooks`. Build it with `phpize` and load it in `php.ini`, then `tally run` uses it instead:
 
@@ -559,13 +559,16 @@ In each of the two processes of a case, Tally:
 1. loads the benchmarks and calls every data provider, not counted,
 2. creates the benchmark class, once, with its `Meter` and `ScratchDirectory`,
 3. calls the `#[Before]` methods, not counted,
-4. calls the benchmark as many times as `#[Warmup]` says, not counted,
-5. counts a warm-up span, because the first counted span costs about twice as much as later ones, and throws it away,
-6. counts an empty call through the same path as the benchmark, the baseline,
-7. counts one call of the benchmark,
-8. calls the `#[After]` methods, not counted.
+4. starts CodSpeed's CPU simulation, with empty caches,
+5. calls the benchmark as many times as `#[Warmup]` says, not counted, but simulated, so the calls fill the simulated caches,
+6. counts a warm-up span, because the first counted span costs more than later ones, and throws it away,
+7. counts an empty call through the same path as the benchmark, the baseline,
+8. counts one call of the benchmark,
+9. calls the `#[After]` methods, not counted.
 
-The native process runs the same steps, so hooks and warm-up calls run twice per case, once in each process. The scratch directory is shared between the two, so a `#[Before]` method that writes a file finds it already there in the second process.
+The simulation starts once, and only collecting the counts is turned on for each span, so the simulated caches stay warm from one span to the next. `codspeed run` starts it for each benchmark, which empties the caches, so the cycles of a benchmark of a few thousand instructions depend on which cache lines the code just before it happens to touch. Tally counts the same instructions as CodSpeed, and fewer cycles for small benchmarks.
+
+The native process runs the same steps without the simulation, so hooks and warm-up calls run twice per case, once in each process. The scratch directory is shared between the two, so a `#[Before]` method that writes a file finds it already there in the second process.
 
 Instructions and cycles come from Callgrind's profile of the benchmark's span. Memory is the peak above the memory used when counting started, minus that of the baseline.
 
