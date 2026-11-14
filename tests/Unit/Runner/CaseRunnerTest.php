@@ -52,6 +52,7 @@ final class CaseRunnerTest extends TestCase
 			'boot x in /scratch/x',
 			'excluded in a hook',
 			'also',
+			'counter prepare',
 			'bench x, booted x',
 			'excluded',
 			'bench x, booted x',
@@ -76,6 +77,7 @@ final class CaseRunnerTest extends TestCase
 
 		$this->assertSame([
 			'construct',
+			'counter prepare',
 			'counter start',
 			'counter stop ' . RunnerBench::class . '::benchName@y#warmup',
 			'counter start',
@@ -129,6 +131,7 @@ final class CaseRunnerTest extends TestCase
 
 		$this->assertSame([
 			'construct',
+			'counter prepare',
 			'counter start',
 			'counter stop ' . RunnerBench::class . '::benchThrows@z#warmup',
 			'counter start',

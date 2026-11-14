@@ -20,10 +20,11 @@ use function sprintf;
  * warm-up calls uncounted, counts an empty call as the baseline and then one call of the benchmark,
  * and calls the after methods, also when the benchmark throws.
  *
- * The first counted span costs more than later ones: PHP does work once on the first call of the
- * counting path, and the caches CodSpeed simulates start cold. Under the simulation, the first
- * baseline counted about twice the instructions and cycles of the second one. So the baseline is
- * counted twice, and only the second one, named after the case with #baseline, is subtracted.
+ * The counter is prepared after the before methods and before the warm-up calls, so under CodSpeed's
+ * CPU simulation the warm-up calls fill the simulated caches. The first counted span still costs
+ * more than later ones, because PHP does work once on the first call of the counting path. So the
+ * baseline is counted twice, and only the second one, named after the case with #baseline, is
+ * subtracted.
  *
  * The baseline is a separate part of the profile. It goes
  * through the same steps as the counted call: the return from starting the counter, a closure
@@ -73,6 +74,7 @@ final class CaseRunner
 			foreach ($case->beforeMethods as $name) {
 				$this->callHook($meter, $object, $class->getMethod($name), $case);
 			}
+			$counter->prepare();
 			for ($i = 0; $i < $case->warmup; $i++) {
 				$this->span($meter, $this->uncounted, $call, $arguments, $benchmark->getName());
 			}

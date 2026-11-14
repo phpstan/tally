@@ -31,13 +31,12 @@ final class ExtensionInstrumentHooksTest extends TestCase
 		recorded_calls();
 		$hooks = ExtensionInstrumentHooks::load(get_loaded_extensions());
 
-		$hooks->startBenchmark();
+		$hooks->startInstrumentation();
 		$hooks->toggleCollect();
 		$hooks->toggleCollect();
-		$hooks->stopBenchmark();
-		$hooks->setExecutedBenchmark('App\FooBench::benchFoo@a');
+		$hooks->dump('App\FooBench::benchFoo@a');
 
-		$this->assertSame(implode("\n", ['start', 'toggle', 'toggle', 'stop', 'dump App\FooBench::benchFoo@a']) . "\n", recorded_calls());
+		$this->assertSame(implode("\n", ['instrument', 'toggle', 'toggle', 'dump App\FooBench::benchFoo@a']) . "\n", recorded_calls());
 	}
 
 	/**

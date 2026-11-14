@@ -5,7 +5,7 @@ namespace Tally\Tests;
 use Override;
 use Tally\Runner\InstrumentHooks;
 
-/** Records the calls instead of calling CodSpeed's library, for tests. */
+/** Records the calls instead of calling the tally_hooks extension, for tests. */
 final class RecordingInstrumentHooks implements InstrumentHooks
 {
 
@@ -18,15 +18,9 @@ final class RecordingInstrumentHooks implements InstrumentHooks
 	}
 
 	#[Override]
-	public function startBenchmark(): void
+	public function startInstrumentation(): void
 	{
-		$this->calls[] = 'start';
-	}
-
-	#[Override]
-	public function stopBenchmark(): void
-	{
-		$this->calls[] = 'stop';
+		$this->calls[] = 'instrument';
 	}
 
 	#[Override]
@@ -36,9 +30,9 @@ final class RecordingInstrumentHooks implements InstrumentHooks
 	}
 
 	#[Override]
-	public function setExecutedBenchmark(string $uri): void
+	public function dump(string $part): void
 	{
-		$this->calls[] = 'executed ' . $uri;
+		$this->calls[] = 'dump ' . $part;
 	}
 
 }

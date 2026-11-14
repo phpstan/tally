@@ -6,15 +6,13 @@ namespace Tally\Runner;
 interface InstrumentHooks
 {
 
-	/** Zeroes the counts and starts counting */
-	public function startBenchmark(): void;
+	/** Starts simulating the process with empty caches; it collects counts only while collecting is on */
+	public function startInstrumentation(): void;
 
-	public function stopBenchmark(): void;
-
-	/** Turns collecting the counts off or on, keeping the simulated caches */
+	/** Turns collecting the counts on or off, keeping the simulated caches */
 	public function toggleCollect(): void;
 
-	/** Writes the counts so far as a part of the profile with this name */
-	public function setExecutedBenchmark(string $uri): void;
+	/** Writes the counts collected since the last dump as a part of the profile with this name */
+	public function dump(string $part): void;
 
 }
