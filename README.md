@@ -60,7 +60,7 @@ The counts depend on the PHP build and the system libraries. Numbers measured on
 
 ## Writing benchmarks
 
-A benchmark is a public, non-static method whose name starts with `bench`, in a class in a file whose name ends with `Bench.php`. Tally creates the class with the constructor arguments described [below](#meter-and-scratch-directory). A `bench*` method that is static or not public is an error, so is a path without any benchmarks.
+A benchmark is a public, non-static method whose name starts with `bench`, in a file whose name ends with `Bench.php`, in the class named like the file, such as `StrBench` in `StrBench.php`. Other classes in the file, such as helpers, are not benchmarks. Tally creates the class with the constructor arguments described [below](#meter-and-scratch-directory). A `bench*` method that is static or not public is an error, so is a path without any benchmarks.
 
 ```php
 use Tally\Attribute\DataProvider;

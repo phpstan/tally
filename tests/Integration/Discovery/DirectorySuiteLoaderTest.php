@@ -133,6 +133,19 @@ final class DirectorySuiteLoaderTest extends TestCase
 	}
 
 	/**
+	 * The other classes of a file, such as helpers, are not benchmarks and may take any constructor arguments.
+	 *
+	 * @throws InvalidBenchmarkException
+	 */
+	public function testOnlyTheClassNamedLikeItsFile(): void
+	{
+		$this->assertSame(
+			['Tally\\Tests\\Fixtures\\Loading\\Helpers\\MoneyBench::benchAdd'],
+			self::ids([__DIR__ . '/../../Fixtures/Loading/Helpers']),
+		);
+	}
+
+	/**
 	 * @param list<string> $paths
 	 * @return list<string>
 	 * @throws InvalidBenchmarkException

@@ -14,10 +14,11 @@ use Tally\Configuration;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Report\RelativePath;
 use Throwable;
-use function array_fill_keys;
+use function array_combine;
 use function array_filter;
 use function array_map;
 use function array_merge;
+use function basename;
 use function file_get_contents;
 use function get_declared_classes;
 use function is_file;
@@ -31,7 +32,8 @@ use function usort;
 
 /**
  * Finds benchmarks like PHPUnit finds tests: the public, non-static methods whose names start
- * with bench, in the instantiable classes declared in *Bench.php files.
+ * with bench, in the instantiable class named like its *Bench.php file. Other classes of the file,
+ * such as helpers, are not benchmarks.
  */
 final class DirectorySuiteLoader
 {
@@ -61,13 +63,13 @@ final class DirectorySuiteLoader
 		$expanded = [];
 		// the attributes of each file that declares a benchmark method, read once for all its cases
 		$attributes = [];
-		$isLoaded = array_fill_keys($files, true);
+		$benchClasses = array_combine($files, array_map(static fn (string $file): string => basename($file, '.php'), $files));
 		$classNames = get_declared_classes();
 		// the order PHP declared them in depends on what was autoloaded before, so the first invalid benchmark would too
 		sort($classNames);
 		foreach ($classNames as $className) {
 			$class = new ReflectionClass($className);
-			if (!isset($isLoaded[(string) $class->getFileName()]) || !$class->isInstantiable()) {
+			if (($benchClasses[(string) $class->getFileName()] ?? null) !== $class->getShortName() || !$class->isInstantiable()) {
 				continue;
 			}
 			$this->constructor->check($class);
