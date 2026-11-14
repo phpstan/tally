@@ -1,8 +1,10 @@
 *.php text eol=lf
 
 .agents export-ignore
+.bashunitrc export-ignore
 .github export-ignore
 bench export-ignore
+e2e export-ignore
 examples export-ignore
 tests export-ignore
 tmp export-ignore

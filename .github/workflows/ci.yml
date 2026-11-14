@@ -430,6 +430,85 @@ jobs:
           path: tmp/tally-examples
           if-no-files-found: ignore
 
+  e2e:
+    name: "E2E tests (${{ matrix.name }})"
+    # The cases run without debuggers and profilers, however PHP loads them: each row loads them
+    # the way a PHP setup does, and the tests load them in other ways on top of it
+    needs: ["codspeed", "tally-hooks"]
+    # runs on release/1.x too, with the committed builds, when the builds are skipped
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # from setup-php's scan directory, in the coverage mode
+          - name: "Xdebug"
+            coverage: "xdebug"
+            extensions: "posix"
+            ini-values: ""
+            stripped: "xdebug"
+          # collecting coverage from the start
+          - name: "PCOV"
+            coverage: "pcov"
+            extensions: "posix"
+            ini-values: "pcov.enabled=1"
+            stripped: "pcov"
+          # both at once, which the coverage option does not load, Xdebug in its default develop mode
+          - name: "Xdebug and PCOV"
+            coverage: ""
+            extensions: "posix, xdebug, pcov"
+            ini-values: "pcov.enabled=1"
+            stripped: "xdebug pcov"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: ${{ matrix.coverage }}
+          php-version: "8.5"
+          extensions: ${{ matrix.extensions }}
+          ini-values: ${{ matrix.ini-values }}
+
+      - name: "Install dependencies"
+        run: "composer install --no-interaction --no-progress"
+
+      - name: "Download CodSpeed's Valgrind"
+        if: ${{ !startsWith(github.ref_name, 'release/') }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: codspeed-ubuntu-24.04
+          path: codspeed
+
+      - name: "Download tally_hooks"
+        if: ${{ !startsWith(github.ref_name, 'release/') }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tally-hooks-ubuntu-24.04
+          path: codspeed
+
+      - name: "Install bashunit"
+        uses: "TypedDevs/bashunit@8d4f357f52df7596f92ece2d6c049d91d45517a2" # 0.52.0
+        with:
+          directory: "e2e"
+
+      - name: "E2E tests"
+        env:
+          E2E_EXTENSIONS: ${{ matrix.stripped }}
+        run: "e2e/bashunit test e2e"
+
   release-tree:
     name: "Release tree (${{ matrix.runner }}, PHP ${{ matrix.php-version }} ${{ matrix.phpts }})"
     # Checks the tree release/1.x gets from this commit the way a project installs it, on each platform
@@ -513,7 +592,7 @@ jobs:
 
   release-branch:
     name: "Push release/1.x"
-    needs: ["release-tree", "tests", "static-analysis", "benchmarks"]
+    needs: ["release-tree", "tests", "static-analysis", "benchmarks", "e2e"]
     if: ${{ github.event_name == 'push' && github.ref_name == '1.x' }}
     runs-on: "ubuntu-latest"
     timeout-minutes: 10
