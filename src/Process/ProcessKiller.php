@@ -7,7 +7,6 @@ use function dirname;
 use function file_get_contents;
 use function glob;
 use function posix_kill;
-use const SIGKILL;
 
 /**
  * Kills a process and all its descendants, which it finds in /proc before killing any of them,
@@ -15,6 +14,9 @@ use const SIGKILL;
  */
 final class ProcessKiller
 {
+
+	/** SIGKILL, whose constant only the pcntl extension defines, which many PHP builds lack */
+	private const SIGKILL = 9;
 
 	public function __construct(private ProcessTable $table)
 	{
@@ -30,7 +32,7 @@ final class ProcessKiller
 		}
 
 		foreach ([$pid, ...$this->table->descendants($this->table->parents($stats), $pid)] as $process) {
-			posix_kill($process, SIGKILL);
+			posix_kill($process, self::SIGKILL);
 		}
 	}
 

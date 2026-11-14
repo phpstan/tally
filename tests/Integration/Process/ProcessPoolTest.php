@@ -83,7 +83,8 @@ final class ProcessPoolTest extends TestCase
 	public function testKillsAStepThatRunsTooLongWithItsDescendants(): void
 	{
 		$pidFile = $this->directory . '/grandchild.pid';
-		$code = '$child = proc_open([PHP_BINARY, "-r", "file_put_contents(\'' . $pidFile . '\', getmypid()); sleep(30);"], [], $pipes); sleep(30);';
+		// the grandchild ignores the signals next to SIGKILL, so killing it with another one fails
+		$code = '$child = proc_open(["sh", "-c", "trap \'\' FPE USR1; echo \$\$ > ' . $pidFile . '; exec sleep 30"], [], $pipes); sleep(30);';
 		$job = new Job('job', [new ProcessCommand([PHP_BINARY, '-r', $code], $this->directory . '/slow.log', 1), $this->php('', 'never')]);
 
 		$this->assertSame(['job: timed out'], $this->runJobs([$job], 1, []));

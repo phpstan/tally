@@ -6,7 +6,8 @@
 	],
 	"keywords": ["benchmark", "performance", "codspeed"],
 	"require": {
-		"php": "^8.2"
+		"php": "^8.2",
+		"ext-posix": "*"
 	},
 	"require-dev": {
 		"infection/infection": "^0.35.10",
