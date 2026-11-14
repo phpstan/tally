@@ -17,9 +17,12 @@ infection:
 	php -d pcov.enabled=1 vendor/bin/infection --threads=max --show-mutations=max $(INFECTION_ARGS)
 
 .PHONY: bench
-bench:
-	# needs CodSpeed, see README.md
+bench: codspeed/linux-$(shell uname -m)/valgrind
 	php bin/tally run --output=tmp/tally-results
+
+# CodSpeed's Valgrind and instrument-hooks, which the release branch commits
+codspeed/linux-%/valgrind: build/build-codspeed.sh
+	build/build-codspeed.sh
 
 .PHONY: lint
 lint:

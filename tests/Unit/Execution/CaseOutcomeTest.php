@@ -32,29 +32,29 @@ final class CaseOutcomeTest extends TestCase
 		$thrown = Measurement::failed(self::id(), 'RuntimeException: It broke.');
 
 		yield 'the counted part minus the baseline, with the memory of the counted run' => [
-			[$native, self::workerRun('CodSpeed', ProcessResult::exited(self::command(1800), 0), self::memory(2048), '')],
+			[$native, self::workerRun('The counted run', ProcessResult::exited(self::command(1800), 0), self::memory(2048), '')],
 			$parts,
 			['instructions' => 1000, 'cycles' => 1500, 'memory' => 2048],
 		];
-		yield 'no counted part' => [[$native], [self::ID . '#baseline' => $baseline], "CodSpeed's profile has no part named App\\FooBench::benchFoo@a."];
-		yield 'no baseline' => [[$native], [self::ID => $counted], "CodSpeed's profile has no part named App\\FooBench::benchFoo@a#baseline."];
-		yield 'no parts' => [[$native], [], "CodSpeed's profile has no part named App\\FooBench::benchFoo@a."];
+		yield 'no counted part' => [[$native], [self::ID . '#baseline' => $baseline], "Callgrind's profile has no part named App\\FooBench::benchFoo@a."];
+		yield 'no baseline' => [[$native], [self::ID => $counted], "Callgrind's profile has no part named App\\FooBench::benchFoo@a#baseline."];
+		yield 'no parts' => [[$native], [], "Callgrind's profile has no part named App\\FooBench::benchFoo@a."];
 		yield 'the first failure' => [
 			[
 				self::workerRun('The native run', ProcessResult::exited(self::command(60), 1), $thrown, ''),
-				self::workerRun('CodSpeed', ProcessResult::timedOut(self::command(60)), null, ''),
+				self::workerRun('The counted run', ProcessResult::timedOut(self::command(60)), null, ''),
 			],
 			$parts,
 			'RuntimeException: It broke.',
 		];
 		yield 'a failure after a success' => [
-			[$native, self::workerRun('CodSpeed', ProcessResult::timedOut(self::command(1800)), null, '')],
+			[$native, self::workerRun('The counted run', ProcessResult::timedOut(self::command(1800)), null, '')],
 			$parts,
-			'CodSpeed did not finish in 30 minutes.',
+			'The counted run did not finish in 30 minutes.',
 		];
 		yield 'one second' => [[self::workerRun('The native run', ProcessResult::timedOut(self::command(1)), null, '')], [], 'The native run did not finish in 1 second.'];
 		yield 'seconds' => [[self::workerRun('The native run', ProcessResult::timedOut(self::command(90)), self::memory(1), '')], [], 'The native run did not finish in 90 seconds.'];
-		yield 'an hour' => [[self::workerRun('CodSpeed', ProcessResult::timedOut(self::command(3600)), null, '')], [], 'CodSpeed did not finish in 60 minutes.'];
+		yield 'an hour' => [[self::workerRun('The counted run', ProcessResult::timedOut(self::command(3600)), null, '')], [], 'The counted run did not finish in 60 minutes.'];
 		yield 'one minute' => [[self::workerRun('The native run', ProcessResult::timedOut(self::command(60)), null, '')], [], 'The native run did not finish in 1 minute.'];
 		yield 'the benchmark threw' => [[self::workerRun('The native run', ProcessResult::exited(self::command(60), 1), $thrown, 'output')], $parts, 'RuntimeException: It broke.'];
 		yield 'the worker crashed' => [
@@ -63,7 +63,7 @@ final class CaseOutcomeTest extends TestCase
 			"The native run exited with code 255.\nPHP Fatal error:  Allowed memory size exhausted",
 		];
 		yield 'exited without output' => [[self::workerRun('The native run', ProcessResult::exited(self::command(60), 139), null, " \n")], $parts, 'The native run exited with code 139.'];
-		yield 'exited with a result' => [[self::workerRun('CodSpeed', ProcessResult::exited(self::command(60), 1), self::memory(1), '')], $parts, 'CodSpeed exited with code 1.'];
+		yield 'exited with a result' => [[self::workerRun('The counted run', ProcessResult::exited(self::command(60), 1), self::memory(1), '')], $parts, 'The counted run exited with code 1.'];
 		yield 'wrote no result' => [[self::workerRun('The native run', ProcessResult::exited(self::command(60), 0), null, 'Bye')], $parts, "The native run wrote no result.\nBye"];
 		yield 'long output' => [
 			[self::workerRun('The native run', ProcessResult::exited(self::command(60), 2), null, implode("\n", range(1, 25)) . "\n")],

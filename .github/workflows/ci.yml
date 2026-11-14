@@ -6,7 +6,8 @@ on:
   pull_request:
   push:
     branches:
-      - "main"
+      - "1.x"
+      - "release/1.x"
 
 concurrency:
   group: ci-${{ github.head_ref || github.run_id }} # will be canceled on subsequent pushes in pull requests but not branches
@@ -245,17 +246,63 @@ jobs:
         if: github.event_name != 'pull_request'
         run: "make infection INFECTION_ARGS=--logger-github"
 
+  codspeed:
+    name: "CodSpeed's Valgrind (${{ matrix.runner }})"
+    # release/1.x has the builds committed
+    if: ${{ !startsWith(github.ref_name, 'release/') }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        runner:
+          - "ubuntu-24.04"
+          - "ubuntu-24.04-arm"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Key of the build"
+        id: key
+        run: echo "key=codspeed-$(build/build-codspeed.sh --print-key)" >> "$GITHUB_OUTPUT"
+
+      - name: "Restore the build"
+        id: cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: codspeed
+          key: ${{ steps.key.outputs.key }}
+
+      - name: "Build"
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends autoconf automake
+          build/build-codspeed.sh
+
+      - name: "Upload the build"
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: codspeed-${{ matrix.runner }}
+          path: codspeed
+          if-no-files-found: error
+
   benchmarks:
     name: "Benchmarks"
+    needs: "codspeed"
+    # runs on release/1.x too, with the committed build, when codspeed is skipped
+    if: ${{ !cancelled() && !failure() }}
     # Pinned because the counts depend on the PHP build and the system libraries
     runs-on: "ubuntu-24.04"
     timeout-minutes: 30
-
-    env:
-      CODSPEED_VERSION: "5.6.3"
-      # of codspeed-runner-x86_64-unknown-linux-musl.tar.gz in that release
-      CODSPEED_SHA256: "f29532a5cbcb3462bc5d6bcf5570ddb8c8cbfffed579cb48c35d3910ed5f7f00"
-      INSTRUMENT_HOOKS_COMMIT: "8fd5b878499f819561b33219cdafaa6f8c28b4e4"
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -278,33 +325,18 @@ jobs:
       - name: "Install dependencies"
         run: "composer install --no-interaction --no-progress"
 
-      - name: "Install CodSpeed"
-        run: |
-          mkdir -p "$RUNNER_TEMP/codspeed"
-          cd "$RUNNER_TEMP/codspeed"
-          curl -fsSLO "https://github.com/CodSpeedHQ/codspeed/releases/download/v${CODSPEED_VERSION}/codspeed-runner-x86_64-unknown-linux-musl.tar.gz"
-          echo "${CODSPEED_SHA256}  codspeed-runner-x86_64-unknown-linux-musl.tar.gz" | sha256sum -c -
-          tar xzf codspeed-runner-x86_64-unknown-linux-musl.tar.gz --strip-components=1 codspeed-runner-x86_64-unknown-linux-musl/codspeed
-          echo "$RUNNER_TEMP/codspeed" >> "$GITHUB_PATH"
-          ./codspeed setup --mode=simulation
-
-      - name: "Build CodSpeed's instrument-hooks"
-        run: |
-          git init -q "$RUNNER_TEMP/instrument-hooks"
-          cd "$RUNNER_TEMP/instrument-hooks"
-          git fetch -q --depth=1 https://github.com/CodSpeedHQ/instrument-hooks.git "$INSTRUMENT_HOOKS_COMMIT"
-          git checkout -q FETCH_HEAD
-          gcc -shared -fPIC -O2 -Iincludes -w dist/core.c -o libinstrument_hooks.so
+      - name: "Download CodSpeed's Valgrind"
+        if: ${{ !startsWith(github.ref_name, 'release/') }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: codspeed-ubuntu-24.04
+          path: codspeed
 
       - name: "Benchmarks"
-        env:
-          INSTRUMENT_HOOKS_LIBRARY: ${{ runner.temp }}/instrument-hooks/libinstrument_hooks.so
         run: "php bin/tally run --output=tmp/tally-results"
 
       - name: "Examples"
         if: always()
-        env:
-          INSTRUMENT_HOOKS_LIBRARY: ${{ runner.temp }}/instrument-hooks/libinstrument_hooks.so
         run: "php bin/tally run --output=tmp/tally-examples examples"
 
       - name: "Upload results"
@@ -322,3 +354,94 @@ jobs:
           name: tally-examples
           path: tmp/tally-examples
           if-no-files-found: ignore
+
+  release-tree:
+    name: "Release tree (${{ matrix.runner }})"
+    # Checks the tree release/1.x gets from this commit the way a project installs it, on each platform
+    needs: "codspeed"
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - "ubuntu-24.04"
+          - "ubuntu-24.04-arm"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
+        with:
+          coverage: "none"
+          php-version: "8.5"
+          extensions: ffi, posix
+
+      - name: "Download CodSpeed's Valgrind"
+        if: ${{ !startsWith(github.ref_name, 'release/') }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: codspeed-*
+          path: codspeed
+          merge-multiple: true
+
+      - name: "Build the release tree"
+        if: ${{ !startsWith(github.ref_name, 'release/') }}
+        run: |
+          git config user.name "phpstan-bot"
+          git config user.email "ondrej+phpstanbot@mirtes.cz"
+          build/build-release.sh --commit
+
+      - name: "Check the release tree"
+        run: build/check-release.sh HEAD
+
+  release-branch:
+    name: "Push release/1.x"
+    needs: ["release-tree", "tests", "static-analysis", "benchmarks"]
+    if: ${{ github.event_name == 'push' && github.ref_name == '1.x' }}
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 10
+
+    concurrency:
+      group: release-branch
+      cancel-in-progress: true
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # a token that may bypass the branch rules, and whose push runs CI on release/1.x
+          token: ${{ secrets.PHPSTAN_BOT_TOKEN }}
+
+      - name: "Download CodSpeed's Valgrind"
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: codspeed-*
+          path: codspeed
+          merge-multiple: true
+
+      - name: "Build the release tree"
+        run: |
+          git config user.name "phpstan-bot"
+          git config user.email "ondrej+phpstanbot@mirtes.cz"
+          build/build-release.sh --commit
+
+      # Each push replaces the branch; the tags keep the commits they were made on
+      - name: "Push"
+        run: git push --force origin "HEAD:refs/heads/release/1.x"

@@ -4,12 +4,17 @@ namespace Tally\Tests;
 
 use FFI;
 use RuntimeException;
+use Tally\Execution\DirectoryRemover;
+use function chmod;
+use function copy;
+use function dirname;
 use function escapeshellarg;
 use function exec;
 use function getmypid;
 use function implode;
 use function is_dir;
 use function is_file;
+use function md5;
 use function md5_file;
 use function mkdir;
 use function rename;
@@ -23,6 +28,8 @@ final class InstrumentHooksFixture
 {
 
 	private const SOURCE = __DIR__ . '/Fixtures/InstrumentHooks/recording.c';
+
+	private const VALGRIND = __DIR__ . '/Fixtures/CodSpeed/valgrind';
 
 	/** Compiles once per source change; parallel test processes rename their build into place. */
 	public static function compile(bool $instrumented): string
@@ -44,6 +51,31 @@ final class InstrumentHooksFixture
 		rename($building, $library);
 
 		return $library;
+	}
+
+	/**
+	 * A build of CodSpeed's Valgrind for the tests, as bin/tally finds one in codspeed/: the fake
+	 * Fixtures/CodSpeed/valgrind, a directory for its tools, and the library that records calls.
+	 */
+	public static function codspeed(): string
+	{
+		$library = self::compile(true);
+		$directory = sprintf('%s/codspeed-%s/linux-fake', dirname($library), md5($library . (string) md5_file(self::VALGRIND)));
+		if (is_dir($directory)) {
+			return $directory;
+		}
+
+		$building = $directory . '.' . getmypid();
+		@mkdir($building . '/libexec', 0777, true);
+		copy(self::VALGRIND, $building . '/valgrind');
+		chmod($building . '/valgrind', 0755);
+		copy($library, $building . '/libinstrument_hooks.so');
+		if (!@rename($building, $directory)) {
+			// another test process built it first
+			(new DirectoryRemover())->remove($building);
+		}
+
+		return $directory;
 	}
 
 	/**

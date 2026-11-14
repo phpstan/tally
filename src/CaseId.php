@@ -12,7 +12,7 @@ use function substr;
 
 /**
  * Names one benchmark case like PHPUnit's --filter does: Class::method, and @dataSet when the
- * method has a data provider. The ID is also the name of the case's part in CodSpeed's profile.
+ * method has a data provider. The ID is also the name of the case's part in Callgrind's profile.
  */
 final class CaseId
 {

@@ -18,7 +18,7 @@ use function sprintf;
 
 /**
  * Turns what the workers of a case left behind into its measurement: the first failure of a run,
- * or the counted parts of CodSpeed's profile with the memory the counted worker measured.
+ * or the counted parts of Callgrind's profile with the memory the counted worker measured.
  */
 final class CaseOutcome
 {
@@ -28,7 +28,7 @@ final class CaseOutcome
 
 	/**
 	 * @param non-empty-list<WorkerRun> $runs in the order they ran, the counted one last
-	 * @param array<string, Metrics> $parts the parts of CodSpeed's profile by name
+	 * @param array<string, Metrics> $parts the parts of Callgrind's profile by name
 	 */
 	public function measurement(CaseId $id, array $runs, array $parts): Measurement
 	{
@@ -43,10 +43,10 @@ final class CaseOutcome
 		$counted = $parts[$name] ?? null;
 		$baseline = $parts[$name . CaseRunner::BASELINE_SUFFIX] ?? null;
 		if ($counted === null || $baseline === null) {
-			return Measurement::failed($id, sprintf("CodSpeed's profile has no part named %s.", $counted === null ? $name : $name . CaseRunner::BASELINE_SUFFIX));
+			return Measurement::failed($id, sprintf("Callgrind's profile has no part named %s.", $counted === null ? $name : $name . CaseRunner::BASELINE_SUFFIX));
 		}
 
-		// the counted worker measured the memory, CodSpeed counted the rest
+		// the counted worker measured the memory, Callgrind counted the rest
 		return Measurement::measured($id, $counted->minus($baseline)->merge(array_last($written)->metrics));
 	}
 

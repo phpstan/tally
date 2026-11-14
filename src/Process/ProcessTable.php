@@ -8,9 +8,9 @@ use function strrpos;
 use function substr;
 
 /**
- * Reads the process table of Linux: which process started which. CodSpeed starts Valgrind, which
- * keeps running when CodSpeed alone is killed, so a process that runs too long is killed with all
- * its descendants.
+ * Reads the process table of Linux: which process started which. A benchmark may start processes
+ * that keep running when the worker alone is killed, so a process that runs too long is killed
+ * with all its descendants.
  */
 final class ProcessTable
 {

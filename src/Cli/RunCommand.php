@@ -90,7 +90,7 @@ final class RunCommand implements Command
 	{
 		$jobs = $this->jobs($input);
 		try {
-			[$codspeed, $instrumentHooks] = $this->installation->locate($this->environment, get_loaded_extensions());
+			[$valgrind, $valgrindTools, $instrumentHooks] = $this->installation->locate(get_loaded_extensions());
 		} catch (CodSpeedException $e) {
 			$output->error($e->getMessage());
 
@@ -113,7 +113,7 @@ final class RunCommand implements Command
 		$settings = new WorkerSettings(
 			$configuration->iniEntries(),
 			$this->suiteArguments($input),
-			$codspeed,
+			$valgrind,
 			$instrumentHooks,
 			$workDirectory,
 			$configuration->nativeTimeLimitSeconds(),
@@ -127,7 +127,8 @@ final class RunCommand implements Command
 			$jobs,
 		));
 		try {
-			$measurements = $this->measure($located, $settings, $jobs, $input->option('output'), $output);
+			$environment = [...$this->environment, 'VALGRIND_LIB' => $valgrindTools];
+			$measurements = $this->measure($located, $settings, $environment, $jobs, $input->option('output'), $output);
 		} catch (RuntimeException $e) {
 			$output->error($e->getMessage());
 
@@ -148,11 +149,12 @@ final class RunCommand implements Command
 
 	/**
 	 * @param list<array{BenchmarkCase, SourceLocation}> $cases
+	 * @param array<string, string> $environment of the workers
 	 * @param positive-int $jobs
 	 * @return array<string, Measurement> by case ID
 	 * @throws RuntimeException
 	 */
-	private function measure(array $cases, WorkerSettings $settings, int $jobs, ?string $resultsDirectory, Output $output): array
+	private function measure(array $cases, WorkerSettings $settings, array $environment, int $jobs, ?string $resultsDirectory, Output $output): array
 	{
 		$jobsOfCases = [];
 		foreach ($cases as $case) {
@@ -167,7 +169,7 @@ final class RunCommand implements Command
 			$jobsOfCases,
 			$jobs,
 			$this->workingDirectory,
-			$this->environment,
+			$environment,
 			function (Job $job, array $processResults) use ($settings, $resultsDirectory, $output, &$measurements, &$shown, &$waiting, $cases): void {
 				[$case] = $job->subject;
 				$waiting[] = $job->subject;
