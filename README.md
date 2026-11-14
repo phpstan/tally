@@ -224,14 +224,14 @@ Without `#[Warmup]`, the counted call is the first one. The difference can be la
 ```php
 public function benchCold(): int|false
 {
-	// 75.88K instructions, mostly compiling the regular expression
+	// 73.16K instructions, mostly compiling the regular expression
 	return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.cold$~', 'tally@example.cold');
 }
 
 #[Warmup(1)]
 public function benchWarm(): int|false
 {
-	// 864 instructions, the compiled expression is cached
+	// 797 instructions, the compiled expression is cached
 	return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.warm$~', 'tally@example.warm');
 }
 ```

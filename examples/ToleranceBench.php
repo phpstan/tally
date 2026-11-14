@@ -17,7 +17,7 @@ use function str_repeat;
 final class ToleranceBench
 {
 
-	#[Expected(instructions: '233.4K', cycles: '269.0K', memory: '8.117KiB')]
+	#[Expected(instructions: '233.5K', cycles: '263.6K', memory: '8.172KiB')]
 	public function benchStrict(): void
 	{
 		hash('sha256', str_repeat('tally', 1_000));

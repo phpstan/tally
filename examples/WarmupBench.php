@@ -14,14 +14,14 @@ use function preg_match;
 final class WarmupBench
 {
 
-	#[Expected(instructions: '74.63K', cycles: '257.8K', memory: '48B')]
+	#[Expected(instructions: '73.16K', cycles: '236.6K', memory: '48B')]
 	public function benchCold(): int|false
 	{
 		return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.cold$~', 'tally@example.cold');
 	}
 
 	#[Warmup(1)]
-	#[Expected(instructions: '864', cycles: '13.18K', memory: '0B')]
+	#[Expected(instructions: '797', cycles: '1.927K', memory: '0B')]
 	public function benchWarm(): int|false
 	{
 		return preg_match('~^(?<user>[a-z]+)@(?<domain>[a-z]+)\.warm$~', 'tally@example.warm');

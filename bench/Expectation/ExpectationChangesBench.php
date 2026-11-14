@@ -39,7 +39,7 @@ final class ExpectationChangesBench
 	 * @param array<string, string> $code
 	 */
 	#[DataProvider('newCases')]
-	#[ExpectedFor('cases-2', instructions: '639.5K', cycles: '1.080M', memory: '34.87KiB')]
+	#[ExpectedFor('cases-2', instructions: '641.4K', cycles: '749.8K', memory: '35.08KiB')]
 	#[ExpectedFor('cases-200', instructions: '1.895B', cycles: '2.071B', memory: '1.043MiB')]
 	public function benchPlan(array $accepted, array $code): void
 	{

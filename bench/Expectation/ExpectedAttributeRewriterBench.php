@@ -40,8 +40,8 @@ final class ExpectedAttributeRewriterBench
 	 * @throws MethodNotFoundException
 	 */
 	#[DataProvider('files')]
-	#[ExpectedFor('size-10', instructions: '1.905M', cycles: '2.487M', memory: '128.4KiB')]
-	#[ExpectedFor('size-100', instructions: '16.84M', cycles: '20.57M', memory: '1.001MiB')]
+	#[ExpectedFor('size-10', instructions: '1.906M', cycles: '2.077M', memory: '128.6KiB')]
+	#[ExpectedFor('size-100', instructions: '16.84M', cycles: '18.60M', memory: '1.002MiB')]
 	public function benchLocate(string $code, string $class, string $dataSet): void
 	{
 		(new ExpectedAttributeRewriter())->locate($code, $class, SuiteSource::SIZED_METHOD, $dataSet);
@@ -62,8 +62,8 @@ final class ExpectedAttributeRewriterBench
 	 * @throws MethodNotFoundException
 	 */
 	#[DataProvider('rewrites')]
-	#[ExpectedFor('size-10', instructions: '1.946M', cycles: '2.596M', memory: '128.5KiB')]
-	#[ExpectedFor('size-100', instructions: '16.85M', cycles: '20.53M', memory: '1.007MiB')]
+	#[ExpectedFor('size-10', instructions: '1.947M', cycles: '2.133M', memory: '128.7KiB')]
+	#[ExpectedFor('size-100', instructions: '16.91M', cycles: '18.68M', memory: '1.007MiB')]
 	public function benchRewrite(string $code, string $class, string $dataSet, Metrics $measured): void
 	{
 		(new ExpectedAttributeRewriter())->rewrite($code, $class, SuiteSource::SIZED_METHOD, $dataSet, $measured, false);
