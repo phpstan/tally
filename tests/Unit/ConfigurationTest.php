@@ -18,6 +18,7 @@ final class ConfigurationTest extends TestCase
 		$this->assertSame(60, $configuration->nativeTimeLimitSeconds());
 		$this->assertSame(1800, $configuration->countedTimeLimitSeconds());
 		$this->assertSame('±2 % instructions, ±5 % cycles but at least ±2,000, ±5 % memory', $configuration->tolerance()->describe());
+		$this->assertSame('±10 % of each metric', $configuration->growthTolerance()->describe());
 		$this->assertFalse($configuration->namedArguments());
 	}
 
@@ -31,6 +32,7 @@ final class ConfigurationTest extends TestCase
 		$this->assertSame(5, $original->withTimeLimits(5, 300)->nativeTimeLimitSeconds());
 		$this->assertSame(300, $original->withTimeLimits(5, 300)->countedTimeLimitSeconds());
 		$this->assertSame('±30 % of each metric', $original->withTolerance(new RelativeTolerance(0.3))->tolerance()->describe());
+		$this->assertSame('±40 % of each metric', $original->withGrowthTolerance(new RelativeTolerance(0.4))->growthTolerance()->describe());
 		$this->assertTrue($original->withNamedArguments(true)->namedArguments());
 		$this->assertEquals(Configuration::create(), $original);
 	}

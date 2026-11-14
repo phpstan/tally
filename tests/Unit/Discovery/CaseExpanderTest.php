@@ -18,6 +18,7 @@ use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
 use Tally\Metrics;
 use Tally\Tests\Expressions;
+use Tally\Tests\Fixtures\Growth\GrowthBench;
 use Tally\Tests\Fixtures\HookArguments\HookArgumentsBench;
 use Tally\Tests\Fixtures\Invalid\InvalidBench;
 use Tally\Tests\Fixtures\Suite\FilesBench;
@@ -125,6 +126,19 @@ final class CaseExpanderTest extends TestCase
 		$configuration = Configuration::create()->withTolerance(new RelativeTolerance(0.3));
 
 		$this->assertSame($description, self::expandOne($class, $method, $configuration)->tolerance->describe());
+	}
+
+	/**
+	 * @throws InvalidBenchmarkException
+	 */
+	public function testAComplexityClassGetsTheGrowthToleranceOfTheConfiguration(): void
+	{
+		$configuration = Configuration::create()->withTolerance(new RelativeTolerance(0.3))->withGrowthTolerance(new RelativeTolerance(0.4));
+
+		$this->assertSame(
+			['±40 % of each metric', '±40 % of each metric'],
+			array_map(static fn (BenchmarkCase $case): string => $case->tolerance->describe(), self::expand(GrowthBench::class, 'benchLinear', $configuration)),
+		);
 	}
 
 	/**

@@ -3,6 +3,7 @@
 namespace Tally;
 
 use Tally\Attribute\MetricTolerance;
+use Tally\Attribute\RelativeTolerance;
 use Tally\Comparison\TolerancePolicy;
 
 /**
@@ -35,6 +36,7 @@ final class Configuration
 		private int $nativeTimeLimitSeconds,
 		private int $countedTimeLimitSeconds,
 		private TolerancePolicy $tolerance,
+		private TolerancePolicy $growthTolerance,
 		private bool $namedArguments
 	)
 	{
@@ -51,6 +53,9 @@ final class Configuration
 			// cycles of a benchmark of a few thousand instructions move by a few cache misses when
 			// unrelated code changes, up to about 1,300 cycles in PHPStan's benchmarks.
 			new MetricTolerance(instructions: 0.02, cycles: 0.05, memory: 0.05, cyclesAtLeast: 2000),
+			// A complexity class only bounds how the instructions grow; the code around the part that
+			// grows makes the counts of PHPStan's benchmarks up to 9 % more than the formula.
+			new RelativeTolerance(0.1),
 			false,
 		);
 	}
@@ -104,6 +109,18 @@ final class Configuration
 	}
 
 	/**
+	 * The tolerance of the benchmarks with a complexity class and without a tolerance policy of their
+	 * method or class: how far the instructions may exceed what the formula allows.
+	 */
+	public function withGrowthTolerance(TolerancePolicy $tolerance): self
+	{
+		$configuration = clone $this;
+		$configuration->growthTolerance = $tolerance;
+
+		return $configuration;
+	}
+
+	/**
 	 * Whether tally accept and the patch of new expectations write the data set of #[ExpectedFor] as
 	 * the named argument dataSet: '…' instead of the first argument.
 	 */
@@ -144,6 +161,11 @@ final class Configuration
 	public function tolerance(): TolerancePolicy
 	{
 		return $this->tolerance;
+	}
+
+	public function growthTolerance(): TolerancePolicy
+	{
+		return $this->growthTolerance;
 	}
 
 	public function namedArguments(): bool
