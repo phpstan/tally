@@ -1,13 +1,21 @@
 *.php text eol=lf
 
+.agents export-ignore
 .github export-ignore
 bench export-ignore
 examples export-ignore
 tests export-ignore
 tmp export-ignore
+build/PHPStan export-ignore
+build/stubs export-ignore
+build/build-release.sh export-ignore
+build/check-coverage.php export-ignore
+build/check-release.sh export-ignore
 .editorconfig export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
+CLAUDE.md export-ignore
+infection.json5 export-ignore
 Makefile export-ignore
 phpcs.xml export-ignore
 phpstan.neon export-ignore
