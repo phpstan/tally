@@ -13,11 +13,11 @@ final class WorkerCommandLine
 	/**
 	 * Valgrind breaks PHP's detection of the stack size, so the stack limit check is turned off.
 	 */
-	private const COUNTED_INI_ENTRIES = ['ffi.enable=1', 'zend.max_allowed_stack_size=-1'];
+	private const COUNTED_INI_ENTRIES = ['zend.max_allowed_stack_size=-1'];
 
 	/**
 	 * What codspeed run --mode=simulation of CodSpeed 5.6.3 passes, so the counts match those of
-	 * CodSpeed: the simulated caches, and counting only between the calls of instrument-hooks.
+	 * CodSpeed: the simulated caches, and counting only between the calls of tally_hooks.
 	 * Without its shell around the command, Valgrind does not need to follow child processes.
 	 */
 	private const VALGRIND_OPTIONS = [
@@ -58,7 +58,8 @@ final class WorkerCommandLine
 	}
 
 	/**
-	 * The worker under Callgrind, which finds its tools through VALGRIND_LIB.
+	 * The worker under Callgrind, which finds its tools through VALGRIND_LIB, with the tally_hooks
+	 * extension.
 	 *
 	 * @return non-empty-list<string>
 	 */
@@ -69,8 +70,12 @@ final class WorkerCommandLine
 			...self::VALGRIND_OPTIONS,
 			'--callgrind-out-file=' . $profileFolder . '/%p.out',
 			$this->phpBinary,
-			...$this->ini([...self::COUNTED_INI_ENTRIES, ...$settings->iniEntries]),
-			...$this->worker($settings, $id, $scratch, $result, ['--instrument-hooks=' . $settings->instrumentHooks]),
+			...$this->ini([
+				...self::COUNTED_INI_ENTRIES,
+				...($settings->extension === null ? [] : ['extension=' . $settings->extension]),
+				...$settings->iniEntries,
+			]),
+			...$this->worker($settings, $id, $scratch, $result, ['--counted']),
 		];
 	}
 

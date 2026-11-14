@@ -15,7 +15,7 @@ use function trim;
 
 /**
  * Reads the callgrind profile CodSpeed's CPU simulation writes for each process. Every time the
- * benchmark stops counting, instrument-hooks dumps a part named after the case.
+ * benchmark stops counting, tally_hooks dumps a part named after the case.
  *
  * Estimated cycles use Valgrind's cycle estimation: instructions, plus 10 for each first-level
  * cache miss, plus 100 for each last-level cache miss. CodSpeed simulates the same cache sizes on

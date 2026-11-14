@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds what tally run counts with into codspeed/linux-<machine>: CodSpeed's Valgrind fork with
-# only Callgrind and a static launcher, and CodSpeed's instrument-hooks library. The release branch
-# commits them, so a project that requires Tally needs no CodSpeed setup.
+# only Callgrind and a static launcher. build/build-tally-hooks.sh builds the extension that tells
+# it what to count next to it. The release branch commits both, so a project that requires Tally
+# needs no setup.
 # Needs git, gcc, make, and autotools. Builds for the machine it runs on.
 set -euo pipefail
 
@@ -9,8 +10,6 @@ set -euo pipefail
 VALGRIND_REPOSITORY=https://github.com/CodSpeedHQ/valgrind-codspeed.git
 VALGRIND_TAG=3.26.0-0codspeed13
 VALGRIND_COMMIT=346abce500c33cb5e1b43fafb5520929bed8497e
-INSTRUMENT_HOOKS_REPOSITORY=https://github.com/CodSpeedHQ/instrument-hooks.git
-INSTRUMENT_HOOKS_COMMIT=8fd5b878499f819561b33219cdafaa6f8c28b4e4
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 machine="$(uname -m)"
@@ -19,7 +18,7 @@ work="$repo_root/tmp/codspeed-build"
 
 if [ "${1:-}" = "--print-key" ]; then
 	# what the build depends on, for caching it in CI
-	echo "$machine-$VALGRIND_COMMIT-$INSTRUMENT_HOOKS_COMMIT-$(sha256sum "${BASH_SOURCE[0]}" | cut -c1-16)"
+	echo "$machine-$VALGRIND_COMMIT-$(sha256sum "${BASH_SOURCE[0]}" | cut -c1-16)"
 	exit 0
 fi
 
@@ -49,17 +48,14 @@ done
 rm coregrind/valgrind
 make -s -C coregrind valgrind LDFLAGS=-static >/dev/null
 
-fetch "$INSTRUMENT_HOOKS_REPOSITORY" "$work/instrument-hooks" "$INSTRUMENT_HOOKS_COMMIT"
-gcc -shared -fPIC -O2 -I"$work/instrument-hooks/includes" -w "$work/instrument-hooks/dist/core.c" -o "$work/libinstrument_hooks.so"
-
-rm -rf "$output"
+# keeps the builds of tally_hooks
+rm -rf "$output/libexec" "$output/valgrind"
 mkdir -p "$output/libexec"
 install -m 0755 coregrind/valgrind "$output/valgrind"
 # the launcher starts <tool>-<platform> from VALGRIND_LIB, the tool preloads vgpreload_core
 install -m 0755 callgrind/callgrind-*-linux "$output/libexec/"
 install -m 0644 coregrind/vgpreload_core-*-linux.so default.supp "$output/libexec/"
-install -m 0644 "$work/libinstrument_hooks.so" "$output/libinstrument_hooks.so"
-strip "$output/valgrind" "$output/libexec/callgrind-"*-linux "$output/libexec/vgpreload_core-"*-linux.so "$output/libinstrument_hooks.so"
+strip "$output/valgrind" "$output/libexec/callgrind-"*-linux "$output/libexec/vgpreload_core-"*-linux.so
 # the launcher starts a tool even for --version, from VALGRIND_LIB, not where it would be installed
 VALGRIND_LIB="$output/libexec" "$output/valgrind" --tool=callgrind --version >"$output/VERSION"
 
@@ -67,7 +63,6 @@ VALGRIND_LIB="$output/libexec" "$output/valgrind" --tool=callgrind --version >"$
 install -m 0644 COPYING "$output/LICENSE-valgrind"
 install -m 0644 third_party/capstone/LICENSE.TXT "$output/LICENSE-capstone"
 install -m 0644 third_party/capstone/LICENSE_LLVM.TXT "$output/LICENSE-capstone-llvm"
-install -m 0644 "$work/instrument-hooks/LICENSE-MIT" "$output/LICENSE-instrument-hooks"
 cat >"$output/SOURCE" <<EOF
 Built by build/build-codspeed.sh of https://github.com/phpstan/tally from this source:
 
@@ -77,8 +72,8 @@ $VALGRIND_REPOSITORY $VALGRIND_TAG
 https://github.com/CodSpeedHQ/valgrind-codspeed/tree/$VALGRIND_COMMIT
 https://github.com/capstone-engine/capstone/tree/$(git -C third_party/capstone rev-parse HEAD)
 
-CodSpeed's instrument-hooks, MIT (LICENSE-instrument-hooks), in libinstrument_hooks.so:
-https://github.com/CodSpeedHQ/instrument-hooks/tree/$INSTRUMENT_HOOKS_COMMIT
+Tally's tally_hooks extension, MIT, with Valgrind's valgrind.h and callgrind.h, BSD-style, in
+tally_hooks-<PHP version>[-zts].so: ext/tally_hooks of the same commit of Tally.
 EOF
 
 cd "$repo_root"

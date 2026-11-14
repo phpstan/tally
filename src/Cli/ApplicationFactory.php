@@ -66,7 +66,7 @@ final class ApplicationFactory
 	 * @param bool $errorColors whether to color the error output
 	 * @param string $phpBinary runs the workers
 	 * @param string $tallyBinary the bin/tally the workers run
-	 * @param string $codspeed the build of CodSpeed's Valgrind and instrument-hooks for this platform
+	 * @param string $codspeed the builds of CodSpeed's Valgrind and tally_hooks for this platform
 	 */
 	public function create($stdout, $stderr, string $workingDirectory, array $environment, bool $colors, bool $errorColors, string $phpBinary, string $tallyBinary, string $codspeed): Application
 	{

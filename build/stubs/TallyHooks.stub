@@ -1,0 +1,32 @@
+<?php
+
+/*
+ * The functions of Tally's tally_hooks extension (ext/tally_hooks), which PHP has only when the
+ * extension is loaded. recorded_calls() is only in the recording build of the tests.
+ */
+
+namespace Tally\Hooks;
+
+function instrumented(): bool
+{
+}
+
+function start(): void
+{
+}
+
+function stop(): void
+{
+}
+
+function toggle_collect(): void
+{
+}
+
+function dump(string $name): void
+{
+}
+
+function recorded_calls(): string
+{
+}

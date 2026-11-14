@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Prepares an Amp orb (Debian) with what the checks in CLAUDE.md need: PHP 8.5 with FFI and pcov,
-# Composer, the dependencies, build-cs, and the build of CodSpeed's Valgrind for make bench.
+# Composer, the dependencies, build-cs, and the builds of CodSpeed's Valgrind and tally_hooks for
+# make bench.
 # Runs again on a stale snapshot, so every step skips what is already in place.
 set -euo pipefail
 
@@ -19,8 +20,9 @@ step() {
 
 step "PHP $PHP_VERSION and system packages"
 # Debian ships an older PHP; CI runs the checks on 8.5. FFI and posix come with php-common.
-# autotools and gcc build CodSpeed's Valgrind, zip packs the release tree for build/check-release.sh.
-packages=(php$PHP_VERSION-cli php$PHP_VERSION-xml php$PHP_VERSION-mbstring php$PHP_VERSION-curl php$PHP_VERSION-zip php$PHP_VERSION-pcov unzip zip gcc make autoconf automake)
+# autotools and gcc build CodSpeed's Valgrind, php-dev the tally_hooks extension for make bench and
+# its recording build for the tests, zip packs the release tree for build/check-release.sh.
+packages=(php$PHP_VERSION-cli php$PHP_VERSION-xml php$PHP_VERSION-mbstring php$PHP_VERSION-curl php$PHP_VERSION-zip php$PHP_VERSION-pcov php$PHP_VERSION-dev unzip zip gcc make autoconf automake)
 missing=()
 for package in "${packages[@]}"; do
 	dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'install ok installed' || missing+=("$package")
@@ -66,5 +68,8 @@ if [ "$(cat "$build_dir/.key" 2>/dev/null)" != "$key" ]; then
 	build/build-codspeed.sh
 	echo "$key" >"$build_dir/.key"
 fi
+
+step "tally_hooks"
+make codspeed
 
 step "done"

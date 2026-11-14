@@ -42,9 +42,19 @@ Tally runs each benchmark once under [CodSpeed](https://codspeed.io)'s CPU simul
 composer require --dev phpstan/tally
 ```
 
-Tally needs PHP 8.2 or later with the FFI and POSIX extensions, on Linux on x86_64 or aarch64. Nothing else to set up: each release includes builds of [CodSpeed's Valgrind](https://github.com/CodSpeedHQ/valgrind-codspeed) and [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks) for both, in `codspeed/`, with their licenses and where their source is. Tally starts the Valgrind with the options of `codspeed run --mode=simulation`, so it counts like CodSpeed, but needs neither the `codspeed` CLI nor a CodSpeed account, and uploads nothing.
+Tally needs PHP 8.2 or later with the POSIX extension, on Linux on x86_64 or aarch64. Nothing else to set up: each release includes, in `codspeed/` for both platforms,
 
-Releases are tagged on the `release/1.x` branch, which CI builds from `1.x` with the builds committed. A clone of `1.x`, or `dev-1.x` from Composer, has no builds: run `build/build-codspeed.sh`, which needs gcc, make, and autotools.
+- a build of [CodSpeed's Valgrind](https://github.com/CodSpeedHQ/valgrind-codspeed), with its license and where its source is. Tally starts it with the options of `codspeed run --mode=simulation`, so it counts like CodSpeed, but needs neither the `codspeed` CLI nor a CodSpeed account, and uploads nothing.
+- builds of Tally's `tally_hooks` extension ([ext/tally_hooks](ext/tally_hooks)) for PHP 8.2 to 8.6, thread safe or not. It tells Callgrind when to count, with the same client requests as CodSpeed's [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks). `tally run` loads the build for your PHP into the process that counts a case with `-d extension=`, so it needs no `php.ini` change and nothing else in your other processes.
+
+A debug build of PHP, or another PHP whose extension API differs from the official one, needs its own build of `tally_hooks`. Build it with `phpize` and load it in `php.ini`, then `tally run` uses it instead:
+
+```bash
+build/build-tally-hooks.sh /usr/local/lib/php/tally_hooks.so  # in vendor/phpstan/tally
+echo 'extension=/usr/local/lib/php/tally_hooks.so' > /usr/local/etc/php/conf.d/tally_hooks.ini
+```
+
+Releases are tagged on the `release/1.x` branch, which CI builds from `1.x` with the builds committed. A clone of `1.x`, or `dev-1.x` from Composer, has no builds: run `make codspeed`, which builds Valgrind and `tally_hooks` for your PHP and needs gcc, make, autotools, and `phpize`.
 
 The counts depend on the PHP build and the system libraries. Numbers measured on a laptop differ from those of a CI runner, so take the expected numbers from CI.
 
@@ -428,7 +438,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.5"
-          extensions: ffi, posix
+          extensions: posix
       - run: composer install --no-interaction --no-progress
       - run: vendor/bin/tally run --output=tmp/tally-results
       - if: always()

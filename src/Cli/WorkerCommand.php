@@ -8,19 +8,20 @@ use Tally\Measurement;
 use Tally\Result\MeasurementJson;
 use Tally\Runner\CaseRunner;
 use Tally\Runner\CodSpeedCounter;
+use Tally\Runner\ExtensionInstrumentHooks;
 use Tally\Runner\FailureDescription;
-use Tally\Runner\FfiInstrumentHooks;
 use Tally\Runner\IdleCounter;
 use Tally\ScratchDirectory;
 use Throwable;
 use function file_put_contents;
+use function get_loaded_extensions;
 use function is_dir;
 use function mkdir;
 use function sprintf;
 
 /**
  * Runs one case in this process and writes its measurement. tally run starts a worker natively,
- * and then under CodSpeed's CPU simulation with the instrument-hooks library, which counts it.
+ * and then under CodSpeed's CPU simulation with the tally_hooks extension, which counts it.
  */
 final class WorkerCommand implements Command
 {
@@ -63,7 +64,7 @@ final class WorkerCommand implements Command
 			new Option('case', 'id', 'The ID of the case to run'),
 			new Option('scratch', 'directory', 'The scratch directory of the case, created when it does not exist'),
 			new Option('result', 'file', 'Where to write the measurement as JSON'),
-			new Option('instrument-hooks', 'library', "CodSpeed's instrument-hooks library, which counts the case under CodSpeed's CPU simulation"),
+			new Option('counted', null, "Count the case under CodSpeed's CPU simulation, with Tally's tally_hooks extension"),
 		];
 	}
 
@@ -75,7 +76,7 @@ final class WorkerCommand implements Command
 		$resultFile = $this->required($input, 'result');
 		$case = $this->find($this->selectedCases->load($input, $this->selectedCases->configuration($input), $input->arguments()), $id);
 
-		$measurement = $this->run($case, $scratch, $input->option('instrument-hooks'));
+		$measurement = $this->run($case, $scratch, $input->flag('counted'));
 		if (@file_put_contents($resultFile, $this->json->encode($measurement)) === false) {
 			$output->error(sprintf('Cannot write %s.', $resultFile));
 
@@ -85,13 +86,13 @@ final class WorkerCommand implements Command
 		return $measurement->failure === null ? Application::EXIT_SUCCESS : Application::EXIT_FAILURE;
 	}
 
-	private function run(BenchmarkCase $case, string $scratch, ?string $instrumentHooks): Measurement
+	private function run(BenchmarkCase $case, string $scratch, bool $counted): Measurement
 	{
 		try {
 			if (!is_dir($scratch)) {
 				mkdir($scratch, 0777, true);
 			}
-			$counter = $instrumentHooks === null ? $this->idle : new CodSpeedCounter(FfiInstrumentHooks::load($instrumentHooks));
+			$counter = $counted ? new CodSpeedCounter(ExtensionInstrumentHooks::load(get_loaded_extensions())) : $this->idle;
 
 			return Measurement::measured($case->id, $this->runner->run($case, new ScratchDirectory($scratch), $counter));
 		} catch (Throwable $e) {

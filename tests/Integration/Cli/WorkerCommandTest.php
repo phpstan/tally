@@ -10,7 +10,6 @@ use Tally\Metric;
 use Tally\Result\InvalidResultException;
 use Tally\Result\MeasurementJson;
 use Tally\Tests\InProcessTally;
-use Tally\Tests\InstrumentHooksFixture;
 use function array_keys;
 use function array_values;
 use function dirname;
@@ -20,8 +19,10 @@ use function is_dir;
 use function mkdir;
 use function proc_close;
 use function proc_open;
+use function putenv;
 use function sprintf;
 use function sys_get_temp_dir;
+use function Tally\Hooks\recorded_calls;
 use const PHP_BINARY;
 
 final class WorkerCommandTest extends TestCase
@@ -63,16 +64,14 @@ final class WorkerCommandTest extends TestCase
 	 */
 	public function testCountsTheCaseAndItsBaselineWithTheLibrary(): void
 	{
-		$library = InstrumentHooksFixture::compile(true);
-		$recording = InstrumentHooksFixture::load($library);
-		$recording->clear_recorded_calls();
+		recorded_calls();
 
-		[$exitCode, , $errorOutput] = $this->worker(self::BENCH . '::benchAllocate', ['--instrument-hooks=' . $library], $this->directory);
+		[$exitCode, , $errorOutput] = $this->worker(self::BENCH . '::benchAllocate', ['--counted'], $this->directory);
 
 		$this->assertSame(0, $exitCode, $errorOutput);
 		$this->assertSame(
-			sprintf("init\nstart\nstop\nexecuted %1\$d %2\$s::benchAllocate#warmup\nstart\nstop\nexecuted %1\$d %2\$s::benchAllocate#baseline\nstart\nstop\nexecuted %1\$d %2\$s::benchAllocate\n", (int) getmypid(), self::BENCH),
-			$recording->recorded_calls(),
+			sprintf("start\nstop\ndump %1\$s::benchAllocate#warmup\nstart\nstop\ndump %1\$s::benchAllocate#baseline\nstart\nstop\ndump %1\$s::benchAllocate\n", self::BENCH),
+			recorded_calls(),
 		);
 		$this->assertSame(['memory'], array_keys($this->writtenResult()->metrics->toArray()));
 	}
@@ -144,7 +143,12 @@ final class WorkerCommandTest extends TestCase
 	 */
 	public function testRefusesToCountOutsideTheSimulation(): void
 	{
-		[$exitCode] = $this->worker(self::BENCH . '::benchAllocate', ['--instrument-hooks=' . InstrumentHooksFixture::compile(false)], $this->directory);
+		putenv('TALLY_HOOKS_OUTSIDE=1');
+		try {
+			[$exitCode] = $this->worker(self::BENCH . '::benchAllocate', ['--counted'], $this->directory);
+		} finally {
+			putenv('TALLY_HOOKS_OUTSIDE');
+		}
 
 		$this->assertSame(1, $exitCode);
 		$this->assertStringStartsWith("The benchmark does not run under CodSpeed's CPU simulation.\n", (string) $this->writtenResult()->failure);
@@ -175,12 +179,12 @@ final class WorkerCommandTest extends TestCase
 			"Runs one case in this process, tally run starts it for every case\n\n"
 			. "Usage: tally worker [options] [<path>...]\n\n"
 			. "Options:\n"
-			. "  --config=<file>               Configuration file, tally.php in the working directory by default\n"
-			. "  --case=<id>                   The ID of the case to run\n"
-			. "  --scratch=<directory>         The scratch directory of the case, created when it does not exist\n"
-			. "  --result=<file>               Where to write the measurement as JSON\n"
-			. "  --instrument-hooks=<library>  CodSpeed's instrument-hooks library, which counts the case under CodSpeed's CPU simulation\n"
-			. "  --help                        Show this help\n",
+			. "  --config=<file>        Configuration file, tally.php in the working directory by default\n"
+			. "  --case=<id>            The ID of the case to run\n"
+			. "  --scratch=<directory>  The scratch directory of the case, created when it does not exist\n"
+			. "  --result=<file>        Where to write the measurement as JSON\n"
+			. "  --counted              Count the case under CodSpeed's CPU simulation, with Tally's tally_hooks extension\n"
+			. "  --help                 Show this help\n",
 			$output,
 		);
 	}

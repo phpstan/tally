@@ -29,6 +29,10 @@ use function preg_match_all;
 use function realpath;
 use function sprintf;
 use function sys_get_temp_dir;
+use const PHP_MAJOR_VERSION;
+use const PHP_MINOR_VERSION;
+use const ZEND_DEBUG_BUILD;
+use const ZEND_THREAD_SAFE;
 
 /**
  * Measures the cases: each case runs natively first, then under CodSpeed's CPU simulation, which
@@ -90,7 +94,7 @@ final class RunCommand implements Command
 	{
 		$jobs = $this->jobs($input);
 		try {
-			[$valgrind, $valgrindTools, $instrumentHooks] = $this->installation->locate(get_loaded_extensions());
+			[$valgrind, $valgrindTools, $extension] = $this->installation->locate(get_loaded_extensions(), self::phpBuild());
 		} catch (CodSpeedException $e) {
 			$output->error($e->getMessage());
 
@@ -114,7 +118,7 @@ final class RunCommand implements Command
 			$configuration->iniEntries(),
 			$this->suiteArguments($input),
 			$valgrind,
-			$instrumentHooks,
+			$extension,
 			$workDirectory,
 			$configuration->nativeTimeLimitSeconds(),
 			$configuration->countedTimeLimitSeconds(),
@@ -196,6 +200,15 @@ final class RunCommand implements Command
 		);
 
 		return $measurements;
+	}
+
+	/**
+	 * Which build of the tally_hooks extension this PHP loads: one per minor version, thread safe or
+	 * not. Debug builds need one of their own, which releases do not include.
+	 */
+	private static function phpBuild(): string
+	{
+		return sprintf('%d.%d%s%s', PHP_MAJOR_VERSION, PHP_MINOR_VERSION, ZEND_THREAD_SAFE ? '-zts' : '', ZEND_DEBUG_BUILD ? '-debug' : '');
 	}
 
 	/**

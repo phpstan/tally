@@ -135,7 +135,9 @@ jobs:
         with:
           coverage: "none"
           php-version: "${{ matrix.php-version }}"
-          extensions: ffi, posix
+          extensions: posix
+          # builds the recording build of tally_hooks for the tests
+          tools: phpize, php-config
 
       - name: "Without Infection, which needs PHP 8.3"
         if: matrix.php-version == '8.2'
@@ -174,7 +176,7 @@ jobs:
         with:
           coverage: "none"
           php-version: "${{ matrix.php-version }}"
-          extensions: ffi, posix
+          extensions: posix
 
       - name: "Install dependencies"
         run: "composer install --no-interaction --no-progress"
@@ -202,7 +204,9 @@ jobs:
         with:
           coverage: "pcov"
           php-version: "8.5"
-          extensions: ffi, posix
+          extensions: posix
+          # builds the recording build of tally_hooks for the tests
+          tools: phpize, php-config
 
       - name: "Install dependencies"
         run: "composer install --no-interaction --no-progress"
@@ -231,7 +235,9 @@ jobs:
         with:
           coverage: "pcov"
           php-version: "8.5"
-          extensions: ffi, posix
+          extensions: posix
+          # builds the recording build of tally_hooks for the tests
+          tools: phpize, php-config
 
       - name: "Install dependencies"
         run: "composer install --no-interaction --no-progress"
@@ -295,10 +301,72 @@ jobs:
           path: codspeed
           if-no-files-found: error
 
+  tally-hooks:
+    name: "tally_hooks (${{ matrix.runner }})"
+    # release/1.x has the builds committed
+    if: ${{ !startsWith(github.ref_name, 'release/') }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        runner:
+          - "ubuntu-24.04"
+          - "ubuntu-24.04-arm"
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Restore the builds"
+        id: cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: codspeed
+          key: tally-hooks-${{ runner.arch }}-8.2-8.6-${{ hashFiles('ext/tally_hooks/*', 'build/build-tally-hooks.sh') }}
+
+      # One build per minor version, thread safe or not, in the official images: an extension
+      # loads into any build of PHP with the same API version and thread safety.
+      - name: "Build"
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          output="codspeed/linux-$(uname -m)"
+          for version in 8.2 8.3 8.4 8.5 8.6; do
+            for variant in cli zts; do
+              image="php:$version-$variant"
+              # PHP 8.6 has only release candidates so far
+              if [ "$version" = 8.6 ]; then
+                image="php:8.6-rc-$variant"
+              fi
+              suffix=""
+              if [ "$variant" = zts ]; then
+                suffix="-zts"
+              fi
+              docker run --rm -v "$PWD:/tally" -w /tally "$image" bash -c \
+                'apt-get update -qq && apt-get install -y -qq --no-install-recommends $PHPIZE_DEPS >/dev/null && build/build-tally-hooks.sh "$1" && chown "$2" "$1"' \
+                _ "$output/tally_hooks-$version$suffix.so" "$(id -u):$(id -g)"
+            done
+          done
+          ls -l "$output"
+
+      - name: "Upload the builds"
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tally-hooks-${{ matrix.runner }}
+          path: codspeed
+          if-no-files-found: error
+
   benchmarks:
     name: "Benchmarks"
-    needs: "codspeed"
-    # runs on release/1.x too, with the committed build, when codspeed is skipped
+    needs: ["codspeed", "tally-hooks"]
+    # runs on release/1.x too, with the committed builds, when the builds are skipped
     if: ${{ !cancelled() && !failure() }}
     # Pinned because the counts depend on the PHP build and the system libraries
     runs-on: "ubuntu-24.04"
@@ -320,7 +388,7 @@ jobs:
         with:
           coverage: "none"
           php-version: "8.5"
-          extensions: ffi, posix
+          extensions: posix
 
       - name: "Install dependencies"
         run: "composer install --no-interaction --no-progress"
@@ -330,6 +398,13 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codspeed-ubuntu-24.04
+          path: codspeed
+
+      - name: "Download tally_hooks"
+        if: ${{ !startsWith(github.ref_name, 'release/') }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tally-hooks-ubuntu-24.04
           path: codspeed
 
       - name: "Benchmarks"
@@ -356,9 +431,9 @@ jobs:
           if-no-files-found: ignore
 
   release-tree:
-    name: "Release tree (${{ matrix.runner }})"
+    name: "Release tree (${{ matrix.runner }}, PHP ${{ matrix.php-version }})"
     # Checks the tree release/1.x gets from this commit the way a project installs it, on each platform
-    needs: "codspeed"
+    needs: ["codspeed", "tally-hooks"]
     if: ${{ !cancelled() && !failure() }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
@@ -369,6 +444,10 @@ jobs:
         runner:
           - "ubuntu-24.04"
           - "ubuntu-24.04-arm"
+        # the oldest and the newest build of tally_hooks
+        php-version:
+          - "8.2"
+          - "8.5"
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -385,14 +464,22 @@ jobs:
         uses: "shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962" # v2
         with:
           coverage: "none"
-          php-version: "8.5"
-          extensions: ffi, posix
+          php-version: "${{ matrix.php-version }}"
+          extensions: posix
 
       - name: "Download CodSpeed's Valgrind"
         if: ${{ !startsWith(github.ref_name, 'release/') }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: codspeed-*
+          path: codspeed
+          merge-multiple: true
+
+      - name: "Download tally_hooks"
+        if: ${{ !startsWith(github.ref_name, 'release/') }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: tally-hooks-*
           path: codspeed
           merge-multiple: true
 
@@ -433,6 +520,13 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: codspeed-*
+          path: codspeed
+          merge-multiple: true
+
+      - name: "Download tally_hooks"
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: tally-hooks-*
           path: codspeed
           merge-multiple: true
 

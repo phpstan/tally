@@ -36,7 +36,7 @@ final class CallgrindProfileBench
 	}
 
 	/**
-	 * A profile like instrument-hooks dumps for a case: the #warmup and #baseline parts, which
+	 * A profile like tally_hooks dumps for a case: the #warmup and #baseline parts, which
 	 * call few functions, and the part of the case, which calls the given number of functions.
 	 */
 	private static function profile(int $functions): string
