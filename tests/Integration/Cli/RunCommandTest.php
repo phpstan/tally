@@ -12,6 +12,7 @@ use Tally\Result\MeasurementJson;
 use Tally\Result\ResultsDirectory;
 use Tally\Tests\InProcessTally;
 use function array_map;
+use function array_slice;
 use function fclose;
 use function file_get_contents;
 use function fwrite;
@@ -46,7 +47,7 @@ final class RunCommandTest extends TestCase
 	 */
 	public function testCountsComparesAndKeepsTheResults(): void
 	{
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', '--jobs=2', '--output=' . $this->output, self::RUN]);
+		[$exitCode, $output, $errorOutput] = self::runWithFixtureConfiguration($this->environment(), ['run', '--jobs=2', '--output=' . $this->output, self::RUN]);
 
 		$this->assertSame(1, $exitCode, $errorOutput);
 		$this->assertStringStartsWith("Tally counts 4 cases under CodSpeed's CPU simulation, 2 at once.\n\n", $output);
@@ -83,7 +84,7 @@ final class RunCommandTest extends TestCase
 			$growth . '@large' => [2500, 3000, 100, 150],
 			$growth . '@small' => [1100, 1500, 100, 150],
 		], JSON_THROW_ON_ERROR);
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $environment, ['run', '--jobs=1', '--filter=@large', '--output=' . $this->output . '-growth', __DIR__ . '/../../Fixtures/Growth']);
+		[$exitCode, $output, $errorOutput] = self::runWithFixtureConfiguration($environment, ['run', '--jobs=1', '--filter=@large', '--output=' . $this->output . '-growth', __DIR__ . '/../../Fixtures/Growth']);
 
 		$this->assertSame(1, $exitCode, $errorOutput);
 		$this->assertSame(
@@ -108,7 +109,7 @@ final class RunCommandTest extends TestCase
 
 	public function testPassesWhenEveryCaseMatches(): void
 	{
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', '--filter=benchOk', self::RUN]);
+		[$exitCode, $output, $errorOutput] = self::runWithFixtureConfiguration($this->environment(), ['run', '--filter=benchOk', self::RUN]);
 
 		$this->assertSame(0, $exitCode, $errorOutput);
 		$this->assertStringContainsString('Tally counts 1 case under', $output);
@@ -117,7 +118,7 @@ final class RunCommandTest extends TestCase
 
 	public function testAShardWithoutCases(): void
 	{
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', '--shard=5/5', self::RUN]);
+		[$exitCode, $output, $errorOutput] = self::runWithFixtureConfiguration($this->environment(), ['run', '--shard=5/5', self::RUN]);
 
 		$this->assertSame(0, $exitCode, $errorOutput);
 		$this->assertSame("This shard has no cases to count.\n", $output);
@@ -125,7 +126,7 @@ final class RunCommandTest extends TestCase
 
 	public function testFailsBeforeCountingWhenAnExpectationCannotBeFound(): void
 	{
-		[$exitCode, $output, $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', __DIR__ . '/../../Fixtures/NonLiteral']);
+		[$exitCode, $output, $errorOutput] = self::runWithFixtureConfiguration($this->environment(), ['run', __DIR__ . '/../../Fixtures/NonLiteral']);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame('', $output);
@@ -136,7 +137,7 @@ final class RunCommandTest extends TestCase
 	{
 		$environment = ['TALLY_FAKE_COUNTS' => '{}'] + $this->environment();
 
-		[$exitCode, $output] = InProcessTally::run(__DIR__, $environment, ['run', '--filter=benchOk', self::RUN]);
+		[$exitCode, $output] = self::runWithFixtureConfiguration($environment, ['run', '--filter=benchOk', self::RUN]);
 
 		$this->assertSame(1, $exitCode);
 		$this->assertStringContainsString("Callgrind's profile has no part named " . self::BENCH . '::benchOk.', $output);
@@ -161,7 +162,7 @@ final class RunCommandTest extends TestCase
 		] + $this->environment();
 
 		$repository = (string) realpath(__DIR__ . '/../../..');
-		[$exitCode, $output] = InProcessTally::run($repository, $environment, ['run', '--filter=/benchSlower|benchNew/', self::RUN]);
+		[$exitCode, $output] = InProcessTally::run($repository, $environment, ['run', '--config=' . self::RUN . '/tally.php', '--filter=/benchSlower|benchNew/', self::RUN]);
 
 		$this->assertSame(1, $exitCode);
 		$this->assertStringContainsString('::error file=tests/Fixtures/Run/RunBench.php,line=16,title=', $output);
@@ -188,7 +189,7 @@ final class RunCommandTest extends TestCase
 		$summary = $this->output . '-shard-summary.md';
 		$environment = ['GITHUB_ACTIONS' => 'true', 'GITHUB_STEP_SUMMARY' => $summary] + $this->environment();
 
-		[$exitCode, $output] = InProcessTally::run((string) realpath(__DIR__ . '/../../..'), $environment, ['run', '--filter=benchSlower', '--shard=1/1', self::RUN]);
+		[$exitCode, $output] = InProcessTally::run((string) realpath(__DIR__ . '/../../..'), $environment, ['run', '--config=' . self::RUN . '/tally.php', '--filter=benchSlower', '--shard=1/1', self::RUN]);
 
 		$this->assertSame(1, $exitCode);
 		$this->assertStringContainsString('Benchmarks failed: 1 slower', $output);
@@ -200,7 +201,7 @@ final class RunCommandTest extends TestCase
 	{
 		$environment = ['GITHUB_ACTIONS' => 'true', 'GITHUB_WORKSPACE' => (string) realpath(__DIR__ . '/../../..')] + $this->environment();
 
-		[, $output] = InProcessTally::run(__DIR__, $environment, ['run', '--filter=benchSlower', self::RUN]);
+		[, $output] = self::runWithFixtureConfiguration($environment, ['run', '--filter=benchSlower', self::RUN]);
 
 		$this->assertStringContainsString('::error file=tests/Fixtures/Run/RunBench.php,line=16,title=', $output);
 	}
@@ -209,7 +210,7 @@ final class RunCommandTest extends TestCase
 	{
 		$environment = ['GITHUB_ACTIONS' => 'true', 'GITHUB_STEP_SUMMARY' => '/nonexistent/summary.md'] + $this->environment();
 
-		[, , $errorOutput] = InProcessTally::run(__DIR__, $environment, ['run', '--filter=benchOk', self::RUN]);
+		[, , $errorOutput] = self::runWithFixtureConfiguration($environment, ['run', '--filter=benchOk', self::RUN]);
 
 		$this->assertSame("Cannot write the job summary to /nonexistent/summary.md.\n", $errorOutput);
 	}
@@ -229,7 +230,7 @@ final class RunCommandTest extends TestCase
 
 	public function testReportsAResultsDirectoryThatCannotBeCreated(): void
 	{
-		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', '--filter=benchOk', '--output=/nonexistent/results', self::RUN]);
+		[$exitCode, , $errorOutput] = self::runWithFixtureConfiguration($this->environment(), ['run', '--filter=benchOk', '--output=/nonexistent/results', self::RUN]);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertSame("Cannot create /nonexistent/results.\n", $errorOutput);
@@ -248,10 +249,43 @@ final class RunCommandTest extends TestCase
 	#[DataProvider('dataInvalidJobs')]
 	public function testInvalidJobs(string $jobs): void
 	{
-		[$exitCode, , $errorOutput] = InProcessTally::run(__DIR__, $this->environment(), ['run', '--jobs=' . $jobs, self::RUN]);
+		[$exitCode, , $errorOutput] = self::runWithFixtureConfiguration($this->environment(), ['run', '--jobs=' . $jobs, self::RUN]);
 
 		$this->assertSame(2, $exitCode);
 		$this->assertStringStartsWith(sprintf("Option --jobs needs a positive number, %s given.\n", $jobs), $errorOutput);
+	}
+
+	/**
+	 * Runs tally with the configuration of the fixtures, which keeps TALLY_FAKE_COUNTS for the fake Valgrind.
+	 *
+	 * @param array<string, string> $environment
+	 * @param non-empty-list<string> $arguments the command first
+	 * @return array{int, string, string}
+	 */
+	private static function runWithFixtureConfiguration(array $environment, array $arguments): array
+	{
+		return InProcessTally::run(__DIR__, $environment, [$arguments[0], '--config=' . self::RUN . '/tally.php', ...array_slice($arguments, 1)]);
+	}
+
+	/**
+	 * @return iterable<string, array{list<string>, string}>
+	 */
+	public static function dataEnvironment(): iterable
+	{
+		yield 'the default leaves out the others' => [[], 'TALLY_EXAMPLE is false, PATH is set.'];
+		yield 'a configured variable is kept' => [['--config=' . __DIR__ . '/../../Fixtures/Environment/tally.php'], "TALLY_EXAMPLE is 'kept', PATH is set."];
+	}
+
+	/**
+	 * @param list<string> $config
+	 */
+	#[DataProvider('dataEnvironment')]
+	public function testTheCasesGetOnlyTheEnvironmentVariablesOfTheConfiguration(array $config, string $seen): void
+	{
+		[$exitCode, $output] = InProcessTally::run(__DIR__, ['TALLY_EXAMPLE' => 'kept'] + $this->environment(), ['run', ...$config, __DIR__ . '/../../Fixtures/Environment']);
+
+		$this->assertSame(1, $exitCode);
+		$this->assertStringContainsString("\n    RuntimeException: " . $seen . "\n", $output);
 	}
 
 	/**

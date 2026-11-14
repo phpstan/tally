@@ -29,6 +29,7 @@ final class Configuration
 	/**
 	 * @param list<string> $paths
 	 * @param list<string> $iniEntries
+	 * @param list<string> $environmentVariables
 	 */
 	private function __construct(
 		private array $paths,
@@ -37,7 +38,8 @@ final class Configuration
 		private int $countedTimeLimitSeconds,
 		private TolerancePolicy $tolerance,
 		private TolerancePolicy $growthTolerance,
-		private bool $namedArguments
+		private bool $namedArguments,
+		private array $environmentVariables
 	)
 	{
 	}
@@ -57,6 +59,9 @@ final class Configuration
 			// grows makes the counts of PHPStan's benchmarks up to 9 % more than the formula.
 			new RelativeTolerance(0.1),
 			false,
+			// what PHP, a shell, and the locale need; the rest, such as the branch name in CI, would
+			// move the memory layout of the counted process, and with it the counts of some benchmarks
+			['PATH', 'HOME', 'TMPDIR', 'LANG', 'LC_ALL', 'PHPRC', 'PHP_INI_SCAN_DIR'],
 		);
 	}
 
@@ -133,6 +138,22 @@ final class Configuration
 	}
 
 	/**
+	 * The environment variables the processes that run the cases keep from that of tally run. The
+	 * others are left out: the environment is on the stack of the counted process, so a variable
+	 * that differs from run to run, such as the branch name in CI, moves its memory layout, and
+	 * that moves the instructions and cycles of a benchmark whose allocations depend on it.
+	 *
+	 * @param list<string> $names
+	 */
+	public function withEnvironmentVariables(array $names): self
+	{
+		$configuration = clone $this;
+		$configuration->environmentVariables = $names;
+
+		return $configuration;
+	}
+
+	/**
 	 * @return list<string>
 	 */
 	public function paths(): array
@@ -171,6 +192,14 @@ final class Configuration
 	public function namedArguments(): bool
 	{
 		return $this->namedArguments;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public function environmentVariables(): array
+	{
+		return $this->environmentVariables;
 	}
 
 }

@@ -431,6 +431,7 @@ Every value Tally uses when a benchmark or the command line does not give one is
 | `withTolerance(TolerancePolicy)` | The tolerance of benchmarks without a policy on their method or class: any of the tolerance attributes, or your own `TolerancePolicy`. [`MetricTolerance`](#attributes) with ±2 % instructions, ±5 % cycles but at least 2,000, and ±5 % memory by default. |
 | `withGrowthTolerance(TolerancePolicy)` | The tolerance of benchmarks with a complexity class and without a policy on their method or class. `RelativeTolerance(0.1)` by default. |
 | `withNamedArguments(bool)` | Whether `tally accept` and the patch of new expectations write `#[ExpectedFor(dataSet: 'size-10', …)]` instead of `#[ExpectedFor('size-10', …)]`. Off by default. |
+| `withEnvironmentVariables(list<string>)` | The environment variables the cases run with; `tally run` leaves out the others. The environment is on the stack of the counted process, so a variable that differs from run to run, such as the branch name in CI, moves its memory layout, and with it the counts of benchmarks whose allocations depend on it. `PATH`, `HOME`, `TMPDIR`, `LANG`, `LC_ALL`, `PHPRC`, and `PHP_INI_SCAN_DIR` by default; list them too when you add one. |
 
 ## In CI
 
@@ -438,7 +439,8 @@ The counts depend on everything that runs the benchmark:
 
 - the PHP version, including the patch release,
 - how PHP was built, which extensions are loaded, and the PHP settings, such as whether opcache and JIT are on,
-- the system libraries, such as glibc, which come with the runner's operating system image.
+- the system libraries, such as glibc, which come with the runner's operating system image,
+- the environment variables the cases keep, see [`withEnvironmentVariables()`](#configuration).
 
 Expected numbers measured in one environment only fit that environment. So:
 

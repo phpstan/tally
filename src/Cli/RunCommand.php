@@ -18,6 +18,8 @@ use Tally\Process\ProcessPool;
 use Tally\Report\Report;
 use Tally\Result\ResultsDirectory;
 use Tally\Runner\CodSpeedException;
+use function array_flip;
+use function array_intersect_key;
 use function array_map;
 use function count;
 use function ctype_digit;
@@ -42,7 +44,7 @@ final class RunCommand implements Command
 {
 
 	/**
-	 * @param array<string, string> $environment of tally, the workers get it too
+	 * @param array<string, string> $environment of tally, the workers get the variables the configuration keeps
 	 */
 	public function __construct(
 		private SelectedCases $selectedCases,
@@ -131,7 +133,7 @@ final class RunCommand implements Command
 			$jobs,
 		));
 		try {
-			$environment = [...$this->environment, 'VALGRIND_LIB' => $valgrindTools];
+			$environment = [...array_intersect_key($this->environment, array_flip($configuration->environmentVariables())), 'VALGRIND_LIB' => $valgrindTools];
 			$measurements = $this->measure($located, $settings, $environment, $jobs, $input->option('output'), $output);
 		} catch (RuntimeException $e) {
 			$output->error($e->getMessage());
