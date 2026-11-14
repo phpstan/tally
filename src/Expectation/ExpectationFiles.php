@@ -3,7 +3,6 @@
 namespace Tally\Expectation;
 
 use RuntimeException;
-use Tally\BenchmarkCase;
 use function file_get_contents;
 use function file_put_contents;
 use function sprintf;
@@ -15,14 +14,13 @@ final class ExpectationFiles
 {
 
 	/**
-	 * @param list<BenchmarkCase> $cases
-	 * @return array<string, string|false> the code of their files by path, false for a file that cannot be read
+	 * @param list<string> $files
+	 * @return array<string, string|false> their code by path, false for a file that cannot be read
 	 */
-	public function read(array $cases): array
+	public function read(array $files): array
 	{
 		$code = [];
-		foreach ($cases as $case) {
-			$file = $case->expectations->file();
+		foreach ($files as $file) {
 			$code[$file] ??= @file_get_contents($file);
 		}
 

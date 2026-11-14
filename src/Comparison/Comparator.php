@@ -59,7 +59,7 @@ final class Comparator
 	 */
 	public function compareGrowth(CaseId $id, SourceLocation $location, GrowthPoint $growth, TolerancePolicy $tolerance, ?Measurement $measurement, ?Measurement $base): CaseComparison
 	{
-		$tolerance = new GrowthTolerance($growth->bound, $tolerance);
+		$tolerance = new GrowthTolerance($growth->attribute->complexity->describe(), $tolerance);
 		if ($measurement === null || $measurement->failure !== null) {
 			return new CaseComparison($id, $location, $tolerance, [], $measurement->failure ?? self::NOT_RUN, Status::NotMeasured, false);
 		}
@@ -112,7 +112,8 @@ final class Comparator
 		);
 	}
 
-	private function compareMetric(Metric $metric, ?int $expected, int $measured, TolerancePolicy $tolerance): MetricComparison
+	/** Also tells whether instructions grow within a complexity class, for tally accept */
+	public function compareMetric(Metric $metric, ?int $expected, int $measured, TolerancePolicy $tolerance): MetricComparison
 	{
 		if ($expected === null) {
 			return new MetricComparison($metric, null, $measured, null, Status::New);

@@ -290,7 +290,7 @@ Benchmarks failed: 2 slower, 1 unchanged
 Allowed difference: instructions grow at most as O(n) from the smallest data set, ±10 % of each metric
 
 Slower than expected
-These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, loosen the complexity class.
+These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, accept the new complexity class.
 
   Benchmark                            Metric         Expected   Measured     Change   Allowed
   App\PairsBench::benchPairs@size-20   instructions     93.44K     178.7K    +91.2 %     ±10 %
@@ -298,9 +298,21 @@ These benchmarks do more work than expected. Find out why before merging. If it 
 
 Reproduce locally
   vendor/bin/tally run --filter='App\PairsBench::benchPairs@size-40'
+
+Accept the new numbers
+  vendor/bin/tally run --output=tmp/tally
+  vendor/bin/tally accept tmp/tally
 ```
 
-`tally accept` does not write anything for these cases; change the attribute instead. A method needs a data provider with at least two data sets of different sizes, and cannot also have `#[ExpectedFor]` or expectations from its data provider. `--filter` adds the base of each selected case, and `--shard` keeps the cases of a method in one shard, because each is compared with its base.
+`tally accept` replaces a preset with the lowest one, in the order of the table above, that the measured instructions grow within as `tally run` compares them, keeping the size as written:
+
+```
+slower  App\PairsBench::benchPairs: O(n) to O(n^2)
+
+Accepted the complexity class of 1 benchmark.
+```
+
+This also tightens a preset the instructions grow well within, such as `#[Linear]` to `#[Logarithmic]`, listed as faster. The presets are compared at the sizes of the data sets only, so `#[Exponential]` replaces a preset that allows more growth at the largest one, as every polynomial of a high enough degree does. Accept needs the instructions of every data set of the method. It leaves `#[Complexity]` with a formula of its own as it is, and fails for a method no preset bounds. A method needs a data provider with at least two data sets of different sizes, and cannot also have `#[ExpectedFor]` or expectations from its data provider. `--filter` adds the base of each selected case, and `--shard` keeps the cases of a method in one shard, because each is compared with its base.
 
 Mistakes in the expressions are found when the benchmarks are loaded, before anything is counted:
 
@@ -395,7 +407,7 @@ Compares the results of `tally run --output` with the expected numbers again, wi
 
 ### `tally accept <results>`
 
-Makes the results of `tally run --output` the expected numbers of the cases that are new, slower, or faster. It rewrites the `#[Expected]` and `#[ExpectedFor]` attributes, or adds them, with the imports they need, and leaves the rest of the file as it is.
+Makes the results of `tally run --output` the expected numbers of the cases that are new, slower, or faster. It rewrites the `#[Expected]` and `#[ExpectedFor]` attributes, or adds them, with the imports they need, and leaves the rest of the file as it is. It replaces the preset [complexity class](#complexity) of a method whose instructions grew more than it allows, or well within a lower preset, and removes the import of the replaced class when nothing else uses it.
 
 ```
 slower  App\SortBench::benchSort@size-10

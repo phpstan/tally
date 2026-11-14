@@ -5,12 +5,26 @@ namespace Tally\Tests\Unit\Expectation;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tally\Attribute\Constant;
+use Tally\Attribute\Linear;
+use Tally\Attribute\Linearithmic;
+use Tally\Attribute\Logarithmic;
+use Tally\Attribute\Polynomial;
+use Tally\Attribute\Quadratic;
+use Tally\CaseId;
+use Tally\Complexity\ComplexityClass;
+use Tally\Expectation\ChangePlan;
+use Tally\Expectation\ComplexityAttribute;
+use Tally\Expectation\ExpectationChanges;
 use Tally\Expectation\ExpectationException;
 use Tally\Expectation\ExpectedAttributeRewriter;
+use Tally\Expectation\FileChange;
 use Tally\Expectation\MethodNotFoundException;
 use Tally\Metrics;
 use Tally\Tests\Fixtures\Rewriter\SortBench;
+use function array_map;
 use function file_get_contents;
+use function str_contains;
 use function str_replace;
 use function substr;
 
@@ -412,6 +426,153 @@ final class ExpectedAttributeRewriterTest extends TestCase
 		$rewriter = new ExpectedAttributeRewriter();
 
 		return $rewriter->locate($rewriter->index($code), $class, $method, $dataSet);
+	}
+
+	/**
+	 * @return iterable<string, array{ComplexityClass, ComplexityClass, string, string}>
+	 */
+	public static function dataReplaceComplexity(): iterable
+	{
+		$head = "<?php\nnamespace App;\n";
+		yield 'the import of the replaced class goes, the new one is added in order' => [
+			new Linear('ignored'),
+			new Linearithmic('ignored'),
+			$head . "use Tally\\Attribute\\DataProvider;\nuse Tally\\Attribute\\Linear;\nuse function sort;\nclass FooBench {\n\t#[DataProvider('lists')]\n\t#[Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\DataProvider;\nuse Tally\\Attribute\\Linearithmic;\nuse function sort;\nclass FooBench {\n\t#[DataProvider('lists')]\n\t#[Linearithmic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a named size' => [
+			new Linear('ignored'),
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\Linear;\n\nclass FooBench {\n\t#[Linear(size: 'input.rows')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant;\n\nclass FooBench {\n\t#[Constant(size: 'input.rows')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a polynomial of another degree' => [
+			new Polynomial('ignored', 3),
+			new Polynomial('ignored', 4),
+			$head . "use Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Polynomial('numbers', degree: 3)]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Polynomial('numbers', degree: 4)]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'the size after the degree' => [
+			new Polynomial('ignored', 3),
+			new Quadratic('ignored'),
+			$head . "use Tally\\Attribute\\Polynomial;\nuse Tally\\Attribute\\Quadratic;\nclass FooBench {\n\t#[Polynomial(degree: 3,size: self::SIZES[0])]\n\tpublic function bench() {}\n\t#[Quadratic('numbers')]\n\tpublic function benchOther() {}\n}\n",
+			$head . "use Tally\\Attribute\\Quadratic;\nclass FooBench {\n\t#[Quadratic(size: self::SIZES[0])]\n\tpublic function bench() {}\n\t#[Quadratic('numbers')]\n\tpublic function benchOther() {}\n}\n",
+		];
+		yield 'only the attribute of the method, the class used elsewhere stays imported' => [
+			new Linear('ignored'),
+			new Polynomial('ignored', 3),
+			$head . "use Tally\\Attribute\\Linear;\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function benchOther() {}\n\t#[Linear('numbers'), Warmup(1)]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Linear;\nuse Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function benchOther() {}\n\t#[Polynomial('numbers', degree: 3), Warmup(1)]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'after an earlier import, a constant, and a comma in brackets' => [
+			new Linear('ignored'),
+			new Constant('ignored'),
+			$head . "use App\\Sizes;\nuse Tally\\Attribute\\Linear; // O(n)\nclass FooBench {\n\t#[Linear(SIZE . ['rows', 'columns'][0])]\n\tpublic function bench() {}\n}\n",
+			$head . "use App\\Sizes;\nuse Tally\\Attribute\\Constant; // O(n)\nclass FooBench {\n\t#[Constant(SIZE . ['rows', 'columns'][0])]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'the new import goes before a later one' => [
+			new Linear('ignored'),
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\DataProvider;\nuse Tally\\Attribute\\Linear;\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant;\nuse Tally\\Attribute\\DataProvider;\nclass FooBench {\n\t#[Constant('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'the new import takes the place of the replaced one before a later one' => [
+			new Linear('ignored'),
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\Linear; // O(n)\nuse Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant; // O(n)\nuse Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Constant('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'the new import goes after a later one' => [
+			new Linear('ignored'),
+			new Logarithmic('ignored'),
+			$head . "use Tally\\Attribute\\Linear;\nuse Tally\\Attribute\\Linearithmic;\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Linearithmic;\nuse Tally\\Attribute\\Logarithmic;\nclass FooBench {\n\t#[Logarithmic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'an import without a line break after it' => [
+			new Linear('ignored'),
+			new Quadratic('ignored'),
+			$head . "use Tally\\Attribute\\Linear; use Tally\\Attribute\\Polynomial;\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . " use Tally\\Attribute\\Polynomial;\nuse Tally\\Attribute\\Quadratic;\nclass FooBench {\n\t#[Quadratic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a trailing comma' => [
+			new Linear('ignored'),
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\Linear;\nclass FooBench {\n\t#[Linear('numbers'),]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant;\nclass FooBench {\n\t#[Constant('numbers'),]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'an import among others in one statement stays' => [
+			new Linear('ignored'),
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\{DataProvider, Linear};\nclass FooBench {\n\t#[Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant;\nuse Tally\\Attribute\\{DataProvider, Linear};\nclass FooBench {\n\t#[Constant('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'an alias' => [
+			new Linear('ignored'),
+			new Logarithmic('ignored'),
+			$head . "use Tally\\Attribute as T;\nuse Tally\\Attribute\\Linear as OfN;\nclass FooBench {\n\t#[OfN('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute as T;\nuse Tally\\Attribute\\Logarithmic;\nclass FooBench {\n\t#[Logarithmic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a qualified name keeps the import it is qualified by' => [
+			new Linear('ignored'),
+			new Logarithmic('ignored'),
+			$head . "use Tally\\Attribute;\nclass FooBench {\n\t#[Attribute\\Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute;\nuse Tally\\Attribute\\Logarithmic;\nclass FooBench {\n\t#[Logarithmic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'a fully qualified name keeps the import of the class' => [
+			new Linear('ignored'),
+			new Constant('ignored'),
+			$head . "use Tally\\Attribute\\Linear;\nclass FooBench {\n\t#[\\Tally\\Attribute\\Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			$head . "use Tally\\Attribute\\Constant;\nuse Tally\\Attribute\\Linear;\nclass FooBench {\n\t#[Constant('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+		yield 'in the global namespace' => [
+			new Linear('ignored'),
+			new Quadratic('ignored'),
+			"<?php\nclass FooBench {\n\t#[\\Tally\\Attribute\\Linear('numbers')]\n\tpublic function bench() {}\n}\n",
+			"<?php\nclass FooBench {\n\t#[\\Tally\\Attribute\\Quadratic('numbers')]\n\tpublic function bench() {}\n}\n",
+		];
+	}
+
+	#[DataProvider('dataReplaceComplexity')]
+	public function testReplaceComplexity(ComplexityClass $current, ComplexityClass $replacement, string $code, string $expected): void
+	{
+		$plan = self::replaceComplexity($code, $code, $current, $replacement);
+
+		$this->assertSame([], $plan->failures);
+		$this->assertSame([$expected], array_map(static fn (FileChange $file): string => $file->after, $plan->files));
+	}
+
+	/**
+	 * @return iterable<string, array{string, string}>
+	 */
+	public static function dataReplaceComplexityFails(): iterable
+	{
+		$code = "<?php\nnamespace App;\nclass FooBench {\n\t#[Quadratic('numbers')]\n\tpublic function bench() {}\n}\n";
+		yield 'without the attribute' => [$code, 'Method App\\FooBench::bench() has no #[Linear] attribute.'];
+		yield 'in code that changed after it was loaded' => [$code . "\n", '/FooBench.php changed after Tally loaded it, run the command again.'];
+	}
+
+	#[DataProvider('dataReplaceComplexityFails')]
+	public function testReplaceComplexityFails(string $code, string $failure): void
+	{
+		$plan = self::replaceComplexity("<?php\nnamespace App;\nclass FooBench {\n\t#[Quadratic('numbers')]\n\tpublic function bench() {}\n}\n", $code, new Linear('numbers'), new Constant('numbers'));
+
+		$this->assertSame([], $plan->files);
+		$this->assertSame(['App\\FooBench::bench' => $failure], $plan->failures);
+	}
+
+	/**
+	 * Replaces the complexity class of FooBench::bench() as tally accept does.
+	 *
+	 * @param string $loaded the code when the benchmarks were loaded
+	 * @param string $code the code when it is rewritten
+	 */
+	private static function replaceComplexity(string $loaded, string $code, ComplexityClass $current, ComplexityClass $replacement): ChangePlan
+	{
+		$class = str_contains($code, 'namespace App;') ? 'App\\FooBench' : 'FooBench';
+		$rewriter = new ExpectedAttributeRewriter();
+		$attribute = new ComplexityAttribute($rewriter, '/FooBench.php', $rewriter->index($loaded), $class, 'bench', $current);
+
+		return (new ExpectationChanges())->plan([], [[new CaseId($class, 'bench', null), $attribute, $replacement]], ['/FooBench.php' => $code]);
 	}
 
 	private static function read(string $file): string

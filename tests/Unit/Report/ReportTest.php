@@ -118,8 +118,8 @@ final class ReportTest extends TestCase
 		$growing = Comparisons::grown('A::a@large', 20_000);
 		$prefix = 'These benchmarks do more work than expected. Find out why before merging. If it is the price of a fix, ';
 		yield 'expected numbers' => [[$numbers, $numbers], $prefix . 'accept the new numbers.'];
-		yield 'growth' => [[$growing, $growing], $prefix . 'loosen the complexity class.'];
-		yield 'both' => [[$numbers, $growing], $prefix . 'accept the new numbers or loosen the complexity class.'];
+		yield 'growth' => [[$growing, $growing], $prefix . 'accept the new complexity class.'];
+		yield 'both' => [[$numbers, $growing], $prefix . 'accept the new numbers and complexity classes.'];
 	}
 
 	/**
@@ -134,7 +134,7 @@ final class ReportTest extends TestCase
 	/**
 	 * @return iterable<string, array{list<CaseComparison>, bool}>
 	 */
-	public static function dataHasNumbersToAccept(): iterable
+	public static function dataHasChangesToAccept(): iterable
 	{
 		yield 'nothing' => [[], false];
 		yield 'unchanged' => [[Comparisons::compare('A::b', 1, ['instructions' => 1], ['instructions' => 1], null)], false];
@@ -142,17 +142,17 @@ final class ReportTest extends TestCase
 		yield 'slower' => [[Comparisons::compare('A::b', 1, ['instructions' => 1], ['instructions' => 2], null)], true];
 		yield 'faster' => [[Comparisons::compare('A::b', 1, ['instructions' => 10], ['instructions' => 1], null)], true];
 		yield 'new' => [[Comparisons::compare('A::b', 1, null, ['instructions' => 1], null)], true];
-		yield 'a growth that is slower' => [[Comparisons::grown('A::a@large', 20_000)], false];
-		yield 'a growth that is slower and a number that is new' => [[Comparisons::grown('A::a@large', 20_000), Comparisons::compare('A::b', 1, null, ['instructions' => 1], null)], true];
+		yield 'a growth that is slower' => [[Comparisons::grown('A::a@large', 20_000)], true];
+		yield 'a growth within its class' => [[Comparisons::grown('A::a@large', 5_000)], false];
 	}
 
 	/**
 	 * @param list<CaseComparison> $cases
 	 */
-	#[DataProvider('dataHasNumbersToAccept')]
-	public function testHasNumbersToAccept(array $cases, bool $has): void
+	#[DataProvider('dataHasChangesToAccept')]
+	public function testHasChangesToAccept(array $cases, bool $has): void
 	{
-		$this->assertSame($has, (new Report($cases))->hasNumbersToAccept());
+		$this->assertSame($has, (new Report($cases))->hasChangesToAccept());
 	}
 
 }

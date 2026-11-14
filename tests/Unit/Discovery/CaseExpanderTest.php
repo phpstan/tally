@@ -253,7 +253,7 @@ final class CaseExpanderTest extends TestCase
 	 */
 	private static function rewrite(string $code, BenchmarkCase $case, Metrics $metrics): array
 	{
-		$plan = (new ExpectationChanges())->plan([[$case, $metrics]], [$case->expectations->file() => $code]);
+		$plan = (new ExpectationChanges())->plan([[$case, $metrics]], [], [$case->expectations->file() => $code]);
 		self::assertSame([], $plan->failures);
 
 		return array_map(static fn (FileChange $file): string => $file->after, $plan->files);
