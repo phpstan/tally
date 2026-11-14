@@ -6,7 +6,6 @@ use Tally\CaseId;
 use Tally\Measurement;
 use Tally\Metrics;
 use Tally\Runner\CaseRunner;
-use function array_last;
 use function array_map;
 use function array_slice;
 use function count;
@@ -47,7 +46,7 @@ final class CaseOutcome
 		}
 
 		// the counted worker measured the memory, Callgrind counted the rest
-		return Measurement::measured($id, $counted->minus($baseline)->merge(array_last($written)->metrics));
+		return Measurement::measured($id, $counted->minus($baseline)->merge($written[count($written) - 1]->metrics));
 	}
 
 	/**
