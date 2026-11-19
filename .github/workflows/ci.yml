@@ -538,19 +538,26 @@ jobs:
         runner:
           - "ubuntu-24.04"
           - "ubuntu-24.04-arm"
-        # the oldest and the newest build of tally_hooks
+        # the oldest and the newest builds of tally_hooks, 8.6 being a release candidate
         php-version:
           - "8.2"
           - "8.5"
+          - "8.6"
         phpts:
           - "nts"
-        # and the thread safe build, which tally run picks by ZEND_THREAD_SAFE
+        # and the thread safe builds, which tally run picks by ZEND_THREAD_SAFE
         include:
           - runner: "ubuntu-24.04"
             php-version: "8.5"
             phpts: "ts"
           - runner: "ubuntu-24.04-arm"
             php-version: "8.5"
+            phpts: "ts"
+          - runner: "ubuntu-24.04"
+            php-version: "8.6"
+            phpts: "ts"
+          - runner: "ubuntu-24.04-arm"
+            php-version: "8.6"
             phpts: "ts"
 
     steps:
