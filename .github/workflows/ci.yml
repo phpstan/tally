@@ -325,35 +325,50 @@ jobs:
         with:
           persist-credentials: false
 
+      # One build per minor version, thread safe or not, in the official images: an extension
+      # loads into any build of PHP with the same API version and thread safety.
+      # From 8.6, every official image is thread safe and the -zts tags are gone, their last one an
+      # older release candidate (docker-library/php#1686), but setup-php and the distributions
+      # still install NTS. So both 8.6 builds come from php:8.6-rc-cli, and
+      # build-tally-hooks-in-php-image.sh builds the NTS PHP from the source of the image.
+      - name: "Choose the images"
+        run: |
+          for version in 8.2 8.3 8.4 8.5 8.6; do
+            for thread_safety in nts zts; do
+              if [ "$version" = 8.6 ]; then
+                image="php:8.6-rc-cli"
+              elif [ "$thread_safety" = zts ]; then
+                image="php:$version-zts"
+              else
+                image="php:$version-cli"
+              fi
+              # the digest of the index, one request, where --format reads the manifest of every platform
+              digest="sha256:$(docker buildx imagetools inspect --raw "$image" | sha256sum | cut -d ' ' -f 1)"
+              echo "$version $thread_safety $image $digest"
+            done
+          done | tee tmp/tally-hooks-images.txt
+
+      # keyed by the images too, so a new release of PHP, such as the next release candidate, is built
       - name: "Restore the builds"
         id: cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: codspeed
-          key: tally-hooks-${{ runner.arch }}-8.2-8.6-${{ hashFiles('ext/tally_hooks/*', 'build/build-tally-hooks.sh') }}
+          key: tally-hooks-${{ runner.arch }}-${{ hashFiles('ext/tally_hooks/*', 'build/build-tally-hooks.sh', 'build/build-tally-hooks-in-php-image.sh', 'tmp/tally-hooks-images.txt') }}
 
-      # One build per minor version, thread safe or not, in the official images: an extension
-      # loads into any build of PHP with the same API version and thread safety.
       - name: "Build"
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           output="codspeed/linux-$(uname -m)"
-          for version in 8.2 8.3 8.4 8.5 8.6; do
-            for variant in cli zts; do
-              image="php:$version-$variant"
-              # PHP 8.6 has only release candidates so far
-              if [ "$version" = 8.6 ]; then
-                image="php:8.6-rc-$variant"
-              fi
-              suffix=""
-              if [ "$variant" = zts ]; then
-                suffix="-zts"
-              fi
-              docker run --rm -v "$PWD:/tally" -w /tally "$image" bash -c \
-                'apt-get update -qq && apt-get install -y -qq --no-install-recommends $PHPIZE_DEPS >/dev/null && build/build-tally-hooks.sh "$1" && chown "$2" "$1"' \
-                _ "$output/tally_hooks-$version$suffix.so" "$(id -u):$(id -g)"
-            done
-          done
+          while read -r version thread_safety image digest; do
+            suffix=""
+            if [ "$thread_safety" = zts ]; then
+              suffix="-zts"
+            fi
+            docker run --rm -v "$PWD:/tally" -w /tally "$image@$digest" bash -c \
+              'build/build-tally-hooks-in-php-image.sh "$1" "$2" && chown "$3" "$2"' \
+              _ "$thread_safety" "$output/tally_hooks-$version$suffix.so" "$(id -u):$(id -g)"
+          done < tmp/tally-hooks-images.txt
           ls -l "$output"
 
       - name: "Upload the builds"

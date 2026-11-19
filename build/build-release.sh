@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Turns the 1.x source tree into the release/1.x tree: the same code with the builds of CodSpeed's
 # Valgrind (build/build-codspeed.sh) and of the tally_hooks extension for PHP 8.2 to 8.6, NTS and
-# ZTS (build/build-tally-hooks.sh) in codspeed/, made on each platform.
+# ZTS (build/build-tally-hooks-in-php-image.sh) in codspeed/, made on each platform.
 # Releases are tagged on release/1.x, so a project that requires Tally needs no CodSpeed setup.
 # With --commit, the builds become a commit, as on the release branch.
 set -euo pipefail
